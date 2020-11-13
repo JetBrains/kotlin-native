@@ -8,7 +8,7 @@ You can manage Pod dependencies directly in IntelliJ IDEA and enjoy all the addi
 and completion. You can build the whole Kotlin project with Gradle and not ever have to switch to Xcode. 
 
 Use Xcode only when you need to write Swift/Objective-C code or run your application on a simulator or device.
-To work correctly with Xcode, you should [update you Podfile](#update-podfile-for-xcode). 
+To work correctly with Xcode, you should [update your Podfile](#update-podfile-for-xcode). 
 
 Depending on your project and purposes, you can add dependencies between [a Kotlin project and a Pod library](#add-dependencies-on-pod-libraries) as well as [a Kotlin Pod and an Xcode project](#use-a-kotlin-gradle-project-as-a-cocoapods-dependency). 
 
@@ -96,7 +96,7 @@ the build process of an Xcode project.
 
 To add dependencies between a Kotlin project and a Pod library, you should [complete the initial configuration](#install-the-cocoapods-dependency-manager-and-plugin).
 This allows you to add dependencies on the following types of Pod libraries: 
- * [A Pod library from a CocoaPods repository](#add-a-dependency-on-a-pod-library-from-the-cocoapods-repository) 
+ * [A Pod library from the CocoaPods repository](#add-a-dependency-on-a-pod-library-from-the-cocoapods-repository) 
  * [A Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally)
  * [A Pod library from a Git repository](#add-a-dependency-on-a-pod-library-from-the-git-repository)
  * [A Pod library from an archive](#add-a-dependency-on-a-pod-library-from-an-archive)
@@ -296,7 +296,7 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 
 ```kotlin
 import cocoapods.AFNetworking.*
-import cocoapods.SDWebImage.*
+import cocoapods.JSONModel.*
 ```
 
 </div>
@@ -312,7 +312,7 @@ You can add dependencies on a Pod library from `zip`, `tar`, or `jar` archive wi
 In the configuration block specify the path to the archive: use the `url()` function with an arbitrary HTTP address in the `source` parameter value. 
 
     Additionally, you can specify the Boolean `flatten` parameter as a second argument for the `url()` function.
-    It indicates that all Pod files located in the root directory of the archive.
+    It indicates that all Pod files are located in the root directory of the archive.
 
 2. Specify the minimum deployment target version for the Pod library.
 
@@ -364,8 +364,7 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import cocoapods.AFNetworking.*
-import cocoapods.SDWebImage.*
+import cocoapods.pod_dependency.*
 ```
 
 </div>
@@ -420,8 +419,7 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import cocoapods.AFNetworking.*
-import cocoapods.SDWebImage.*
+import cocoapods.example.*
 ```
 
 </div>
