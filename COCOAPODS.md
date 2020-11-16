@@ -83,6 +83,8 @@ Depending on your project and purposes, you can add dependencies between [a Kotl
 
 5. Re-import the project.
 
+6. Generate the [Gradle wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html) to avoid compatibility issues during an Xcode build.
+
 When applied, the CocoaPods plugin does the following:
 
 * Adds both `debug` and `release` frameworks as output binaries for all macOS, iOS, tvOS, and watchOS targets.
