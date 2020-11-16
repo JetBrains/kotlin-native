@@ -668,7 +668,7 @@ of your Kotlin project.
     ```ruby
     use_frameworks!
     
-    platform :ios, '9.0'
+    platform :ios, '13.5'
     
     target 'ios-app' do
             pod 'kotlin_library', :path => '../kotlin-library'
