@@ -104,11 +104,11 @@ This allows you to add dependencies on the following types of Pod libraries:
  * [A Pod library with custom cinterop options](#add-a-dependency-on-a-pod-library-with-custom-cinterop-options)
  * [A static Pod library](#add-a-dependency-on-a-static-pod-library)
 
-A Kotlin project requires the `pod()` function call in `build.gradle.kts` (`build.gradle`) for adding a Pod dependency. Each dependency requires a separate function call.
-The function has a configuration block where you could specify the parameters for the dependency.
+A Kotlin project requires the `pod()` function call in `build.gradle.kts` (`build.gradle`) for adding a Pod dependency. Each dependency requires its own separate function call.
+You can specify the parameters for the dependency in the configuration block of the function.
 
-When you add a new dependency and re-import the project in IntelliJ IDEA the new dependency will be added automatically.
-There are no additional steps required. 
+When you add a new dependency and re-import the project in IntelliJ IDEA, the new dependency will be added automatically.
+No additional steps are required.
 
 To use your Kotlin project with Xcode, you should [make changes in your project Podfile](#update-podfile-for-xcode).
 
@@ -116,8 +116,8 @@ To use your Kotlin project with Xcode, you should [make changes in your project 
 
 You can add dependencies on a Pod library from the CocoaPods repository with `pod()` to `build.gradle.kts` 
 (`build.gradle`) of your project:
- 
-1. Specify the name of a Pod library in the `pod()` function. In the configuration block you can specify the version of the library using the `version` parameter. To use the latest version of the library, omit the `version` parameter.
+
+1. Specify the name of a Pod library in the `pod()` function. In the configuration block you can specify the version of the library using the `version` parameter. To use the latest version of the library, you can just omit this parameter all-together.
 
    > You can add dependencies on subspecs.
    {:.note}
@@ -237,12 +237,12 @@ You can add dependencies on a Pod library from a custom Git repository with `pod
 In the configuration block specify the path to the git repository: use the `git()` function in the `source` parameter value.
 
     Additionally, you can specify the following parameters in the block after `git()`:
-    * `commit` – to use a specific commit of the repository
-    * `tag` – to use a specific tag of the repository
-    * `branch` – to use a specific branch of the repository
+    * `commit` – to use a specific commit from the repository
+    * `tag` – to use a specific tag from the repository
+    * `branch` – to use a specific branch from the repository
 
-    The `git()` function prioritizes passed parameters in the following order (from highest to lowest): `commit`, `tag`, `branch`.
-    If you don't specify any parameter, Kotlin plugin uses `HEAD` of the `master` branch.
+    The `git()` function prioritizes passed parameters in the following order: `commit`, `tag`, `branch`.
+    If you don't specify a parameter, the Kotlin plugin uses `HEAD` from the `master` branch.
 
     > You can combine `branch`, `commit`, and `tag` parameters to get the specific version of a Pod.
     {:.note}
@@ -328,8 +328,8 @@ You can add dependencies on a Pod library from `zip`, `tar`, or `jar` archive wi
 1. Specify the name of a Pod library in the `pod()` function.
 In the configuration block specify the path to the archive: use the `url()` function with an arbitrary HTTP address in the `source` parameter value. 
 
-    Additionally, you can specify the boolean `flatten` parameter as a second argument for the `url()` function.
-    It indicates that all Pod files are located in the root directory of the archive.
+    Additionally, you can specify the boolean `flatten` parameter as a second argument for the `url()` function
+    This parameter indicates that all the Pod files are located in the root directory of the archive.
 
 2. Specify the minimum deployment target version for the Pod library.
 
@@ -466,8 +466,8 @@ You can add dependencies on a Pod library with custom cinterop options with `pod
 1. Specify the name of a Pod library in the `pod()` function.
 In the configuration block specify the cinterop options:
 
-    * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags: `extraOpts = listOf("-compiler-option")`
-    * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import <packageName>`
+    * `extraOpts` – to specify the list of options for a Pod library. For example, specific flags: `extraOpts = listOf("-compiler-option")`
+    * `packageName` – to specify the package name. If you specify this, you can import the library using the package name: `import <packageName>`.
 
 2. Specify the minimum deployment target version for the Pod library.
 
@@ -573,11 +573,11 @@ import cocoapods.YandexMapKit.*
 
 ### Update Podfile for Xcode
 
-If you want to import your Kotlin project to an Xcode project, you should make changes to your Podfile to work correctly:
+If you want to import your Kotlin project in an Xcode project, you’ll need to make some changes to your Podfile for it to work correctly:
 
-* If your project has any Git, HTTP, custom Podspec repository dependency, you should also specify the path to the Podspec in the Podfile.
+* If your project has any Git, HTTP, or custom Podspec repository dependencies, you should also specify the path to the Podspec in the Podfile.
 
-   For example, if you add the dependency on `podspecWithFilesExample`, declare the path to the Podspec in the Podfile:
+   For example, if you add a dependency on `podspecWithFilesExample`, declare the path to the Podspec in the Podfile:
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
    
@@ -610,9 +610,9 @@ If you want to import your Kotlin project to an Xcode project, you should make c
 > Re-import the project after making changes in Podfile.
 {:.note}
 
-If you don't make the changes of the Podfile, the `podInstall` task will fail and the CocoaPods plugin will show the error message in the log.
+If you don't make these changes to the Podfile, the `podInstall` task will fail and the CocoaPods plugin will show an error message in the log.
 
-See the `withXcproject` branch of the [sample project](https://github.com/Kotlin/kotlin-with-cocoapods-sample) that contains an example of Xcode integration with the existing Xcode project named `kotlin-cocoapods-xcproj`.
+Check out the `withXcproject` branch of the [sample project](https://github.com/Kotlin/kotlin-with-cocoapods-sample), which contains an example of Xcode integration with an existing Xcode project named `kotlin-cocoapods-xcproj`.
 
 ## Use a Kotlin Gradle project as a CocoaPods dependency
 
