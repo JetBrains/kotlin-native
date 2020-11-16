@@ -131,7 +131,7 @@ allprojects {
         }
     }
 
-    if (property("kotlin.build.useIR") == "true") {
+    if (findProperty("kotlin.build.useIR") == "true") {
         tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
             kotlinOptions {
                 useIR = true
