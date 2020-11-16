@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ExecClang
 import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.inject.Inject
 
@@ -92,18 +93,81 @@ open class CompileToBitcode @Inject constructor(
             }
         }
 
+    // TODO: This is horrible. Even if `inputFiles` didn't change, this will still get executed.
     @get:InputFiles
     protected val headers: Iterable<File>
         get() {
-            return headersDirs.files.flatMap { dir ->
-                project.fileTree(dir) {
-                    val includePatterns = when (language) {
-                        Language.C -> arrayOf("**/.h")
-                        Language.CPP -> arrayOf("**/*.h", "**/*.hpp")
+            val headers = mutableSetOf<File>()
+            val parseMakefileDependency = { file: File, input: String ->
+                class Parser {
+                    var pos = 0
+
+                    val eof: Boolean
+                        get() = pos >= input.length
+
+                    fun skipPrefix(prefix: String) {
+                        if (input.subSequence(pos, pos + prefix.length) != prefix)
+                            error("Invalid dependency output")
+                        pos += prefix.length
                     }
-                    it.include(*includePatterns)
-                }.files
+
+                    fun isSpace(pos: Int) =
+                        when (input[pos]) {
+                            ' ', '\n', '\r', '\t' -> true
+                            else -> false
+                        }
+
+                    fun isEscape(pos: Int) =
+                        when (input[pos]) {
+                            '\\' -> true
+                            else -> false
+                        }
+
+                    fun skipSpaces() {
+                        while (!eof && (isSpace(pos) || (isEscape(pos) && pos + 1 < input.length && isSpace(pos + 1)))) {
+                            pos++
+                        }
+                    }
+
+                    fun readFileName(): String {
+                        val builder = StringBuilder()
+                        while (!eof && !isSpace(pos)) {
+                            if (!isEscape(pos)) {
+                                builder.append(input[pos])
+                            } else {
+                                ++pos
+                                if (!eof) {
+                                    builder.append(input[pos])
+                                }
+                            }
+                            ++pos
+                        }
+                        return builder.toString()
+                    }
+                }
+                val p = Parser()
+                p.skipPrefix("${file.nameWithoutExtension}.o:")
+                p.skipSpaces()
+                while (!p.eof) {
+                    val filename = p.readFileName()
+                    if (filename != file.absolutePath)
+                        headers.add(File(filename))
+                    p.skipSpaces()
+                }
             }
+            for (inputFile in inputFiles) {
+                val plugin = project.convention.getPlugin(ExecClang::class.java)
+
+                val outputStream = ByteArrayOutputStream()
+                val result = plugin.execKonanClang(target) {
+                    it.executable = executable
+                    it.args = compilerFlags + "-M" + inputFile.absolutePath
+                    it.standardOutput = outputStream
+                }
+                result.assertNormalExitValue()
+                parseMakefileDependency(inputFile, outputStream.toString())
+            }
+            return headers
         }
 
     @OutputFile
