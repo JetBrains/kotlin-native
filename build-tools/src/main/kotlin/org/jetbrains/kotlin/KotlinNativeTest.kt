@@ -14,6 +14,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import org.gradle.process.ExecSpec
 import org.jetbrains.kotlin.konan.exec.Command
 
 import java.io.File
@@ -419,7 +420,11 @@ open class KonanDynamicTest : KonanStandaloneTest() {
     @Input
     lateinit var cSource: String
 
+    @Input
     var clangTool = "clang"
+
+    @Input
+    var clangFlags: List<String> = listOf()
 
     // Replace testlib_api.h and all occurrences of the testlib with the actual name of the test
     private fun processCSource(): String {
@@ -453,7 +458,7 @@ open class KonanDynamicTest : KonanStandaloneTest() {
                     "-c",
                     "-o", "$executable.o",
                     "-I", artifactsDir
-            )
+            ) + clangFlags
             it.standardOutput = log
             it.errorOutput = log
             it.isIgnoreExitValue = true

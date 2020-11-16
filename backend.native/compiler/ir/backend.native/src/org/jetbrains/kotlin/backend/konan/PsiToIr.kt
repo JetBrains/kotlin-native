@@ -8,12 +8,11 @@ import org.jetbrains.kotlin.backend.common.serialization.mangle.ManglerChecker
 import org.jetbrains.kotlin.backend.common.serialization.mangle.descriptor.Ir2DescriptorManglerAdapter
 import org.jetbrains.kotlin.backend.konan.descriptors.isForwardDeclarationModule
 import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
-import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
+import org.jetbrains.kotlin.backend.konan.ir.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStructStubs
+import org.jetbrains.kotlin.backend.konan.serialization.*
 import org.jetbrains.kotlin.backend.konan.serialization.KonanIrLinker
-import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerDesc
-import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerIr
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -151,7 +150,7 @@ internal fun Context.psiToIr(
     }
 
     expectDescriptorToSymbol = mutableMapOf()
-    val module = translator.generateModuleFragment(
+    val mainModule = translator.generateModuleFragment(
             generatorContext,
             environment.getSourceFiles(),
             irProviders = listOf(irDeserializer),
@@ -161,7 +160,7 @@ internal fun Context.psiToIr(
             // how ExpectedActualResolver is implemented.
             // Need to fix ExpectActualResolver to either cache expects or somehow reduce the member scope searches.
             expectDescriptorToSymbol = if (expectActualLinker) expectDescriptorToSymbol else null
-    )
+    ).toKonanModule()
 
     irDeserializer.postProcess()
 
@@ -170,7 +169,7 @@ internal fun Context.psiToIr(
 
     symbolTable.noUnboundLeft("Unbound symbols left after linker")
 
-    module.acceptVoid(ManglerChecker(KonanManglerIr, Ir2DescriptorManglerAdapter(KonanManglerDesc)))
+    mainModule.acceptVoid(ManglerChecker(KonanManglerIr, Ir2DescriptorManglerAdapter(KonanManglerDesc)))
 
     val modules = if (isProducingLibrary) emptyMap() else (irDeserializer as KonanIrLinker).modules
 
@@ -179,7 +178,7 @@ internal fun Context.psiToIr(
         modules.values.forEach { fakeOverrideChecker.check(it) }
     }
 
-    irModule = module
+    irModule = mainModule
 
     // Note: coupled with [shouldLower] below.
     irModules = modules.filterValues { llvmModuleSpecification.containsModule(it) }
@@ -191,6 +190,11 @@ internal fun Context.psiToIr(
             functionIrClassFactory.buildAllClasses()
         internalAbi.init(irModules.values + irModule!!)
         functionIrClassFactory.module = (modules.values + irModule!!).single { it.descriptor.isNativeStdlib() }
+    }
+
+    mainModule.files.forEach { it.metadata = KonanFileMetadataSource(mainModule) }
+    modules.values.forEach { module ->
+        module.files.forEach { it.metadata = KonanFileMetadataSource(module as KonanIrModuleFragmentImpl) }
     }
 
     val originalBindingContext = bindingContext as? CleanableBindingContext
