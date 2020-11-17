@@ -65,7 +65,7 @@ open class CompileToBitcode @Inject constructor(
     @get:Input
     val compilerFlags: List<String>
         get() {
-            val commonFlags = listOf("-c", "-emit-llvm", "-MMD") + headersDirs.map { "-I$it" }
+            val commonFlags = listOf("-c", "-emit-llvm", "-MD") + headersDirs.map { "-I$it" }
             val languageFlags = when (language) {
                 Language.C ->
                     // Used flags provided by original build of allocator C code.
