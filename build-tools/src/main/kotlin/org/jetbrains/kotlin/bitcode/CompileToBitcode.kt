@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.ExecClang
 import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
-import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.inject.Inject
 
@@ -66,7 +65,7 @@ open class CompileToBitcode @Inject constructor(
     @get:Input
     val compilerFlags: List<String>
         get() {
-            val commonFlags = listOf("-c", "-emit-llvm") + headersDirs.map { "-I$it" }
+            val commonFlags = listOf("-c", "-emit-llvm", "-MMD") + headersDirs.map { "-I$it" }
             val languageFlags = when (language) {
                 Language.C ->
                     // Used flags provided by original build of allocator C code.
@@ -93,7 +92,14 @@ open class CompileToBitcode @Inject constructor(
             }
         }
 
-    // TODO: This is horrible. Even if `inputFiles` didn't change, this will still get executed.
+    @get:OutputFiles
+    protected val dependencyFiles: Iterable<File>
+        get() = inputFiles.map {
+            objDir.resolve("${it.nameWithoutExtension}.d")
+        }
+
+    // TODO: When building for the very first time this will be empty (no dependency files are generated), but for
+    // the second this will be non-empty and make the task dirty. For subsequent runs everything runs correctly.
     @get:InputFiles
     protected val headers: Iterable<File>
         get() {
@@ -156,16 +162,10 @@ open class CompileToBitcode @Inject constructor(
                 }
             }
             for (inputFile in inputFiles) {
-                val plugin = project.convention.getPlugin(ExecClang::class.java)
-
-                val outputStream = ByteArrayOutputStream()
-                val result = plugin.execKonanClang(target) {
-                    it.executable = executable
-                    it.args = compilerFlags + "-M" + inputFile.absolutePath
-                    it.standardOutput = outputStream
+                val dependencyFile = objDir.resolve("${inputFile.nameWithoutExtension}.d")
+                if (dependencyFile.exists()) {
+                    parseMakefileDependency(inputFile, dependencyFile.readText())
                 }
-                result.assertNormalExitValue()
-                parseMakefileDependency(inputFile, outputStream.toString())
             }
             return headers
         }
