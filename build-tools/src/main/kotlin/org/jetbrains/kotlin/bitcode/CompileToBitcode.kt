@@ -96,21 +96,14 @@ open class CompileToBitcode @Inject constructor(
     private fun dependencyFileForInputFile(file: File) = outputFileForInputFile(file, "dep")
     private fun makeDependencyFileForInputFile(file: File) = outputFileForInputFile(file, "d")
 
-    @get:OutputFiles
-    protected val makeDependencyFiles: Iterable<File>
-        get() = inputFiles.map(::makeDependencyFileForInputFile)
-
-    @get:OutputFiles
-    protected val dependencyFiles: Iterable<File>
-        get() = inputFiles.map(::dependencyFileForInputFile)
-
     // TODO: When building for the very first time this will be empty (no dependency files are generated), but for
     // the second this will be non-empty and make the task dirty. For subsequent runs everything runs correctly.
     @get:InputFiles
     protected val headers: Iterable<File>
         get() {
             val headers = mutableSetOf<File>()
-            for (dependencyFile in dependencyFiles) {
+            for (inputFile in inputFiles) {
+                val dependencyFile = dependencyFileForInputFile(inputFile)
                 if (dependencyFile.exists()) {
                     for (headerFile in dependencyFile.readLines()) {
                         headers.add(File(headerFile))
