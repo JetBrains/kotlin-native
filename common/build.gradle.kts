@@ -7,12 +7,14 @@ plugins {
     id("compile-to-bitcode")
 }
 
-bitcode {
-    create("hash")
-    create("files")
-}
-
 val hostName: String by project
+
+bitcode {
+    targets = listOf(hostName)
+
+    create("Hash", file("src/hash"))
+    create("Files", file("src/files"))
+}
 
 val build by tasks.registering {
     dependsOn("${hostName}Hash")

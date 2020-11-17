@@ -34,19 +34,17 @@ open class CompileToBitcodePlugin: Plugin<Project> {
 
 open class CompileToBitcodeExtension @Inject constructor(val project: Project) {
 
-    private val targetList = with(project) {
-        provider { (rootProject.property("targetList") as? List<*>)?.filterIsInstance<String>() ?: emptyList() } // TODO: Can we make it better?
-    }
+    lateinit var targets: List<String>
 
     fun create(
             name: String,
-            srcDir: File = project.file("src/$name"),
+            srcDir: File,
             outputGroup: String = "main",
             configurationBlock: CompileToBitcode.() -> Unit = {}
     ) {
-        targetList.get().forEach { targetName ->
+        targets.forEach { targetName ->
             project.tasks.register(
-                    "${targetName}${name.snakeCaseToCamelCase().capitalize()}",
+                    "${targetName}${name}",
                     CompileToBitcode::class.java,
                     srcDir, name, targetName, outputGroup
             ).configure {
@@ -55,10 +53,5 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) {
                 it.configurationBlock()
             }
         }
-    }
-
-    companion object {
-        private fun String.snakeCaseToCamelCase() =
-                split('_').joinToString(separator = "") { it.capitalize() }
     }
 }

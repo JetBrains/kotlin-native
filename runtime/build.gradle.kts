@@ -24,7 +24,9 @@ val hostName: String by project
 val targetList: List<String> by project
 
 bitcode {
-    create("runtime", file("src/main")) {
+    targets = targetList
+
+    create("Runtime", file("src/main")) {
         dependsOn(
             ":common:${target}Hash",
             "${target}StdAlloc",
@@ -45,7 +47,7 @@ bitcode {
         linkerArgs.add(project.file("../common/build/bitcode/main/$target/hash.bc").path)
     }
 
-    create("mimalloc") {
+    create("Mimalloc", file("src/mimalloc")) {
         language = CompileToBitcode.Language.C
         includeFiles = listOf("**/*.c")
         excludeFiles += listOf("**/alloc-override*.c", "**/page-queue.c", "**/static.c", "**/bitmap.inc.c")
@@ -58,50 +60,50 @@ bitcode {
         onlyIf { targetSupportsMimallocAllocator(target) }
     }
 
-    create("launcher") {
+    create("Launcher", file("src/launcher")) {
         includeRuntime()
     }
 
-    create("debug") {
+    create("Debug", file("src/debug")) {
         includeRuntime()
     }
 
-    create("std_alloc")
-    create("opt_alloc")
+    create("StdAlloc", file("src/std_alloc"))
+    create("OptAlloc", file("src/opt_alloc"))
 
-    create("exceptionsSupport", file("src/exceptions_support")) {
+    create("ExceptionsSupport", file("src/exceptions_support")) {
         includeRuntime()
     }
 
-    create("release") {
+    create("Release", file("src/release")) {
         includeRuntime()
     }
 
-    create("strict") {
+    create("Strict", file("src/strict")) {
         includeRuntime()
     }
 
-    create("relaxed") {
+    create("Relaxed", file("src/relaxed")) {
         includeRuntime()
     }
 
-    create("profileRuntime", file("src/profile_runtime"))
+    create("ProfileRuntime", file("src/profile_runtime"))
 
-    create("objc") {
+    create("Objc", file("src/objc")) {
         includeRuntime()
     }
 
-    create("test_support", outputGroup = "test") {
+    create("TestSupport", file("src/test_support"), outputGroup = "test") {
         includeRuntime()
         dependsOn("downloadGoogleTest")
         headersDirs += googletest.headersDirs
     }
 
-    create("legacy_memory_manager", file("src/legacymm")) {
+    create("LegacyMemoryManager", file("src/legacymm")) {
         includeRuntime()
     }
 
-    create("experimental_memory_manager", file("src/mm")) {
+    create("ExperimentalMemoryManager", file("src/mm")) {
         includeRuntime()
     }
 }
