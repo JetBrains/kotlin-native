@@ -8,14 +8,14 @@
 
 #include <pthread.h>
 
-#include "Utils.h"
+#include "Utils.hpp"
 
 namespace kotlin {
 namespace mm {
 
 // `ThreadData` is supposed to be thread local singleton.
 // Pin it in memory to prevent accidental copying.
-class ThreadData final : private NoCopyOrMove {
+class ThreadData final : private kotlin::Pinned {
 public:
     ThreadData(pthread_t threadId) noexcept : threadId_(threadId) {}
 

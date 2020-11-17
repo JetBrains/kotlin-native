@@ -11,13 +11,14 @@
 #include <mutex>
 
 #include "CppSupport.hpp"
-#include "Utils.h"
+#include "Mutex.hpp"
+#include "Utils.hpp"
 
 namespace kotlin {
 
 // TODO: Consider different locking mechanisms.
 template <typename Value, typename Mutex = SimpleMutex>
-class SingleLockList : private NoCopyOrMove {
+class SingleLockList : private kotlin::Pinned {
 private:
     struct Node;
 
@@ -41,7 +42,7 @@ public:
         Node* node_;
     };
 
-    class Iterable : private NoCopy {
+    class Iterable : private kotlin::MoveOnly {
     public:
         explicit Iterable(SingleLockList* list) noexcept : list_(list), guard_(list->mutex_) {}
 

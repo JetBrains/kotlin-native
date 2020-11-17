@@ -7,23 +7,19 @@
 
 #include "ThreadData.hpp"
 #include "ThreadRegistry.hpp"
-#include "Utils.h"
+#include "Utils.hpp"
 
-extern "C" {
-
-struct MemoryState {
+extern "C" struct MemoryState {
     kotlin::mm::ThreadData data;
 
     ALWAYS_INLINE static MemoryState* from(kotlin::mm::ThreadData* data) { return wrapper_cast(MemoryState, data, data); }
 };
 
-MemoryState* InitMemory(bool firstRuntime) {
+extern "C" MemoryState* InitMemory(bool firstRuntime) {
     auto* data = kotlin::mm::ThreadRegistry::instance().RegisterCurrentThread();
     return MemoryState::from(data);
 }
 
-void DeinitMemory(MemoryState* state, bool destroyRuntime) {
+extern "C" void DeinitMemory(MemoryState* state, bool destroyRuntime) {
     kotlin::mm::ThreadRegistry::instance().Unregister(&state->data);
 }
-
-} // extern "C"

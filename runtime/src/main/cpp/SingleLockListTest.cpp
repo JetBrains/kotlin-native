@@ -11,9 +11,11 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-namespace kotlin {
+namespace {
 
-using IntList = SingleLockList<int>;
+using IntList = kotlin::SingleLockList<int>;
+
+} // namespace
 
 TEST(SingleLockListTest, Emplace) {
     IntList list;
@@ -103,7 +105,7 @@ TEST(SingleLockListTest, ConcurrentEmplace) {
     std::vector<int> expected;
     for (int i = 0; i < kThreadCount; ++i) {
         expected.push_back(i);
-        threads.Emplace_back([i, &list, &canStart]() {
+        threads.emplace_back([i, &list, &canStart]() {
             while (!canStart) {
             }
             list.Emplace(i);
@@ -134,7 +136,7 @@ TEST(SingleLockListTest, ConcurrentErase) {
     std::atomic<bool> canStart(false);
     std::vector<std::thread> threads;
     for (int* item : items) {
-        threads.Emplace_back([item, &list, &canStart]() {
+        threads.emplace_back([item, &list, &canStart]() {
             while (!canStart) {
             }
             list.Erase(item);
@@ -173,7 +175,7 @@ TEST(SingleLockListTest, IterWhileConcurrentEmplace) {
     for (int i = 0; i < kThreadCount; ++i) {
         int j = i + kStartCount;
         expectedAfter.push_back(j);
-        threads.Emplace_back([j, &list, &canStart, &startedCount]() {
+        threads.emplace_back([j, &list, &canStart, &startedCount]() {
             while (!canStart) {
             }
             ++startedCount;
@@ -188,7 +190,7 @@ TEST(SingleLockListTest, IterWhileConcurrentEmplace) {
         while (startedCount < kThreadCount) {
         }
 
-        for (int element : Iter) {
+        for (int element : iter) {
             actualBefore.push_back(element);
         }
     }
@@ -222,7 +224,7 @@ TEST(SingleLockListTest, IterWhileConcurrentErase) {
     std::atomic<int> startedCount(0);
     std::vector<std::thread> threads;
     for (int* item : items) {
-        threads.Emplace_back([item, &list, &canStart, &startedCount]() {
+        threads.emplace_back([item, &list, &canStart, &startedCount]() {
             while (!canStart) {
             }
             ++startedCount;
@@ -237,7 +239,7 @@ TEST(SingleLockListTest, IterWhileConcurrentErase) {
         while (startedCount < kThreadCount) {
         }
 
-        for (int element : Iter) {
+        for (int element : iter) {
             actualBefore.push_back(element);
         }
     }
@@ -258,9 +260,9 @@ TEST(SingleLockListTest, IterWhileConcurrentErase) {
 
 namespace {
 
-class Pinned : private NoCopyOrMove {
+class PinnedType : private kotlin::Pinned {
 public:
-    Pinned(int value) : value_(value) {}
+    PinnedType(int value) : value_(value) {}
 
     int value() const { return value_; }
 
@@ -271,20 +273,18 @@ private:
 } // namespace
 
 TEST(SingleLockListTest, PinnedType) {
-    SingleLockList<Pinned> list;
+    kotlin::SingleLockList<PinnedType> list;
     constexpr int kFirst = 1;
 
-    Pinned* item = list.Emplace(kFirst);
+    PinnedType* item = list.Emplace(kFirst);
     EXPECT_THAT(item->value(), kFirst);
 
     list.Erase(item);
 
-    std::vector<Pinned*> actualAfter;
+    std::vector<PinnedType*> actualAfter;
     for (auto& element : list.Iter()) {
         actualAfter.push_back(&element);
     }
 
     EXPECT_THAT(actualAfter, testing::IsEmpty());
 }
-
-} // namespace kotlin

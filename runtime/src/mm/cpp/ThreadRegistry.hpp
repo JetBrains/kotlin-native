@@ -8,14 +8,14 @@
 
 #include <pthread.h>
 
-#include "ThreadData.hpp"
 #include "SingleLockList.hpp"
-#include "Utils.h"
+#include "ThreadData.hpp"
+#include "Utils.hpp"
 
 namespace kotlin {
 namespace mm {
 
-class ThreadRegistry final : private NoCopyOrMove {
+class ThreadRegistry final : private kotlin::Pinned {
 public:
     static ThreadRegistry& instance() noexcept { return instance_; }
 
