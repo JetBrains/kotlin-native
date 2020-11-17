@@ -9,6 +9,9 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.BasePlugin
 import org.jetbrains.kotlin.createCompilationDatabasesFromCompileToBitcodeTasks
+import org.jetbrains.kotlin.testing.native.GoogleTestExtension
+import org.jetbrains.kotlin.testing.native.RuntimeTestingPlugin
+import org.jetbrains.kotlin.testing.native.createTestTask
 import java.io.File
 import javax.inject.Inject
 
@@ -38,7 +41,7 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) {
         provider { (rootProject.property("targetList") as? List<*>)?.filterIsInstance<String>() ?: emptyList() } // TODO: Can we make it better?
     }
 
-    fun create(
+    fun bitcode(
             name: String,
             srcDir: File = project.file("src/$name"),
             outputGroup: String = "main",
@@ -54,6 +57,35 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) {
                 it.description = "Compiles '$name' to bitcode for $targetName"
                 it.configurationBlock()
             }
+        }
+    }
+
+    fun bitcodeTest(
+            name: String,
+            srcDir: File = project.file("src/$name"),
+            configurationBlock: CompileToBitcode.() -> Unit = {}
+    ) {
+        val googleTestExtension = project.extensions.getByName(RuntimeTestingPlugin.GOOGLE_TEST_EXTENSION_NAME) as GoogleTestExtension
+        bitcode(
+                name = name,
+                srcDir = srcDir,
+                outputGroup = "test",
+                configurationBlock = {
+                    dependsOn("downloadGoogleTest")
+                    headersDirs += googleTestExtension.headersDirs
+                    excludeFiles = emptyList()
+                    includeFiles = listOf("**/*Test.cpp", "**/*Test.mm")
+                    configurationBlock()
+                }
+        )
+    }
+
+    fun test(
+            name: String,
+            dependencies: List<String>,
+    ) {
+        targetList.get().forEach { targetName ->
+            createTestTask(project, name, "${targetName}${name}", dependencies.map { "${targetName}${it}" })
         }
     }
 

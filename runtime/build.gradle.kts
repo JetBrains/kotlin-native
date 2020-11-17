@@ -24,7 +24,7 @@ val hostName: String by project
 val targetList: List<String> by project
 
 bitcode {
-    create("runtime", file("src/main")) {
+    bitcode("runtime", file("src/main")) {
         dependsOn(
             ":common:${target}Hash",
             "${target}StdAlloc",
@@ -45,7 +45,11 @@ bitcode {
         linkerArgs.add(project.file("../common/build/bitcode/main/$target/hash.bc").path)
     }
 
-    create("mimalloc") {
+    bitcodeTest("MainTests", file("src/main")) {
+        includeRuntime()
+    }
+
+    bitcode("mimalloc") {
         language = CompileToBitcode.Language.C
         includeFiles = listOf("**/*.c")
         excludeFiles += listOf("**/alloc-override*.c", "**/page-queue.c", "**/static.c", "**/bitmap.inc.c")
@@ -58,106 +62,79 @@ bitcode {
         onlyIf { targetSupportsMimallocAllocator(target) }
     }
 
-    create("launcher") {
+    bitcode("launcher") {
         includeRuntime()
     }
 
-    create("debug") {
+    bitcode("debug") {
         includeRuntime()
     }
 
-    create("std_alloc")
-    create("opt_alloc")
+    bitcode("std_alloc")
+    bitcode("opt_alloc")
 
-    create("exceptionsSupport", file("src/exceptions_support")) {
+    bitcode("exceptionsSupport", file("src/exceptions_support")) {
         includeRuntime()
     }
 
-    create("release") {
+    bitcode("release") {
         includeRuntime()
     }
 
-    create("strict") {
+    bitcode("strict") {
         includeRuntime()
     }
 
-    create("relaxed") {
+    bitcode("relaxed") {
         includeRuntime()
     }
 
-    create("profileRuntime", file("src/profile_runtime"))
+    bitcode("profileRuntime", file("src/profile_runtime"))
 
-    create("objc") {
+    bitcode("objc") {
         includeRuntime()
     }
 
-    create("test_support", outputGroup = "test") {
-        includeRuntime()
-        dependsOn("downloadGoogleTest")
-        headersDirs += googletest.headersDirs
-    }
-
-    create("legacy_memory_manager", file("src/legacymm")) {
+    bitcodeTest("test_support") {
+        includeFiles = listOf("**/*.cpp", "**/*.mm")
         includeRuntime()
     }
 
-    create("experimental_memory_manager", file("src/mm")) {
-        includeRuntime()
-    }
-}
-
-targetList.forEach { targetName ->
-    createTestTask(
-            project,
-            "StdAlloc",
-            "${targetName}StdAllocRuntimeTests",
-            listOf(
-                "${targetName}Runtime",
-                "${targetName}LegacyMemoryManager",
-                "${targetName}Strict",
-                "${targetName}Release",
-                "${targetName}StdAlloc"
-            )
-    ) {
+    bitcode("legacy_memory_manager", file("src/legacymm")) {
         includeRuntime()
     }
 
-    createTestTask(
-            project,
+    bitcode("experimental_memory_manager", file("src/mm")) {
+        includeRuntime()
+    }
+
+    test("StdAllocRuntimeTests", listOf(
+            "Runtime",
+            "MainTests",
+            "LegacyMemoryManager",
+            "Strict",
+            "Release",
+            "StdAlloc"
+    ))
+
+    test("MimallocRuntimeTests", listOf(
+            "Runtime",
+            "MainTests",
+            "LegacyMemoryManager",
+            "Strict",
+            "Release",
             "Mimalloc",
-            "${targetName}MimallocRuntimeTests",
-            listOf(
-                "${targetName}Runtime",
-                "${targetName}LegacyMemoryManager",
-                "${targetName}Strict",
-                "${targetName}Release",
-                "${targetName}Mimalloc",
-                "${targetName}OptAlloc"
-            )
-    ) {
-        includeRuntime()
-    }
+            "OptAlloc"
+    ))
 
-    createTestTask(
-            project,
-            "ExperimentalMM",
-            "${targetName}ExperimentalMMRuntimeTests",
-            listOf(
-                "${targetName}Runtime",
-                "${targetName}ExperimentalMemoryManager",
-                "${targetName}Release",
-                "${targetName}Mimalloc",
-                "${targetName}OptAlloc"
-            )
-    ) {
-        includeRuntime()
-    }
-
-    tasks.register("${targetName}RuntimeTests") {
-        dependsOn("${targetName}StdAllocRuntimeTests")
-        dependsOn("${targetName}MimallocRuntimeTests")
-        dependsOn("${targetName}ExperimentalMMRuntimeTests")
-    }
+    test("ExperimentalMMRuntimeTests", listOf(
+            "Runtime",
+            "MainTests",
+            "ExperimentalMemoryManager",
+            "Release",
+            "Mimalloc",
+            "OptAlloc"
+    ))
 }
 
 val hostRuntime by tasks.registering {
@@ -165,7 +142,9 @@ val hostRuntime by tasks.registering {
 }
 
 val hostRuntimeTests by tasks.registering {
-    dependsOn("${hostName}RuntimeTests")
+    dependsOn("${hostName}StdAllocRuntimeTests")
+    dependsOn("${hostName}MimallocRuntimeTests")
+    dependsOn("${hostName}ExperimentalMMRuntimeTests")
 }
 
 val hostStdAllocRuntimeTests by tasks.registering {

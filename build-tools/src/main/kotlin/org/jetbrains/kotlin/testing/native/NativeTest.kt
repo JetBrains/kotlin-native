@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.testing.native
 
-import groovy.lang.Closure
 import java.io.File
 import javax.inject.Inject
 import org.gradle.api.*
@@ -161,10 +160,8 @@ fun createTestTask(
         testName: String,
         testTaskName: String,
         testedTaskNames: List<String>,
-        configureCompileToBitcode: CompileToBitcode.() -> Unit = {},
 ): Task {
     val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
-    val googleTestExtension = project.extensions.getByName(RuntimeTestingPlugin.GOOGLE_TEST_EXTENSION_NAME) as GoogleTestExtension
     val testedTasks = testedTaskNames.map {
         project.tasks.getByName(it) as CompileToBitcode
     }
@@ -172,28 +169,6 @@ fun createTestTask(
         it.target
     }.distinct().single()
     val konanTarget = platformManager.targetByName(target)
-    val compileToBitcodeTasks = testedTasks.mapNotNull {
-        val name = "${it.name}TestBitcode"
-        val task = project.tasks.findByName(name) as? CompileToBitcode ?:
-            project.tasks.create(name,
-                    CompileToBitcode::class.java,
-                    it.srcRoot,
-                    "${it.folderName}Tests",
-                    target, "test"
-                    ).apply {
-                excludeFiles = emptyList()
-                includeFiles = listOf("**/*Test.cpp", "**/*Test.mm")
-                dependsOn(it)
-                dependsOn("downloadGoogleTest")
-                compilerArgs.addAll(it.compilerArgs)
-                headersDirs += googleTestExtension.headersDirs
-                this.configureCompileToBitcode()
-            }
-        if (task.inputFiles.count() == 0)
-            null
-        else
-            task
-    }
     val testFrameworkTasks = listOf(
         project.tasks.getByName("${target}Googletest") as CompileToBitcode,
         project.tasks.getByName("${target}Googlemock") as CompileToBitcode
@@ -207,7 +182,7 @@ fun createTestTask(
             LlvmLinkNativeTest::class.java,
             testTaskName, target, testSupportTask.outFile
     ).apply {
-        val tasksToLink = (compileToBitcodeTasks + testedTasks + testFrameworkTasks)
+        val tasksToLink = (testedTasks + testFrameworkTasks)
         inputFiles = project.files(tasksToLink.map { it.outFile })
         dependsOn(testSupportTask)
         dependsOn(tasksToLink)

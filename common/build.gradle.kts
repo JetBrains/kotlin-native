@@ -8,8 +8,8 @@ plugins {
 }
 
 bitcode {
-    create("hash")
-    create("files")
+    bitcode("hash")
+    bitcode("files")
 }
 
 val hostName: String by project
