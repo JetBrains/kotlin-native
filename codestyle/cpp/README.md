@@ -9,12 +9,15 @@
 
 ## Namespace usage
 
+* Do not use namespace blocks inside implementation files (`*.c`, `*.cpp`, `*.m`, `*.mm`). Use fully qualified names for definitions.
+* Do not use `extern "C"` blocks inside implementation files.
+
 ### Runtime-specific
 
 * Put main module inside `namespace kotlin`
 * Put other modules under `namespace kotlin` in a nested `namespace [module_name]`
-* Put implementation details inside `.cpp`/`.mm` into a nested anonymous `namespace` (e.g. implementation details of module `mm` go into `namespace kotlin { namespace mm { namespace { ... } } }`)
 * Put implementation details inside `.h`/`.hpp` into a nested `namespace internal` (e.g. implementation details of module `mm` go into `namespace kotlin { namespace mm { namespace internal { ... } } }`)
+* Put implementation details inside `.cpp`/`.mm` into a global anonymous `namespace`
 * For `extern "C"` declarations emulate namespaces with `Kotlin_[module_name]_` prefixes.
 
 ## Naming
