@@ -92,11 +92,11 @@ open class CompileToBitcode @Inject constructor(
             }
         }
 
+    private fun dependencyFileForInputFile(file: File) = objDir.resolve("${file.nameWithoutExtension}.d")
+
     @get:OutputFiles
     protected val dependencyFiles: Iterable<File>
-        get() = inputFiles.map {
-            objDir.resolve("${it.nameWithoutExtension}.d")
-        }
+        get() = inputFiles.map(::dependencyFileForInputFile)
 
     // TODO: When building for the very first time this will be empty (no dependency files are generated), but for
     // the second this will be non-empty and make the task dirty. For subsequent runs everything runs correctly.
@@ -104,67 +104,11 @@ open class CompileToBitcode @Inject constructor(
     protected val headers: Iterable<File>
         get() {
             val headers = mutableSetOf<File>()
-            val parseMakefileDependency = { file: File, input: String ->
-                class Parser {
-                    var pos = 0
-
-                    val eof: Boolean
-                        get() = pos >= input.length
-
-                    fun skipPrefix(prefix: String) {
-                        if (input.subSequence(pos, pos + prefix.length) != prefix)
-                            error("Invalid dependency output")
-                        pos += prefix.length
-                    }
-
-                    fun isSpace(pos: Int) =
-                        when (input[pos]) {
-                            ' ', '\n', '\r', '\t' -> true
-                            else -> false
-                        }
-
-                    fun isEscape(pos: Int) =
-                        when (input[pos]) {
-                            '\\' -> true
-                            else -> false
-                        }
-
-                    fun skipSpaces() {
-                        while (!eof && (isSpace(pos) || (isEscape(pos) && pos + 1 < input.length && isSpace(pos + 1)))) {
-                            pos++
-                        }
-                    }
-
-                    fun readFileName(): String {
-                        val builder = StringBuilder()
-                        while (!eof && !isSpace(pos)) {
-                            if (!isEscape(pos)) {
-                                builder.append(input[pos])
-                            } else {
-                                ++pos
-                                if (!eof) {
-                                    builder.append(input[pos])
-                                }
-                            }
-                            ++pos
-                        }
-                        return builder.toString()
-                    }
-                }
-                val p = Parser()
-                p.skipPrefix("${file.nameWithoutExtension}.o:")
-                p.skipSpaces()
-                while (!p.eof) {
-                    val filename = p.readFileName()
-                    if (filename != file.absolutePath)
-                        headers.add(File(filename))
-                    p.skipSpaces()
-                }
-            }
-            for (inputFile in inputFiles) {
-                val dependencyFile = objDir.resolve("${inputFile.nameWithoutExtension}.d")
+            for (dependencyFile in dependencyFiles) {
                 if (dependencyFile.exists()) {
-                    parseMakefileDependency(inputFile, dependencyFile.readText())
+                    for (headerFile in dependencyFile.readLines()) {
+                        headers.add(File(headerFile))
+                    }
                 }
             }
             return headers
@@ -184,6 +128,8 @@ open class CompileToBitcode @Inject constructor(
             it.args = compilerFlags + inputFiles.map { it.absolutePath }
         }
 
+        updateHeaderDependencies()
+
         if (!skipLinkagePhase) {
             project.exec {
                 val llvmDir = project.findProperty("llvmDir")
@@ -193,6 +139,71 @@ open class CompileToBitcode @Inject constructor(
                             it.include("**/*.bc")
                         }.files.map { it.absolutePath }
             }
+        }
+    }
+
+    private fun updateHeaderDependencies() {
+        class MakefileDependencyParser(private val input: String) {
+            private var pos = 0
+
+            val eof: Boolean
+                get() = pos >= input.length
+
+            fun skipPrefix(prefix: String) {
+                if (input.subSequence(pos, pos + prefix.length) != prefix)
+                    error("Invalid dependency output")
+                pos += prefix.length
+            }
+
+            fun isSpace(pos: Int) =
+                    when (input[pos]) {
+                        ' ', '\n', '\r', '\t' -> true
+                        else -> false
+                    }
+
+            fun isEscape(pos: Int) =
+                    when (input[pos]) {
+                        '\\' -> true
+                        else -> false
+                    }
+
+            fun skipSpaces() {
+                while (!eof && (isSpace(pos) || (isEscape(pos) && pos + 1 < input.length && isSpace(pos + 1)))) {
+                    pos++
+                }
+            }
+
+            fun readFileName(): String {
+                val builder = StringBuilder()
+                while (!eof && !isSpace(pos)) {
+                    if (!isEscape(pos)) {
+                        builder.append(input[pos])
+                    } else {
+                        ++pos
+                        if (!eof) {
+                            builder.append(input[pos])
+                        }
+                    }
+                    ++pos
+                }
+                return builder.toString()
+            }
+        }
+
+        // We expecting that clang's run created a new dependency file for every input file.
+        for (inputFile in inputFiles) {
+            val dependencyFile = dependencyFileForInputFile(inputFile)
+            val parser = MakefileDependencyParser(dependencyFile.readText())
+            parser.skipPrefix("${inputFile.nameWithoutExtension}.o:")
+            parser.skipSpaces()
+            val headers = mutableListOf<String>()
+            while (!parser.eof) {
+                val filename = parser.readFileName()
+                if (filename != inputFile.absolutePath)
+                    headers.add(filename)
+                parser.skipSpaces()
+            }
+            dependencyFile.writeText(headers.joinToString("\n"))
         }
     }
 }
