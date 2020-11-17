@@ -92,7 +92,13 @@ open class CompileToBitcode @Inject constructor(
             }
         }
 
-    private fun dependencyFileForInputFile(file: File) = objDir.resolve("${file.nameWithoutExtension}.d")
+    private fun outputFileForInputFile(file: File, extension: String) = objDir.resolve("${file.nameWithoutExtension}.${extension}")
+    private fun dependencyFileForInputFile(file: File) = outputFileForInputFile(file, "dep")
+    private fun makeDependencyFileForInputFile(file: File) = outputFileForInputFile(file, "d")
+
+    @get:OutputFiles
+    protected val makeDependencyFiles: Iterable<File>
+        get() = inputFiles.map(::makeDependencyFileForInputFile)
 
     @get:OutputFiles
     protected val dependencyFiles: Iterable<File>
@@ -192,8 +198,7 @@ open class CompileToBitcode @Inject constructor(
 
         // We expecting that clang's run created a new dependency file for every input file.
         for (inputFile in inputFiles) {
-            val dependencyFile = dependencyFileForInputFile(inputFile)
-            val parser = MakefileDependencyParser(dependencyFile.readText())
+            val parser = MakefileDependencyParser(makeDependencyFileForInputFile(inputFile).readText())
             parser.skipPrefix("${inputFile.nameWithoutExtension}.o:")
             parser.skipSpaces()
             val headers = mutableListOf<String>()
@@ -203,7 +208,7 @@ open class CompileToBitcode @Inject constructor(
                     headers.add(filename)
                 parser.skipSpaces()
             }
-            dependencyFile.writeText(headers.joinToString("\n"))
+            dependencyFileForInputFile(inputFile).writeText(headers.joinToString("\n"))
         }
     }
 }
