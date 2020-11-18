@@ -180,6 +180,12 @@ open class CompileToBitcode @Inject constructor(
             Language.CPP -> "clang++"
         }
 
+    val prepareDependenciesTask: PrepareDependencies
+        get() = project.tasks.named(
+                CompileToBitcodePlugin.prepareDependenciesTaskName(name),
+                PrepareDependencies::class.java
+        ).get()
+
     @get:Input
     val compilerFlags: List<String>
         get() {

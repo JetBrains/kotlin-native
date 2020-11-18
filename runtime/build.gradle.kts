@@ -95,6 +95,7 @@ bitcode {
     create("test_support", outputGroup = "test") {
         includeRuntime()
         dependsOn("downloadGoogleTest")
+        prepareDependenciesTask.dependsOn("downloadGoogleTest")
         headersDirs += googletest.headersDirs
     }
 
@@ -105,12 +106,6 @@ bitcode {
     create("experimental_memory_manager", file("src/mm")) {
         includeRuntime()
     }
-}
-
-// TODO: Strictly speaking, not all prepare tasks depend on GTest.
-// TODO: Probably we need to introduce a getter for the prepare task to the compile task. And don't forget to add this dependency for test compile tasks!
-tasks.withType(PrepareDependencies::class) {
-    dependsOn("downloadGoogleTest")
 }
 
 targetList.forEach { targetName ->
