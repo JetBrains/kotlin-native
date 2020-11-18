@@ -97,7 +97,7 @@ open class GitDownloadTask @Inject constructor(
         }
 
         if (!tryCloneBranch()) {
-            logger.info("Cannot use the revision '$revision' to clone the repository. Trying to use init && fetch instead.")
+            logger.quiet("Cannot use the revision '$revision' to clone the repository. Trying to use init & fetch instead.")
             fetchByHash()
         }
 

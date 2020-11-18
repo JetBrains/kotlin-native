@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.testing.native
 
-import groovy.lang.Closure
 import java.io.File
 import javax.inject.Inject
 import org.gradle.api.*
@@ -13,6 +12,7 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.tasks.*
 import org.jetbrains.kotlin.ExecClang
 import org.jetbrains.kotlin.bitcode.CompileToBitcode
+import org.jetbrains.kotlin.bitcode.PrepareDependencies
 import org.jetbrains.kotlin.konan.target.*
 
 open class CompileNativeTest @Inject constructor(
@@ -173,9 +173,9 @@ fun createTestTask(
     }.distinct().single()
     val konanTarget = platformManager.targetByName(target)
     val compileToBitcodeTasks = testedTasks.mapNotNull {
-        val name = "${it.name}TestBitcode"
-        val task = project.tasks.findByName(name) as? CompileToBitcode ?:
-            project.tasks.create(name,
+        val compileTaskName = "${it.name}TestBitcode"
+        val compileTask = project.tasks.findByName(compileTaskName) as? CompileToBitcode ?:
+            project.tasks.create(compileTaskName,
                     CompileToBitcode::class.java,
                     it.srcRoot,
                     "${it.folderName}Tests",
@@ -189,10 +189,21 @@ fun createTestTask(
                 headersDirs += googleTestExtension.headersDirs
                 this.configureCompileToBitcode()
             }
-        if (task.inputFiles.count() == 0)
+        val prepareDependenciesTaskName = "${compileTaskName}Dependencies"
+        val prepareDependenciesTask =
+                project.tasks.findByName(prepareDependenciesTaskName) as? PrepareDependencies
+                        ?: project.tasks.create(
+                                prepareDependenciesTaskName,
+                                PrepareDependencies::class.java,
+                                project.provider { compileTask }
+                        )
+        prepareDependenciesTask.dependsOn("downloadGoogleTest")
+        compileTask.dependsOn(prepareDependenciesTask)
+
+        if (compileTask.inputFiles.count() == 0)
             null
         else
-            task
+            compileTask
     }
     val testFrameworkTasks = listOf(
         project.tasks.getByName("${target}Googletest") as CompileToBitcode,

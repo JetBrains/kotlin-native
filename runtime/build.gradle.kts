@@ -5,6 +5,7 @@
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.testing.native.*
 import org.jetbrains.kotlin.bitcode.CompileToBitcode
+import org.jetbrains.kotlin.bitcode.PrepareDependencies
 
 plugins {
     id("compile-to-bitcode")
@@ -104,6 +105,12 @@ bitcode {
     create("experimental_memory_manager", file("src/mm")) {
         includeRuntime()
     }
+}
+
+// TODO: Strictly speaking, not all prepare tasks depend on GTest.
+// TODO: Probably we need to introduce a getter for the prepare task to the compile task. And don't forget to add this dependency for test compile tasks!
+tasks.withType(PrepareDependencies::class) {
+    dependsOn("downloadGoogleTest")
 }
 
 targetList.forEach { targetName ->

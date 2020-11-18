@@ -29,6 +29,8 @@ open class CompileToBitcodePlugin: Plugin<Project> {
     companion object {
         const val EXTENSION_NAME = "bitcode"
         const val COMPILATION_DATABASE_TASK_NAME = "CompilationDatabase"
+
+        fun prepareDependenciesTaskName(compileTaskName: String) = "${compileTaskName}Dependencies"
     }
 }
 
@@ -45,13 +47,23 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) {
             configurationBlock: CompileToBitcode.() -> Unit = {}
     ) {
         targetList.get().forEach { targetName ->
-            project.tasks.register(
-                    "${targetName}${name.snakeCaseToCamelCase().capitalize()}",
+            val compileTaskName = "${targetName}${name.snakeCaseToCamelCase().capitalize()}"
+            val compileTask = project.tasks.register(
+                    compileTaskName,
                     CompileToBitcode::class.java,
                     srcDir, name, targetName, outputGroup
-            ).configure {
+            )
+
+            val prepareDependenciesTask = project.tasks.register(
+                    CompileToBitcodePlugin.prepareDependenciesTaskName(compileTaskName),
+                    PrepareDependencies::class.java,
+                    compileTask
+            )
+
+            compileTask.configure {
                 it.group = BasePlugin.BUILD_GROUP
                 it.description = "Compiles '$name' to bitcode for $targetName"
+                it.dependsOn(prepareDependenciesTask)
                 it.configurationBlock()
             }
         }
