@@ -95,7 +95,27 @@ open class CompileToBitcode @Inject constructor(
     @get:InputFiles
     protected val headers: Iterable<File>
         get() {
-            return headersDirs.files.flatMap { dir ->
+            // Not using clang's -M* flags because there's a problem with our current include system:
+            // We allow includes relative to the current directory and also pass -I for each imported module
+            // Given file tree:
+            // a:
+            //  header
+            // b:
+            //  impl
+            // If impl has #include "header", it'll be included from a/header. If we add another file header
+            // into b/, the next compilation of impl will include b/header. -M flags won't generate a dependency
+            // on b/header, so incremental compilation will be broken.
+            // TODO: Apart from dependency generation this is also broken because it's impossible to have two files with
+            // the same name (e.g. Utils.h) in directories a/ and b/
+
+            val dirs = mutableSetOf<File>()
+            // First add dirs with sources, as clang by default adds directory with the source to the include path.
+            inputFiles.forEach {
+                dirs.add(it.parentFile)
+            }
+            // Now add manually given header dirs.
+            dirs.addAll(headersDirs.files)
+            return dirs.flatMap { dir ->
                 project.fileTree(dir) {
                     val includePatterns = when (language) {
                         Language.C -> arrayOf("**/.h")
