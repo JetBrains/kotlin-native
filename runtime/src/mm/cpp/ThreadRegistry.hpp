@@ -21,7 +21,7 @@ public:
     using ThreadDataNode = SingleLockList<ThreadData>::Node;
     using Iterable = SingleLockList<ThreadData>::Iterable;
 
-    static ThreadRegistry& Instance() noexcept { return instance_; }
+    static ThreadRegistry& Instance() noexcept;
 
     ThreadDataNode* RegisterCurrentThread() noexcept;
 
@@ -37,10 +37,10 @@ public:
     ThreadData* CurrentThreadData() const noexcept { return currentThreadData_; }
 
 private:
-    ThreadRegistry() = default;
-    ~ThreadRegistry() = default;
+    friend class GlobalData;
 
-    static ThreadRegistry instance_;
+    ThreadRegistry() = default;
+    ~ThreadRegistry();
 
     static thread_local ThreadData* currentThreadData_;
 

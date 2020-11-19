@@ -5,9 +5,13 @@
 
 #include "ThreadRegistry.hpp"
 
+#include "GlobalData.hpp"
 #include "ThreadData.hpp"
 
 using namespace kotlin;
+
+// static
+mm::ThreadRegistry& mm::ThreadRegistry::Instance() noexcept { return mm::GlobalData::Instance().threadRegistry(); }
 
 mm::ThreadRegistry::ThreadDataNode* mm::ThreadRegistry::RegisterCurrentThread() noexcept {
     ThreadDataNode* threadDataNode = list_.Emplace(pthread_self());
@@ -24,9 +28,7 @@ void mm::ThreadRegistry::Unregister(ThreadDataNode* threadDataNode) noexcept {
 
 mm::ThreadRegistry::Iterable mm::ThreadRegistry::Iter() noexcept { return list_.Iter(); }
 
-// static
-mm::ThreadRegistry mm::ThreadRegistry::instance_;
+mm::ThreadRegistry::~ThreadRegistry() = default;
 
 // static
 thread_local mm::ThreadData* mm::ThreadRegistry::currentThreadData_ = nullptr;
-
