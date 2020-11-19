@@ -10,9 +10,9 @@
 #include "Utils.hpp"
 
 extern "C" struct MemoryState {
-    kotlin::mm::ThreadData data;
+    kotlin::mm::ThreadRegistry::ThreadDataNode data;
 
-    ALWAYS_INLINE static MemoryState* from(kotlin::mm::ThreadData* data) { return wrapper_cast(MemoryState, data, data); }
+    ALWAYS_INLINE static MemoryState* from(kotlin::mm::ThreadRegistry::ThreadDataNode* data) { return wrapper_cast(MemoryState, data, data); }
 };
 
 extern "C" MemoryState* InitMemory(bool firstRuntime) {

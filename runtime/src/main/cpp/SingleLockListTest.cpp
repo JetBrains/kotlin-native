@@ -22,9 +22,12 @@ TEST(SingleLockListTest, Emplace) {
     constexpr int kFirst = 1;
     constexpr int kSecond = 2;
     constexpr int kThird = 3;
-    int* first = list.Emplace(kFirst);
-    int* second = list.Emplace(kSecond);
-    int* third = list.Emplace(kThird);
+    auto* firstNode = list.Emplace(kFirst);
+    auto* secondNode = list.Emplace(kSecond);
+    auto* thirdNode = list.Emplace(kThird);
+    int* first = list.ValueForNode(firstNode);
+    int* second = list.ValueForNode(secondNode);
+    int* third = list.ValueForNode(thirdNode);
     EXPECT_THAT(*first, kFirst);
     EXPECT_THAT(*second, kSecond);
     EXPECT_THAT(*third, kThird);
@@ -53,9 +56,9 @@ TEST(SingleLockListTest, EmplaceEraseAndIter) {
     constexpr int kSecond = 2;
     constexpr int kThird = 3;
     list.Emplace(kFirst);
-    int* second = list.Emplace(kSecond);
+    auto* secondNode = list.Emplace(kSecond);
     list.Emplace(kThird);
-    list.Erase(second);
+    list.Erase(secondNode);
 
     std::vector<int> actual;
     for (int element : list.Iter()) {
@@ -82,10 +85,10 @@ TEST(SingleLockListTest, EraseToEmptyEmplaceAndIter) {
     constexpr int kSecond = 2;
     constexpr int kThird = 3;
     constexpr int kFourth = 4;
-    auto* first = list.Emplace(kFirst);
-    auto* second = list.Emplace(kSecond);
-    list.Erase(first);
-    list.Erase(second);
+    auto* firstNode = list.Emplace(kFirst);
+    auto* secondNode = list.Emplace(kSecond);
+    list.Erase(firstNode);
+    list.Erase(secondNode);
     list.Emplace(kThird);
     list.Emplace(kFourth);
 
@@ -128,14 +131,14 @@ TEST(SingleLockListTest, ConcurrentEmplace) {
 TEST(SingleLockListTest, ConcurrentErase) {
     IntList list;
     constexpr int kThreadCount = 100;
-    std::vector<int*> items;
+    std::vector<IntList::Node*> items;
     for (int i = 0; i < kThreadCount; ++i) {
         items.push_back(list.Emplace(i));
     }
 
     std::atomic<bool> canStart(false);
     std::vector<std::thread> threads;
-    for (int* item : items) {
+    for (auto* item : items) {
         threads.emplace_back([item, &list, &canStart]() {
             while (!canStart) {
             }
@@ -214,7 +217,7 @@ TEST(SingleLockListTest, IterWhileConcurrentErase) {
     constexpr int kThreadCount = 100;
 
     std::deque<int> expectedBefore;
-    std::vector<int*> items;
+    std::vector<IntList::Node*> items;
     for (int i = 0; i < kThreadCount; ++i) {
         expectedBefore.push_front(i);
         items.push_back(list.Emplace(i));
@@ -223,7 +226,7 @@ TEST(SingleLockListTest, IterWhileConcurrentErase) {
     std::atomic<bool> canStart(false);
     std::atomic<int> startedCount(0);
     std::vector<std::thread> threads;
-    for (int* item : items) {
+    for (auto* item : items) {
         threads.emplace_back([item, &list, &canStart, &startedCount]() {
             while (!canStart) {
             }
@@ -276,10 +279,11 @@ TEST(SingleLockListTest, PinnedType) {
     kotlin::SingleLockList<PinnedType> list;
     constexpr int kFirst = 1;
 
-    PinnedType* item = list.Emplace(kFirst);
+    auto* itemNode = list.Emplace(kFirst);
+    PinnedType* item = list.ValueForNode(itemNode);
     EXPECT_THAT(item->value(), kFirst);
 
-    list.Erase(item);
+    list.Erase(itemNode);
 
     std::vector<PinnedType*> actualAfter;
     for (auto& element : list.Iter()) {

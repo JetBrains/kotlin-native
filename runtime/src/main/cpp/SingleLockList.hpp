@@ -20,12 +20,13 @@ namespace kotlin {
 template <typename Value, typename Mutex = SimpleMutex>
 class SingleLockList : private kotlin::Pinned {
 private:
-    struct Node;
-
+    struct NodeImpl;
 public:
+    using Node = NodeImpl;
+
     class Iterator {
     public:
-        explicit Iterator(Node* node) noexcept : node_(node) {}
+        explicit Iterator(NodeImpl* node) noexcept : node_(node) {}
 
         Value& operator*() noexcept { return node_->value; }
 
@@ -39,7 +40,7 @@ public:
         bool operator!=(const Iterator& rhs) const noexcept { return node_ != rhs.node_; }
 
     private:
-        Node* node_;
+        NodeImpl* node_;
     };
 
     class Iterable : private kotlin::MoveOnly {
@@ -56,9 +57,9 @@ public:
     };
 
     template <typename... Args>
-    Value* Emplace(Args... args) noexcept {
-        auto node = kotlin::make_unique<Node>(args...);
-        auto* result = &node.get()->value;
+    Node* Emplace(Args... args) noexcept {
+        auto node = kotlin::make_unique<NodeImpl>(args...);
+        auto* result = node.get();
         LockGuard<Mutex> guard(mutex_);
         if (root_) {
             root_->previous = node.get();
@@ -68,11 +69,8 @@ public:
         return result;
     }
 
-    // You can only `Erase` `Value`s that were returned by `Emplace`. Trying
-    // to Erase some other value is undefined behaviour. Using `value` after
-    // `Erase` is undefined behaviour.
-    void Erase(Value* value) noexcept {
-        auto* node = Node::from(value);
+    // Using `node` including its referred `Value` after `Erase` is undefined behaviour.
+    void Erase(Node* node) noexcept {
         LockGuard<Mutex> guard(mutex_);
         if (root_.get() == node) {
             root_ = std::move(node->next);
@@ -99,20 +97,20 @@ public:
     // // At this point `list` is unlocked.
     Iterable Iter() noexcept { return Iterable(this); }
 
+    static Value* ValueForNode(Node* node) noexcept { return &node->value; }
+
 private:
-    struct Node {
+    struct NodeImpl {
         template <typename... Args>
-        Node(Args... args) noexcept : value(args...) {}
+        NodeImpl(Args... args) noexcept : value(args...) {}
 
         Value value;
         // TODO: Consider adding a marker for checks in debug mode if Value was constructed inside the Node.
         std::unique_ptr<Node> next;
         Node* previous = nullptr; // weak
-
-        ALWAYS_INLINE static Node* from(Value* value) { return wrapper_cast(Node, value, value); }
     };
 
-    std::unique_ptr<Node> root_;
+    std::unique_ptr<NodeImpl> root_;
     Mutex mutex_;
 };
 

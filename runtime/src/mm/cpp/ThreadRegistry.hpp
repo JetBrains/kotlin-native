@@ -17,20 +17,21 @@ namespace mm {
 
 class ThreadRegistry final : private kotlin::Pinned {
 public:
+    using ThreadDataNode = SingleLockList<ThreadData>::Node;
+
     static ThreadRegistry& instance() noexcept { return instance_; }
 
-    ThreadData* RegisterCurrentThread() noexcept {
-        ThreadData* threadData = list_.Emplace(pthread_self());
+    ThreadDataNode* RegisterCurrentThread() noexcept {
+        ThreadDataNode* threadDataNode = list_.Emplace(pthread_self());
         ThreadData*& currentData = currentThreadData_;
         RuntimeAssert(currentData == nullptr, "This thread already had some data assigned to it.");
-        currentData = threadData;
-        return threadData;
+        currentData = list_.ValueForNode(threadDataNode);
+        return threadDataNode;
     }
 
-    // Can only be called with `threadData` returned from `RegisterCurrentThread`.
-    // `threadData` cannot be used after this call.
-    void Unregister(ThreadData* threadData) noexcept {
-        list_.Erase(threadData);
+    // `ThreadData` associated with `threadDataNode` cannot be used after this call.
+    void Unregister(ThreadDataNode* threadDataNode) noexcept {
+        list_.Erase(threadDataNode);
         // Do not touch `currentThreadData_` as TLS may already have been deallocated.
     }
 
