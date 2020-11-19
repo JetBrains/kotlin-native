@@ -15,7 +15,7 @@
 namespace kotlin {
 namespace mm {
 
-class ThreadRegistry final : private kotlin::Pinned {
+class ThreadRegistry final : private Pinned {
 public:
     using ThreadDataNode = SingleLockList<ThreadData>::Node;
 

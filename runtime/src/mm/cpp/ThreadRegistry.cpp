@@ -5,8 +5,10 @@
 
 #include "ThreadRegistry.hpp"
 
-// static
-kotlin::mm::ThreadRegistry kotlin::mm::ThreadRegistry::instance_;
+using namespace kotlin;
 
 // static
-thread_local kotlin::mm::ThreadData* kotlin::mm::ThreadRegistry::currentThreadData_ = nullptr;
+mm::ThreadRegistry mm::ThreadRegistry::instance_;
+
+// static
+thread_local mm::ThreadData* mm::ThreadRegistry::currentThreadData_ = nullptr;

@@ -11,9 +11,11 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using namespace kotlin;
+
 namespace {
 
-using IntList = kotlin::SingleLockList<int>;
+using IntList = SingleLockList<int>;
 
 } // namespace
 
@@ -263,7 +265,7 @@ TEST(SingleLockListTest, IterWhileConcurrentErase) {
 
 namespace {
 
-class PinnedType : private kotlin::Pinned {
+class PinnedType : private Pinned {
 public:
     PinnedType(int value) : value_(value) {}
 
@@ -276,7 +278,7 @@ private:
 } // namespace
 
 TEST(SingleLockListTest, PinnedType) {
-    kotlin::SingleLockList<PinnedType> list;
+    SingleLockList<PinnedType> list;
     constexpr int kFirst = 1;
 
     auto* itemNode = list.Emplace(kFirst);

@@ -18,7 +18,7 @@ namespace kotlin {
 
 // TODO: Consider different locking mechanisms.
 template <typename Value, typename Mutex = SimpleMutex>
-class SingleLockList : private kotlin::Pinned {
+class SingleLockList : private Pinned {
 private:
     struct NodeImpl;
 
@@ -44,7 +44,7 @@ public:
         NodeImpl* node_;
     };
 
-    class Iterable : private kotlin::MoveOnly {
+    class Iterable : private MoveOnly {
     public:
         explicit Iterable(SingleLockList* list) noexcept : list_(list), guard_(list->mutex_) {}
 
