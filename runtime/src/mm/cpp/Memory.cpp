@@ -11,15 +11,21 @@
 
 extern "C" struct MemoryState {
     kotlin::mm::ThreadRegistry::ThreadDataNode data;
-
-    ALWAYS_INLINE static MemoryState* from(kotlin::mm::ThreadRegistry::ThreadDataNode* data) { return wrapper_cast(MemoryState, data, data); }
+    // Do not add any other fields: this struct is just a wrapper around ThreadDataNode.
 };
 
+namespace {
+
+ALWAYS_INLINE MemoryState* ToMemoryState(kotlin::mm::ThreadRegistry::ThreadDataNode* data) { return wrapper_cast(MemoryState, data, data); }
+
+ALWAYS_INLINE kotlin::mm::ThreadRegistry::ThreadDataNode* FromMemoryState(MemoryState* state) { return &state->data; }
+
+} // namespace
+
 extern "C" MemoryState* InitMemory(bool firstRuntime) {
-    auto* data = kotlin::mm::ThreadRegistry::instance().RegisterCurrentThread();
-    return MemoryState::from(data);
+    return ToMemoryState(kotlin::mm::ThreadRegistry::instance().RegisterCurrentThread());
 }
 
 extern "C" void DeinitMemory(MemoryState* state, bool destroyRuntime) {
-    kotlin::mm::ThreadRegistry::instance().Unregister(&state->data);
+    kotlin::mm::ThreadRegistry::instance().Unregister(FromMemoryState(state));
 }
