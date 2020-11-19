@@ -59,7 +59,7 @@ struct WrapperOverPinned {
     PinnedImpl wrapped;
 };
 
-}  // namespace
+} // namespace
 
 TEST(UtilsTest, WrapperCast) {
     A value;

@@ -11,7 +11,9 @@
 using namespace kotlin;
 
 // static
-mm::ThreadRegistry& mm::ThreadRegistry::Instance() noexcept { return mm::GlobalData::Instance().threadRegistry(); }
+mm::ThreadRegistry& mm::ThreadRegistry::Instance() noexcept {
+    return mm::GlobalData::Instance().threadRegistry();
+}
 
 mm::ThreadRegistry::ThreadDataNode* mm::ThreadRegistry::RegisterCurrentThread() noexcept {
     ThreadDataNode* threadDataNode = list_.Emplace(pthread_self());
@@ -26,7 +28,9 @@ void mm::ThreadRegistry::Unregister(ThreadDataNode* threadDataNode) noexcept {
     // Do not touch `currentThreadData_` as TLS may already have been deallocated.
 }
 
-mm::ThreadRegistry::Iterable mm::ThreadRegistry::Iter() noexcept { return list_.Iter(); }
+mm::ThreadRegistry::Iterable mm::ThreadRegistry::Iter() noexcept {
+    return list_.Iter();
+}
 
 mm::ThreadRegistry::~ThreadRegistry() = default;
 

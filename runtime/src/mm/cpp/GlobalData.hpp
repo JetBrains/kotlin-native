@@ -10,16 +10,16 @@
 #include "Utils.hpp"
 
 namespace kotlin {
-  namespace mm {
+namespace mm {
 
 // Global (de)initialization is undefined in C++. Use single global singleton to define it for simplicity.
 class GlobalData : private Pinned {
-  public:
+public:
     static GlobalData& Instance() noexcept { return instance_; }
 
     ThreadRegistry& threadRegistry() { return threadRegistry_; }
 
-  private:
+private:
     GlobalData() = default;
     ~GlobalData() = default;
 
@@ -28,7 +28,7 @@ class GlobalData : private Pinned {
     ThreadRegistry threadRegistry_;
 };
 
-  }
-}
+} // namespace mm
+} // namespace kotlin
 
 #endif // RUNTIME_MM_GLOBAL_DATA_H
