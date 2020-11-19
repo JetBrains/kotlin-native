@@ -38,8 +38,8 @@ class KRefSharedHolder {
   ForeignRefContext context_;
 };
 
-static_assert(kotlin::is_trivially_destructible_v<KRefSharedHolder>,
-    "KRefSharedHolder destructor is not guaranteed to be called.");
+static_assert(
+        kotlin::std_support::is_trivially_destructible_v<KRefSharedHolder>, "KRefSharedHolder destructor is not guaranteed to be called.");
 
 class BackRefFromAssociatedObject {
  public:
@@ -67,7 +67,8 @@ class BackRefFromAssociatedObject {
   volatile int refCount;
 };
 
-static_assert(kotlin::is_trivially_destructible_v<BackRefFromAssociatedObject>,
-    "BackRefFromAssociatedObject destructor is not guaranteed to be called.");
+static_assert(
+        kotlin::std_support::is_trivially_destructible_v<BackRefFromAssociatedObject>,
+        "BackRefFromAssociatedObject destructor is not guaranteed to be called.");
 
 #endif // RUNTIME_MEMORYSHAREDREFS_HPP

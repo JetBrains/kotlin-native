@@ -12,6 +12,7 @@
 // A collection of backported utilities from future C++ versions.
 
 namespace kotlin {
+namespace std_support {
 
 ////////////////////////// C++14 //////////////////////////
 
@@ -44,6 +45,7 @@ constexpr bool is_nothrow_move_constructible_v = std::is_nothrow_move_constructi
 template <typename T>
 constexpr bool is_nothrow_move_assignable_v = std::is_nothrow_move_assignable<T>::value;
 
+} // namespace std_support
 } // namespace kotlin
 
 #endif // RUNTIME_CPP_SUPPORT_H

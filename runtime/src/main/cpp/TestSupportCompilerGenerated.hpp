@@ -21,7 +21,7 @@ public:
     explicit ScopedStrictMockFunction(Mock** globalMockLocation) : globalMockLocation_(globalMockLocation) {
         RuntimeCheck(globalMockLocation != nullptr, "ScopedStrictMockFunction needs non-null global mock location");
         RuntimeCheck(*globalMockLocation == nullptr, "ScopedStrictMockFunction needs null global mock");
-        mock_ = kotlin::make_unique<Mock>();
+        mock_ = kotlin::std_support::make_unique<Mock>();
         *globalMockLocation_ = mock_.get();
     }
 
