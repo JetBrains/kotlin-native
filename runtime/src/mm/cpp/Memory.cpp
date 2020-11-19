@@ -16,9 +16,13 @@ extern "C" struct MemoryState {
 
 namespace {
 
-ALWAYS_INLINE MemoryState* ToMemoryState(kotlin::mm::ThreadRegistry::ThreadDataNode* data) { return wrapper_cast(MemoryState, data, data); }
+ALWAYS_INLINE MemoryState* ToMemoryState(kotlin::mm::ThreadRegistry::ThreadDataNode* data) {
+    return wrapper_cast(MemoryState, data, data);
+}
 
-ALWAYS_INLINE kotlin::mm::ThreadRegistry::ThreadDataNode* FromMemoryState(MemoryState* state) { return &state->data; }
+ALWAYS_INLINE kotlin::mm::ThreadRegistry::ThreadDataNode* FromMemoryState(MemoryState* state) {
+    return &state->data;
+}
 
 } // namespace
 

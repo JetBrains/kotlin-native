@@ -21,6 +21,7 @@ template <typename Value, typename Mutex = SimpleMutex>
 class SingleLockList : private kotlin::Pinned {
 private:
     struct NodeImpl;
+
 public:
     using Node = NodeImpl;
 
