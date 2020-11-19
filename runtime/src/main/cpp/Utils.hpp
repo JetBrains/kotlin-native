@@ -6,6 +6,8 @@
 #ifndef RUNTIME_UTILS_H
 #define RUNTIME_UTILS_H
 
+#include "CppSupport.hpp"
+
 namespace kotlin {
 
 // A helper for implementing classes with disabled copy constructor and copy assignment.
@@ -66,7 +68,7 @@ protected:
 #define wrapper_cast(Wrapper, inner, field) \
     /* With -O2 the lambda is replaced with a cast in the bitcode. */ \
     [inner]() { \
-        static_assert(std::is_standard_layout<Wrapper>::value, #Wrapper " must be standard layout"); \
+        static_assert(std_support::is_standard_layout_v<Wrapper>, #Wrapper " must be standard layout"); \
         static_assert(offsetof(Wrapper, field) == 0, #field " must be at 0 offset"); \
         return reinterpret_cast<Wrapper*>(inner); \
     }()

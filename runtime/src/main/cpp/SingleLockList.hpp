@@ -59,7 +59,7 @@ public:
 
     template <typename... Args>
     Node* Emplace(Args... args) noexcept {
-        auto node = kotlin::make_unique<NodeImpl>(args...);
+        auto node = std_support::make_unique<NodeImpl>(args...);
         auto* result = node.get();
         LockGuard<Mutex> guard(mutex_);
         if (root_) {
