@@ -63,35 +63,13 @@ protected:
 //
 // Useful for exporting SomeType under a different name (e.g. exporting inner C++ class
 // as public C struct).
-//
-// Also useful for implementing a form of private inheritance. It allows inheriting from
-// primitive types, however there're no virtual functions (including virtual destructor).
-// For example:
-// // Module A
-// struct SomeType { ... };
-// // Module B API
-// SomeType* constructSomeType(Args...);
-// void useSomeType(SomeType*);
-// // Module B
-// struct InternalType {
-//     SomeType value;
-//     InternalData extra;
-// };
-// SomeType* constructSomeType(Args... args) {
-//     auto* internalType = new InternalType{ SomeType(args...), InternalData(...) };
-//     return &internalType->value;
-// }
-// void useSomeType(SomeType* value) {
-//     InternalType* internalType = wrapper_cast(InternalType, value, value);
-//     // Do something with InternalType
-// }
 #define wrapper_cast(Wrapper, inner, field) \
-    /* With -O2 this lambda does not exist in the bitcode. */ \
-    []() { \
+    /* With -O2 the lambda is replaced with a cast in the bitcode. */ \
+    [inner]() { \
         static_assert(std::is_standard_layout<Wrapper>::value, #Wrapper " must be standard layout"); \
         static_assert(offsetof(Wrapper, field) == 0, #field " must be at 0 offset"); \
-    }(), \
-            reinterpret_cast<Wrapper*>(inner)
+        return reinterpret_cast<Wrapper*>(inner); \
+    }()
 
 } // namespace kotlin
 
