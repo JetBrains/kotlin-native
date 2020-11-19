@@ -5,6 +5,7 @@
 
 #include "Memory.h"
 
+#include "GlobalsRegistry.hpp"
 #include "ThreadData.hpp"
 #include "ThreadRegistry.hpp"
 #include "Utils.hpp"
@@ -38,4 +39,16 @@ extern "C" MemoryState* InitMemory(bool firstRuntime) {
 
 extern "C" void DeinitMemory(MemoryState* state, bool destroyRuntime) {
     mm::ThreadRegistry::Instance().Unregister(FromMemoryState(state));
+}
+
+extern "C" OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+    auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
+    mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
+    RuntimeCheck(false, "Unimplemented");
+}
+
+extern "C" RUNTIME_NOTHROW void InitGlobal(ObjHeader** location, const ObjHeader* object) {
+    auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
+    mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
+    RuntimeCheck(false, "Unimplemented");
 }

@@ -25,8 +25,9 @@ void ensureUsed(Ret (*f)(Args...)) {
 void EnsureDeclarationsEmitted() {
     ensureUsed(AllocInstance);
     ensureUsed(AllocArrayInstance);
-    ensureUsed(InitInstance);
-    ensureUsed(InitSharedInstance);
+    ensureUsed(InitThreadLocalSingleton);
+    ensureUsed(InitSingleton);
+    ensureUsed(InitGlobal);
     ensureUsed(UpdateHeapRef);
     ensureUsed(UpdateStackRef);
     ensureUsed(UpdateReturnRef);

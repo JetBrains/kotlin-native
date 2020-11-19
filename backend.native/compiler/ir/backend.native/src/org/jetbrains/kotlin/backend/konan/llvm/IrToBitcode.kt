@@ -420,7 +420,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                         )
                                         if (irField.storageKind == FieldStorageKind.SHARED_FROZEN)
                                             freeze(initialization, currentCodeContext.exceptionHandler)
-                                        storeAny(initialization, address, false)
+                                        if (isObjectRef(initialization)) {
+                                            call(context.llvm.initGlobalFunction, listOf(address, initialization))
+                                        } else {
+                                            store(initialization, address)
+                                        }
                                     }
                                 }
                             }
