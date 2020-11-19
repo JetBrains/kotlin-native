@@ -99,14 +99,16 @@ open class CompileToBitcode @Inject constructor(
             // We allow includes relative to the current directory and also pass -I for each imported module
             // Given file tree:
             // a:
-            //  header
+            //  header.hpp
             // b:
-            //  impl
-            // If impl has #include "header", it'll be included from a/header. If we add another file header
-            // into b/, the next compilation of impl will include b/header. -M flags won't generate a dependency
-            // on b/header, so incremental compilation will be broken.
-            // TODO: Apart from dependency generation this is also broken because it's impossible to have two files with
-            // the same name (e.g. Utils.h) in directories a/ and b/
+            //  impl.cpp
+            // Assume module b adds a to its include path.
+            // If b/impl.cpp has #include "header.hpp", it'll be included from a/header.hpp. If we add another file
+            // header.hpp into b/, the next compilation of b/impl.cpp will include b/header.hpp. -M flags, however,
+            // won't generate a dependency on b/header.hpp, so incremental compilation will be broken.
+            // TODO: Apart from dependency generation this also makes it awkward to have two files with
+            //       the same name (e.g. Utils.h) in directories a/ and b/: For the b/impl.cpp to include a/header.hpp
+            //       it needs to have #include "../a/header.hpp"
 
             val dirs = mutableSetOf<File>()
             // First add dirs with sources, as clang by default adds directory with the source to the include path.
