@@ -5,6 +5,7 @@
 
 #include "SingleLockList.hpp"
 
+#include <atomic>
 #include <deque>
 #include <thread>
 
