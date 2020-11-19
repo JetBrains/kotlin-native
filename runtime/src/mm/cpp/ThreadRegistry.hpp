@@ -9,34 +9,27 @@
 #include <pthread.h>
 
 #include "SingleLockList.hpp"
-#include "ThreadData.hpp"
 #include "Utils.hpp"
 
 namespace kotlin {
 namespace mm {
 
+class ThreadData;
+
 class ThreadRegistry final : private Pinned {
 public:
     using ThreadDataNode = SingleLockList<ThreadData>::Node;
+    using Iterable = SingleLockList<ThreadData>::Iterable;
 
-    static ThreadRegistry& instance() noexcept { return instance_; }
+    static ThreadRegistry& Instance() noexcept { return instance_; }
 
-    ThreadDataNode* RegisterCurrentThread() noexcept {
-        ThreadDataNode* threadDataNode = list_.Emplace(pthread_self());
-        ThreadData*& currentData = currentThreadData_;
-        RuntimeAssert(currentData == nullptr, "This thread already had some data assigned to it.");
-        currentData = list_.ValueForNode(threadDataNode);
-        return threadDataNode;
-    }
+    ThreadDataNode* RegisterCurrentThread() noexcept;
 
     // `ThreadData` associated with `threadDataNode` cannot be used after this call.
-    void Unregister(ThreadDataNode* threadDataNode) noexcept {
-        list_.Erase(threadDataNode);
-        // Do not touch `currentThreadData_` as TLS may already have been deallocated.
-    }
+    void Unregister(ThreadDataNode* threadDataNode) noexcept;
 
     // Locks `ThreadRegistry` for safe iteration.
-    SingleLockList<ThreadData>::Iterable Iter() noexcept { return list_.Iter(); }
+    Iterable Iter() noexcept;
 
     // Try not to use it very often, as (1) thread local access can be slow on some platforms,
     // (2) TLS gets deallocated before our thread destruction hooks run.

@@ -29,9 +29,9 @@ ALWAYS_INLINE mm::ThreadRegistry::ThreadDataNode* FromMemoryState(MemoryState* s
 } // namespace
 
 extern "C" MemoryState* InitMemory(bool firstRuntime) {
-    return ToMemoryState(mm::ThreadRegistry::instance().RegisterCurrentThread());
+    return ToMemoryState(mm::ThreadRegistry::Instance().RegisterCurrentThread());
 }
 
 extern "C" void DeinitMemory(MemoryState* state, bool destroyRuntime) {
-    mm::ThreadRegistry::instance().Unregister(FromMemoryState(state));
+    mm::ThreadRegistry::Instance().Unregister(FromMemoryState(state));
 }

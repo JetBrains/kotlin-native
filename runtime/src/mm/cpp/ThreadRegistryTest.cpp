@@ -5,17 +5,21 @@
 
 #include "ThreadRegistry.hpp"
 
+#include <pthread.h>
 #include <thread>
 
 #include "gtest/gtest.h"
+
+#include "ThreadData.hpp"
 
 using namespace kotlin;
 
 TEST(ThreadRegistryTest, RegisterCurrentThread) {
     std::thread t([]() {
-        auto* node = mm::ThreadRegistry::instance().RegisterCurrentThread();
+        auto* node = mm::ThreadRegistry::Instance().RegisterCurrentThread();
         auto* threadData = SingleLockList<mm::ThreadData>::ValueForNode(node);
-        EXPECT_EQ(threadData, mm::ThreadRegistry::instance().CurrentThreadData());
+        EXPECT_EQ(pthread_self(), threadData->threadId());
+        EXPECT_EQ(threadData, mm::ThreadRegistry::Instance().CurrentThreadData());
     });
     t.join();
 }
