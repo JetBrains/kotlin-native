@@ -26,7 +26,7 @@ mm::GlobalsRegistry::Iterable mm::GlobalsRegistry::CollectAndIterate(mm::ThreadR
     for (auto& threadData : threadRegistry) {
         RuntimeAssert(threadData.state() == mm::ThreadData::State::kWaitGC, "Thread must be waiting for GC to complete.");
         auto& queue = threadData.globalsThreadQueue().queue_;
-        globals_.splice(globals_.cend(), queue);
+        globals_.splice(globals_.end(), queue);
     }
     return iterable;
 }

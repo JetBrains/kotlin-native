@@ -45,6 +45,7 @@ public:
 
     void RegisterStorageForGlobal(mm::ThreadData* threadData, ObjHeader** location) noexcept;
 
+    // TODO: Reconsider this API for the future.
     // Collect globals from threads and lock GlobalsRegistry for safe iteration.
     Iterable CollectAndIterate(ThreadRegistry::Iterable& threadRegistry) noexcept;
 
