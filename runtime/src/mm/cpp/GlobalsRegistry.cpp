@@ -5,18 +5,12 @@
 
 #include "GlobalsRegistry.hpp"
 
+#include <iterator>
+
 #include "GlobalData.hpp"
 #include "ThreadData.hpp"
 
 using namespace kotlin;
-
-void mm::GlobalsRegistry::ThreadQueue::AddToQueue(ObjHeader** location) noexcept {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-void mm::GlobalsRegistry::ThreadQueue::DumpInto(std::vector<ObjHeader**>& storage) noexcept {
-    RuntimeCheck(false, "Unimplemented");
-}
 
 // static
 mm::GlobalsRegistry& mm::GlobalsRegistry::Instance() noexcept {
@@ -24,14 +18,18 @@ mm::GlobalsRegistry& mm::GlobalsRegistry::Instance() noexcept {
 }
 
 void mm::GlobalsRegistry::RegisterStorageForGlobal(mm::ThreadData* threadData, ObjHeader** location) noexcept {
-    threadData->globalsThreadQueueUnsafe().AddToQueue(location);
+    threadData->globalsThreadQueue().queue_.push_back(location);
 }
 
 mm::GlobalsRegistry::Iterable mm::GlobalsRegistry::CollectAndIterate(mm::ThreadRegistry::Iterable& threadRegistry) noexcept {
     Iterable iterable(this);
     for (auto& threadData : threadRegistry) {
-        threadData.globalsThreadQueueUnsafe().DumpInto(globals_);
+        RuntimeAssert(threadData.state() == mm::ThreadData::State::kWaitGC, "Thread must be waiting for GC to complete.");
+        std::vector<ObjHeader**> queue = std::move(threadData.globalsThreadQueue().queue_);
+        globals_.insert(globals_.end(), std::make_move_iterator(queue.begin()), std::make_move_iterator(queue.end()));
     }
     return iterable;
 }
 
+mm::GlobalsRegistry::GlobalsRegistry() = default;
+mm::GlobalsRegistry::~GlobalsRegistry() = default;

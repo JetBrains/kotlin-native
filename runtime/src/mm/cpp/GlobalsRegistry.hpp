@@ -23,9 +23,6 @@ public:
     private:
         friend class GlobalsRegistry;
 
-        void AddToQueue(ObjHeader** location) noexcept;
-        void DumpInto(std::vector<ObjHeader**>& storage) noexcept;
-
         std::vector<ObjHeader**> queue_;
     };
 
@@ -52,6 +49,11 @@ public:
     Iterable CollectAndIterate(ThreadRegistry::Iterable& threadRegistry) noexcept;
 
 private:
+    friend class GlobalData;
+
+    GlobalsRegistry();
+    ~GlobalsRegistry();
+
     std::vector<ObjHeader**> globals_;
     SimpleMutex mutex_;
 };

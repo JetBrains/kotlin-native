@@ -18,17 +18,24 @@ namespace mm {
 // Pin it in memory to prevent accidental copying.
 class ThreadData final : private Pinned {
 public:
+    enum class State {
+        kRunning,
+        kWaitGC,
+    };
+
     ThreadData(pthread_t threadId) noexcept : threadId_(threadId) {}
 
     ~ThreadData() = default;
 
     pthread_t threadId() const noexcept { return threadId_; }
 
-    // TODO: Somehow make sure it's called safely.
-    GlobalsRegistry::ThreadQueue& globalsThreadQueueUnsafe() noexcept { return globalsThreadQueue_; }
+    State state() const noexcept { return state_; }
+
+    GlobalsRegistry::ThreadQueue& globalsThreadQueue() noexcept { return globalsThreadQueue_; }
 
 private:
     const pthread_t threadId_;
+    State state_ = State::kRunning;
     GlobalsRegistry::ThreadQueue globalsThreadQueue_;
 };
 
