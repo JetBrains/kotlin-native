@@ -5,8 +5,6 @@
 
 #include "GlobalData.hpp"
 
-#include "ThreadData.hpp"
-
 using namespace kotlin;
 
 // static
