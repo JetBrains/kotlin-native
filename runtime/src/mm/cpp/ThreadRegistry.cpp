@@ -32,6 +32,7 @@ mm::ThreadRegistry::Iterable mm::ThreadRegistry::Iter() noexcept {
     return list_.Iter();
 }
 
+mm::ThreadRegistry::ThreadRegistry() = default;
 mm::ThreadRegistry::~ThreadRegistry() = default;
 
 // static

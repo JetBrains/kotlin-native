@@ -39,7 +39,7 @@ public:
 private:
     friend class GlobalData;
 
-    ThreadRegistry() = default;
+    ThreadRegistry();
     ~ThreadRegistry();
 
     static thread_local ThreadData* currentThreadData_;

@@ -20,8 +20,8 @@ public:
     ThreadRegistry& threadRegistry() { return threadRegistry_; }
 
 private:
-    GlobalData() = default;
-    ~GlobalData() = default;
+    GlobalData();
+    ~GlobalData();
 
     static GlobalData instance_;
 
