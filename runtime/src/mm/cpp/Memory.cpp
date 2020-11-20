@@ -12,17 +12,17 @@
 using namespace kotlin;
 
 extern "C" struct MemoryState {
-    mm::ThreadRegistry::ThreadDataNode data;
+    mm::ThreadRegistry::Node data;
     // Do not add any other fields: this struct is just a wrapper around ThreadDataNode.
 };
 
 namespace {
 
-ALWAYS_INLINE MemoryState* ToMemoryState(mm::ThreadRegistry::ThreadDataNode* data) {
+ALWAYS_INLINE MemoryState* ToMemoryState(mm::ThreadRegistry::Node* data) {
     return wrapper_cast(MemoryState, data, data);
 }
 
-ALWAYS_INLINE mm::ThreadRegistry::ThreadDataNode* FromMemoryState(MemoryState* state) {
+ALWAYS_INLINE mm::ThreadRegistry::Node* FromMemoryState(MemoryState* state) {
     return &state->data;
 }
 

@@ -19,15 +19,25 @@ namespace kotlin {
 // TODO: Consider different locking mechanisms.
 template <typename Value, typename Mutex = SimpleMutex>
 class SingleLockList : private Pinned {
-private:
-    struct NodeImpl;
-
 public:
-    using Node = NodeImpl;
+    class Node : Pinned {
+    public:
+        Value* Get() noexcept { return &value; }
+
+    private:
+        friend class SingleLockList;
+
+        template <typename... Args>
+        Node(Args... args) noexcept : value(args...) {}
+
+        Value value;
+        std::unique_ptr<Node> next;
+        Node* previous = nullptr; // weak
+    };
 
     class Iterator {
     public:
-        explicit Iterator(NodeImpl* node) noexcept : node_(node) {}
+        explicit Iterator(Node* node) noexcept : node_(node) {}
 
         Value& operator*() noexcept { return node_->value; }
 
@@ -41,7 +51,7 @@ public:
         bool operator!=(const Iterator& rhs) const noexcept { return node_ != rhs.node_; }
 
     private:
-        NodeImpl* node_;
+        Node* node_;
     };
 
     class Iterable : private MoveOnly {
@@ -59,15 +69,15 @@ public:
 
     template <typename... Args>
     Node* Emplace(Args... args) noexcept {
-        auto node = std_support::make_unique<NodeImpl>(args...);
-        auto* result = node.get();
+        auto* nodePtr = new Node(args...);
+        std::unique_ptr<Node> node(nodePtr);
         LockGuard<Mutex> guard(mutex_);
         if (root_) {
             root_->previous = node.get();
         }
         node->next = std::move(root_);
         root_ = std::move(node);
-        return result;
+        return nodePtr;
     }
 
     // Using `node` including its referred `Value` after `Erase` is undefined behaviour.
@@ -98,20 +108,8 @@ public:
     // // At this point `list` is unlocked.
     Iterable Iter() noexcept { return Iterable(this); }
 
-    static Value* ValueForNode(Node* node) noexcept { return &node->value; }
-
 private:
-    struct NodeImpl {
-        template <typename... Args>
-        NodeImpl(Args... args) noexcept : value(args...) {}
-
-        Value value;
-        // TODO: Consider adding a marker for checks in debug mode if Value was constructed inside the Node.
-        std::unique_ptr<Node> next;
-        Node* previous = nullptr; // weak
-    };
-
-    std::unique_ptr<NodeImpl> root_;
+    std::unique_ptr<Node> root_;
     Mutex mutex_;
 };
 

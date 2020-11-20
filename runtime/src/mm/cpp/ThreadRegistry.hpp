@@ -18,15 +18,15 @@ class ThreadData;
 
 class ThreadRegistry final : private Pinned {
 public:
-    using ThreadDataNode = SingleLockList<ThreadData>::Node;
+    using Node = SingleLockList<ThreadData>::Node;
     using Iterable = SingleLockList<ThreadData>::Iterable;
 
     static ThreadRegistry& Instance() noexcept;
 
-    ThreadDataNode* RegisterCurrentThread() noexcept;
+    Node* RegisterCurrentThread() noexcept;
 
     // `ThreadData` associated with `threadDataNode` cannot be used after this call.
-    void Unregister(ThreadDataNode* threadDataNode) noexcept;
+    void Unregister(Node* threadDataNode) noexcept;
 
     // Locks `ThreadRegistry` for safe iteration.
     Iterable Iter() noexcept;

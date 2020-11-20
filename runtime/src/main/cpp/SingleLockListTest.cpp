@@ -28,9 +28,9 @@ TEST(SingleLockListTest, Emplace) {
     auto* firstNode = list.Emplace(kFirst);
     auto* secondNode = list.Emplace(kSecond);
     auto* thirdNode = list.Emplace(kThird);
-    int* first = list.ValueForNode(firstNode);
-    int* second = list.ValueForNode(secondNode);
-    int* third = list.ValueForNode(thirdNode);
+    int* first = firstNode->Get();
+    int* second = secondNode->Get();
+    int* third = thirdNode->Get();
     EXPECT_THAT(*first, kFirst);
     EXPECT_THAT(*second, kSecond);
     EXPECT_THAT(*third, kThird);
@@ -283,7 +283,7 @@ TEST(SingleLockListTest, PinnedType) {
     constexpr int kFirst = 1;
 
     auto* itemNode = list.Emplace(kFirst);
-    PinnedType* item = list.ValueForNode(itemNode);
+    PinnedType* item = itemNode->Get();
     EXPECT_THAT(item->value(), kFirst);
 
     list.Erase(itemNode);

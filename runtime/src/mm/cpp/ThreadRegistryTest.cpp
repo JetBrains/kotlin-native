@@ -17,7 +17,7 @@ using namespace kotlin;
 TEST(ThreadRegistryTest, RegisterCurrentThread) {
     std::thread t([]() {
         auto* node = mm::ThreadRegistry::Instance().RegisterCurrentThread();
-        auto* threadData = SingleLockList<mm::ThreadData>::ValueForNode(node);
+        auto* threadData = node->Get();
         EXPECT_EQ(pthread_self(), threadData->threadId());
         EXPECT_EQ(threadData, mm::ThreadRegistry::Instance().CurrentThreadData());
     });

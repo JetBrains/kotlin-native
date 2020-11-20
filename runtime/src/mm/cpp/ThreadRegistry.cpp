@@ -15,15 +15,15 @@ mm::ThreadRegistry& mm::ThreadRegistry::Instance() noexcept {
     return mm::GlobalData::Instance().threadRegistry();
 }
 
-mm::ThreadRegistry::ThreadDataNode* mm::ThreadRegistry::RegisterCurrentThread() noexcept {
-    ThreadDataNode* threadDataNode = list_.Emplace(pthread_self());
+mm::ThreadRegistry::Node* mm::ThreadRegistry::RegisterCurrentThread() noexcept {
+    auto* threadDataNode = list_.Emplace(pthread_self());
     ThreadData*& currentData = currentThreadData_;
     RuntimeAssert(currentData == nullptr, "This thread already had some data assigned to it.");
-    currentData = list_.ValueForNode(threadDataNode);
+    currentData = threadDataNode->Get();
     return threadDataNode;
 }
 
-void mm::ThreadRegistry::Unregister(ThreadDataNode* threadDataNode) noexcept {
+void mm::ThreadRegistry::Unregister(Node* threadDataNode) noexcept {
     list_.Erase(threadDataNode);
     // Do not touch `currentThreadData_` as TLS may already have been deallocated.
 }
