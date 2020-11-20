@@ -6,8 +6,8 @@
 #ifndef RUNTIME_MM_GLOBALS_REGISTRY_H
 #define RUNTIME_MM_GLOBALS_REGISTRY_H
 
+#include <list>
 #include <mutex>
-#include <vector>
 
 #include "Memory.h"
 #include "Mutex.hpp"
@@ -23,10 +23,10 @@ public:
     private:
         friend class GlobalsRegistry;
 
-        std::vector<ObjHeader**> queue_;
+        std::list<ObjHeader**> queue_;
     };
 
-    using Iterator = std::vector<ObjHeader**>::iterator;
+    using Iterator = std::list<ObjHeader**>::iterator;
 
     class Iterable : MoveOnly {
     public:
@@ -54,7 +54,8 @@ private:
     GlobalsRegistry();
     ~GlobalsRegistry();
 
-    std::vector<ObjHeader**> globals_;
+    // Using list as it can be merged with `ThreadQueue` queues without allocations.
+    std::list<ObjHeader**> globals_;
     SimpleMutex mutex_;
 };
 

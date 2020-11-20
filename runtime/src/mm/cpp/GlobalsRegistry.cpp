@@ -25,8 +25,8 @@ mm::GlobalsRegistry::Iterable mm::GlobalsRegistry::CollectAndIterate(mm::ThreadR
     Iterable iterable(this);
     for (auto& threadData : threadRegistry) {
         RuntimeAssert(threadData.state() == mm::ThreadData::State::kWaitGC, "Thread must be waiting for GC to complete.");
-        std::vector<ObjHeader**> queue = std::move(threadData.globalsThreadQueue().queue_);
-        globals_.insert(globals_.end(), std::make_move_iterator(queue.begin()), std::make_move_iterator(queue.end()));
+        auto& queue = threadData.globalsThreadQueue().queue_;
+        globals_.splice(globals_.cend(), queue);
     }
     return iterable;
 }
