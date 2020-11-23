@@ -2419,8 +2419,7 @@ OBJ_GETTER(initSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (
 
 template <bool Strict>
 void initGlobal(ObjHeader** location, const ObjHeader* initialValue) {
-    if (initialValue == nullptr)
-      return; // Do nothing, the appropriate initial value was already set.
+    if (initialValue == nullptr) return; // Do nothing, the appropriate initial value was already set.
 
     updateHeapRef<Strict>(location, initialValue);
 }

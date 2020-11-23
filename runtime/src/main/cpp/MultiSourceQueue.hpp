@@ -16,9 +16,7 @@ class MultiSourceQueue {
 public:
     class Producer {
     public:
-        void Insert(const T& value) noexcept {
-            queue_.push_back(value);
-        }
+        void Insert(const T& value) noexcept { queue_.push_back(value); }
 
     private:
         friend class MultiSourceQueue;
@@ -33,9 +31,7 @@ public:
 
     // Merge `producer`s queue with `this`. `producer` will have empty queue after the call.
     // This call is performed without heap allocations. TODO: Test that no allocations are happening.
-    void Collect(Producer* producer) noexcept {
-        commonQueue_.splice(commonQueue_.end(), producer->queue_);
-    }
+    void Collect(Producer* producer) noexcept { commonQueue_.splice(commonQueue_.end(), producer->queue_); }
 
 private:
     // Using `std::list` as it allows to implement `Collect` without memory allocations,
@@ -43,6 +39,6 @@ private:
     std::list<T> commonQueue_;
 };
 
-}
+} // namespace kotlin
 
 #endif // RUNTIME_MULTI_SOURCE_QUEUE_H
