@@ -18,13 +18,12 @@ mm::GlobalsRegistry& mm::GlobalsRegistry::Instance() noexcept {
 }
 
 void mm::GlobalsRegistry::RegisterStorageForGlobal(mm::ThreadData* threadData, ObjHeader** location) noexcept {
-    threadData->globalsThreadQueue().queue_.push_back(location);
+    threadData->globalsThreadQueue()->add(location);
 }
 
 void mm::GlobalsRegistry::ProcessThread(mm::ThreadData* threadData) noexcept {
     RuntimeAssert(threadData->state() == mm::ThreadData::State::kWaitGC, "Thread must be waiting for GC to complete.");
-    auto& queue = threadData->globalsThreadQueue().queue_;
-    globals_.splice(globals_.end(), queue);
+    globals_.Collect(threadData->globalsThreadQueue());
 }
 
 mm::GlobalsRegistry::GlobalsRegistry() = default;

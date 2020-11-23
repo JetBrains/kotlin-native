@@ -31,7 +31,7 @@ public:
 
     State state() const noexcept { return state_; }
 
-    GlobalsRegistry::ThreadQueue& globalsThreadQueue() noexcept { return globalsThreadQueue_; }
+    GlobalsRegistry::ThreadQueue* globalsThreadQueue() noexcept { return &globalsThreadQueue_; }
 
 private:
     const pthread_t threadId_;

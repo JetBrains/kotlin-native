@@ -6,9 +6,8 @@
 #ifndef RUNTIME_MM_GLOBALS_REGISTRY_H
 #define RUNTIME_MM_GLOBALS_REGISTRY_H
 
-#include <list>
-
 #include "Memory.h"
+#include "MultiSourceQueue.hpp"
 #include "ThreadRegistry.hpp"
 #include "Utils.hpp"
 
@@ -17,12 +16,7 @@ namespace mm {
 
 class GlobalsRegistry : Pinned {
 public:
-    class ThreadQueue {
-    private:
-        friend class GlobalsRegistry;
-
-        std::list<ObjHeader**> queue_;
-    };
+    using ThreadQueue = MultiSourceQueue<ObjHeader**>::Producer;
 
     using Iterator = std::list<ObjHeader**>::iterator;
 
@@ -44,8 +38,7 @@ private:
     GlobalsRegistry();
     ~GlobalsRegistry();
 
-    // Using list as it can be merged with `ThreadQueue` queues without allocations.
-    std::list<ObjHeader**> globals_;
+    MultiSourceQueue<ObjHeader**> globals_;
 };
 
 } // namespace mm
