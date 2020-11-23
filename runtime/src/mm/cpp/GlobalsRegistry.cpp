@@ -18,7 +18,7 @@ mm::GlobalsRegistry& mm::GlobalsRegistry::Instance() noexcept {
 }
 
 void mm::GlobalsRegistry::RegisterStorageForGlobal(mm::ThreadData* threadData, ObjHeader** location) noexcept {
-    threadData->globalsThreadQueue()->add(location);
+    threadData->globalsThreadQueue()->Insert(location);
 }
 
 void mm::GlobalsRegistry::ProcessThread(mm::ThreadData* threadData) noexcept {

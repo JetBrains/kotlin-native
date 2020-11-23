@@ -16,7 +16,7 @@ class MultiSourceQueue {
 public:
     class Producer {
     public:
-        void add(const T& value) noexcept {
+        void Insert(const T& value) noexcept {
             queue_.push_back(value);
         }
 
