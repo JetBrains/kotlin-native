@@ -7,19 +7,19 @@ package org.jetbrains.kotlin.backend.konan.ir
 
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.llvm.llvmSymbolOrigin
+import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.lazy.IrLazyDeclarationBase
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.toKotlinType
 import org.jetbrains.kotlin.ir.util.file
+import org.jetbrains.kotlin.ir.util.module
 
 // This file contains some IR utilities which actually use descriptors.
 // TODO: port this code to IR.
 
-internal val IrDeclaration.llvmSymbolOrigin get() = when (this) {
-    is IrLazyDeclarationBase -> descriptor.llvmSymbolOrigin
-    else -> file.packageFragmentDescriptor.llvmSymbolOrigin
-}
+internal val IrDeclaration.llvmSymbolOrigin: CompiledKlibModuleOrigin
+    get() = module.llvmSymbolOrigin
 
 internal fun IrType.isObjCObjectType() = this.toKotlinType().isObjCObjectType()
 
