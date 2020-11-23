@@ -21,14 +21,10 @@ void mm::GlobalsRegistry::RegisterStorageForGlobal(mm::ThreadData* threadData, O
     threadData->globalsThreadQueue().queue_.push_back(location);
 }
 
-mm::GlobalsRegistry::Iterable mm::GlobalsRegistry::CollectAndIterate(mm::ThreadRegistry::Iterable& threadRegistry) noexcept {
-    Iterable iterable(this);
-    for (auto& threadData : threadRegistry) {
-        RuntimeAssert(threadData.state() == mm::ThreadData::State::kWaitGC, "Thread must be waiting for GC to complete.");
-        auto& queue = threadData.globalsThreadQueue().queue_;
-        globals_.splice(globals_.end(), queue);
-    }
-    return iterable;
+void mm::GlobalsRegistry::ProcessThread(mm::ThreadData* threadData) noexcept {
+    RuntimeAssert(threadData->state() == mm::ThreadData::State::kWaitGC, "Thread must be waiting for GC to complete.");
+    auto& queue = threadData->globalsThreadQueue().queue_;
+    globals_.splice(globals_.end(), queue);
 }
 
 mm::GlobalsRegistry::GlobalsRegistry() = default;
