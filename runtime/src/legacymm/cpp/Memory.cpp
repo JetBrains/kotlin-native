@@ -2418,8 +2418,11 @@ OBJ_GETTER(initSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (
 }
 
 template <bool Strict>
-void initGlobal(ObjHeader** location, const ObjHeader* object) {
-    updateHeapRef<Strict>(location, object);
+void initGlobal(ObjHeader** location, const ObjHeader* initialValue) {
+    if (initialValue == nullptr)
+      return; // Do nothing, the appropriate initial value was already set.
+
+    updateHeapRef<Strict>(location, initialValue);
 }
 
 /**
@@ -3346,11 +3349,11 @@ OBJ_GETTER(InitSingletonRelaxed, ObjHeader** location, const TypeInfo* typeInfo,
     RETURN_RESULT_OF(initSingleton<false>, location, typeInfo, ctor);
 }
 
-void RUNTIME_NOTHROW InitGlobalStrict(ObjHeader** location, const ObjHeader* object) {
-    initGlobal<true>(location, object);
+void RUNTIME_NOTHROW InitGlobalStrict(ObjHeader** location, const ObjHeader* initialValue) {
+    initGlobal<true>(location, initialValue);
 }
-void RUNTIME_NOTHROW InitGlobalRelaxed(ObjHeader** location, const ObjHeader* object) {
-    initGlobal<false>(location, object);
+void RUNTIME_NOTHROW InitGlobalRelaxed(ObjHeader** location, const ObjHeader* initialValue) {
+    initGlobal<false>(location, initialValue);
 }
 
 RUNTIME_NOTHROW void SetStackRefStrict(ObjHeader** location, const ObjHeader* object) {

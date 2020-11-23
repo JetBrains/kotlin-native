@@ -146,8 +146,10 @@ OBJ_GETTER(InitThreadLocalSingleton, ObjHeader** location, const TypeInfo* typeI
 
 OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*));
 
+// `initialValue` may be `nullptr`, which signifies that the appropriate initial value was already
+// set by static initialization.
 // TODO: When global initialization becomes lazy, this signature won't do.
-void InitGlobal(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void InitGlobal(ObjHeader** location, const ObjHeader* initialValue) RUNTIME_NOTHROW;
 
 //
 // Object reference management.

@@ -27,8 +27,8 @@ OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (
     RETURN_RESULT_OF(InitSingletonStrict, location, typeInfo, ctor);
 }
 
-RUNTIME_NOTHROW void InitGlobal(ObjHeader** location, const ObjHeader* object) {
-    InitGlobalStrict(location, object);
+RUNTIME_NOTHROW void InitGlobal(ObjHeader** location, const ObjHeader* initialValue) {
+    InitGlobalStrict(location, initialValue);
 }
 
 RUNTIME_NOTHROW void ReleaseHeapRef(const ObjHeader* object) {

@@ -27,8 +27,8 @@ OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (
     RETURN_RESULT_OF(InitSingletonRelaxed, location, typeInfo, ctor);
 }
 
-RUNTIME_NOTHROW void InitGlobal(ObjHeader** location, const ObjHeader* object) {
-    InitGlobalRelaxed(location, object);
+RUNTIME_NOTHROW void InitGlobal(ObjHeader** location, const ObjHeader* initialValue) {
+    InitGlobalRelaxed(location, initialValue);
 }
 
 RUNTIME_NOTHROW void ReleaseHeapRef(const ObjHeader* object) {
