@@ -421,6 +421,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                         if (irField.storageKind == FieldStorageKind.SHARED_FROZEN)
                                             freeze(initialization, currentCodeContext.exceptionHandler)
                                         if (isObjectRef(initialization)) {
+                                            // TODO: This only registers fields that are initialized by non-const expression.
                                             call(context.llvm.initGlobalFunction, listOf(address, initialization))
                                         } else {
                                             store(initialization, address)
