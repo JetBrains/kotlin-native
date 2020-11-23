@@ -7,10 +7,8 @@
 #define RUNTIME_MM_GLOBALS_REGISTRY_H
 
 #include <list>
-#include <mutex>
 
 #include "Memory.h"
-#include "Mutex.hpp"
 #include "ThreadRegistry.hpp"
 #include "Utils.hpp"
 
@@ -28,28 +26,17 @@ public:
 
     using Iterator = std::list<ObjHeader**>::iterator;
 
-    class Iterable : MoveOnly {
-    public:
-        explicit Iterable(GlobalsRegistry* registry) noexcept : registry_(registry), guard_(registry->mutex_) {}
-
-        Iterator begin() noexcept { return registry_->globals_.begin(); }
-
-        Iterator end() noexcept { return registry_->globals_.end(); }
-
-    private:
-        GlobalsRegistry* registry_;
-        std::unique_lock<SimpleMutex> guard_;
-    };
-
     static GlobalsRegistry& Instance() noexcept;
 
     void RegisterStorageForGlobal(mm::ThreadData* threadData, ObjHeader** location) noexcept;
 
     // Collect globals from thread corresponding to `threadData`. Thread must be waiting for GC.
+    // Only one thread can call this method.
     void ProcessThread(mm::ThreadData* threadData) noexcept;
 
-    // Lock GlobalsRegistry for safe iteration.
-    Iterable Iter() noexcept { return Iterable(this); }
+    // These must be called on the same thread as `ProcessThread` to avoid races.
+    Iterator begin() noexcept { return globals_.begin(); }
+    Iterator end() noexcept { return globals_.end(); }
 
 private:
     friend class GlobalData;
@@ -59,7 +46,6 @@ private:
 
     // Using list as it can be merged with `ThreadQueue` queues without allocations.
     std::list<ObjHeader**> globals_;
-    SimpleMutex mutex_;
 };
 
 } // namespace mm
