@@ -43,6 +43,9 @@ extern "C" void DeinitMemory(MemoryState* state, bool destroyRuntime) {
 
 extern "C" OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
+    // TODO: This should only be called if singleton is actually created here. It's possible that the
+    // singleton will be created on a different thread and here we should check that, instead of creating
+    // another one (and registering `location` twice).
     mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
     RuntimeCheck(false, "Unimplemented");
 }

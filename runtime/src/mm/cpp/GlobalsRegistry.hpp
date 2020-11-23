@@ -29,6 +29,9 @@ public:
     void ProcessThread(mm::ThreadData* threadData) noexcept;
 
     // These must be called on the same thread as `ProcessThread` to avoid races.
+    // TODO: Iteration over `globals_` will be slow, because it's `std::list` collected at different times from
+    // different threads, and so the nodes are all over the memory. Use metrics to understand how
+    // much of a problem is it.
     Iterator begin() noexcept { return globals_.begin(); }
     Iterator end() noexcept { return globals_.end(); }
 
