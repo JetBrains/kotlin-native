@@ -29,7 +29,7 @@ public:
     using Iterator = typename std::list<T>::iterator;
 
     Iterator begin() noexcept { return commonQueue_.begin(); }
-    Iterator end() noexcept { return commonQueue_.begin(); }
+    Iterator end() noexcept { return commonQueue_.end(); }
 
     // Merge `producer`s queue with `this`. `producer` will have empty queue after the call.
     // This call is performed without heap allocations. TODO: Test that no allocations are happening.
