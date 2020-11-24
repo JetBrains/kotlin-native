@@ -166,7 +166,7 @@ RUNTIME_NOTHROW void AddTLSRecord(MemoryState* memory, void** key, int size) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-RUNTIME_NOTHROW void ClearTLSRecord(MemoryState* memory, void** key) {
+RUNTIME_NOTHROW void ClearTLS(MemoryState* memory) {
     RuntimeCheck(false, "Unimplemented");
 }
 

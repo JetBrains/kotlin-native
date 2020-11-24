@@ -3545,18 +3545,17 @@ RUNTIME_NOTHROW void AddTLSRecord(MemoryState* memory, void** key, int size) {
   tlsMap->emplace(key, std::make_pair(start, size));
 }
 
-RUNTIME_NOTHROW void ClearTLSRecord(MemoryState* memory, void** key) {
-  auto* tlsMap = memory->tlsMap;
-  auto it = tlsMap->find(key);
-  if (it != tlsMap->end()) {
-    KRef* start = it->second.first;
-    int count = it->second.second;
-    for (int i = 0; i < count; i++) {
-      UpdateHeapRef(start + i, nullptr);
+RUNTIME_NOTHROW void ClearTLS(MemoryState* memory) {
+    auto* tlsMap = memory->tlsMap;
+    for (auto& entry : *tlsMap) {
+        KRef* start = entry.second.first;
+        int count = entry.second.second;
+        for (int i = 0; i < count; i++) {
+            UpdateHeapRef(start + i, nullptr);
+        }
+        konanFreeMemory(start);
     }
-    konanFreeMemory(start);
-    tlsMap->erase(it);
-  }
+    tlsMap->clear();
 }
 
 RUNTIME_NOTHROW KRef* LookupTLS(void** key, int index) {

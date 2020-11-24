@@ -455,10 +455,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 }
 
                 appendingTo(bbLocalDeinit) {
-                    if (context.llvm.tlsCount > 0) {
-                        val memory = LLVMGetParam(initFunction, 1)!!
-                        call(context.llvm.clearTLSRecord, listOf(memory, context.llvm.tlsKey))
-                    }
                     ret(null)
                 }
 

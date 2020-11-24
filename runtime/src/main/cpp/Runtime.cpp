@@ -148,7 +148,7 @@ void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
       // Nothing to do.
       break;
   }
-  InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
+  ClearTLS(state->memoryState);
   if (destroyRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   auto workerId = GetWorkerId(state->worker);
