@@ -3537,10 +3537,7 @@ void Kotlin_Any_share(ObjHeader* obj) {
 RUNTIME_NOTHROW void AddTLSRecord(MemoryState* memory, void** key, int size) {
   auto* tlsMap = memory->tlsMap;
   auto it = tlsMap->find(key);
-  if (it != tlsMap->end()) {
-    RuntimeAssert(it->second.second == size, "Size must be consistent");
-    return;
-  }
+  RuntimeAssert(it == tlsMap->end(), "Attempt to add TLS record with the same key");
   KRef* start = reinterpret_cast<KRef*>(konanAllocMemory(size * sizeof(KRef)));
   tlsMap->emplace(key, std::make_pair(start, size));
 }
