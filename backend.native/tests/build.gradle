@@ -3680,6 +3680,9 @@ if (PlatformInfo.isAppleTarget(project)) {
       it.defFile 'interop/objc/illegal_sharing_with_weak/objclib.def'
       it.headers "$projectDir/interop/objc/illegal_sharing_with_weak/objclib.h"
     }
+    createInterop("objcKt43517") {
+        it.defFile 'framework/kt43517/kt43517.def'
+    }
 }
 
 createInterop("withSpaces") {
@@ -4412,6 +4415,14 @@ if (isAppleTarget(project)) {
             library = 'objcGh3343'
         }
         swiftSources = ['framework/gh3343/']
+    }
+
+    frameworkTest("testKt43517Framework") {
+        framework('Kt43517') {
+            sources = ['framework/kt43517']
+            library = 'objcKt43517'
+        }
+        swiftSources = ['framework/kt43517/']
     }
 }
 
