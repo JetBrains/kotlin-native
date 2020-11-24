@@ -584,9 +584,9 @@ private:
 };
 
 class ThreadLocalStorage {
-    using Map = KStdUnorderedMap<void**, int>;
-
 public:
+    using Key = void**;
+
     void Init() noexcept { map_ = konanConstructInstance<Map>(); }
 
     void Deinit() noexcept {
@@ -594,7 +594,7 @@ public:
         konanDestructInstance(map_);
     }
 
-    void Add(void** key, int size) noexcept {
+    void Add(Key key, int size) noexcept {
         RuntimeAssert(storage_ == nullptr, "Storage must not be committed");
         auto it = map_->find(key);
         RuntimeAssert(it == map_->end(), "Attempt to add TLS record with the same key");
@@ -602,9 +602,13 @@ public:
         size_ += size;
     }
 
-    void Commit() noexcept { storage_ = reinterpret_cast<KRef*>(konanAllocMemory(size_ * sizeof(KRef))); }
+    void Commit() noexcept {
+        RuntimeAssert(storage_ == nullptr, "Cannot commit storage twice");
+        storage_ = reinterpret_cast<KRef*>(konanAllocMemory(size_ * sizeof(KRef)));
+    }
 
     void Clear() noexcept {
+        RuntimeAssert(storage_ != nullptr, "Storage must be committed");
         for (int i = 0; i < size_; ++i) {
             UpdateHeapRef(storage_ + i, nullptr);
         }
@@ -612,7 +616,8 @@ public:
         map_->clear();
     }
 
-    KRef* Lookup(void** key, int index) noexcept {
+    KRef* Lookup(Key key, int index) noexcept {
+        RuntimeAssert(storage_ != nullptr, "Storage must be committed");
         // In many cases there is only one module, so this is one element cache.
         if (lastKey_ == key) {
             return storage_ + lastOffset_ + index;
@@ -627,11 +632,13 @@ public:
     }
 
 private:
+    using Map = KStdUnorderedMap<Key, int>;
+
     Map* map_ = nullptr;
     KRef* storage_ = nullptr;
     int size_ = 0;
     int lastOffset_ = 0;
-    void** lastKey_ = nullptr;
+    Key lastKey_ = nullptr;
 };
 
 struct MemoryState {
