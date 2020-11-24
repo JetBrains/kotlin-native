@@ -382,7 +382,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
 
-    // Must be synchroniszed with Runtime.cpp
+    // Must be synchronized with Runtime.cpp
     val ALLOC_THREAD_LOCAL_GLOBALS = 0
     val INIT_GLOBALS = 1
     val INIT_THREAD_LOCAL_GLOBALS = 2
