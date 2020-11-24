@@ -583,6 +583,8 @@ private:
   }
 };
 
+namespace {
+
 class ThreadLocalStorage {
 public:
     using Key = void**;
@@ -643,6 +645,8 @@ private:
     int lastOffset_ = 0;
     Key lastKey_ = nullptr;
 };
+
+} // namespace
 
 struct MemoryState {
 #if TRACE_MEMORY
