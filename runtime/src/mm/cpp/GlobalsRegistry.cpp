@@ -22,7 +22,7 @@ void mm::GlobalsRegistry::RegisterStorageForGlobal(mm::ThreadData* threadData, O
 }
 
 void mm::GlobalsRegistry::ProcessThread(mm::ThreadData* threadData) noexcept {
-    RuntimeAssert(threadData->state() == mm::ThreadData::State::kWaitGC, "Thread must be waiting for GC to complete.");
+    RuntimeAssert(threadData->isWaitingForGC(), "Thread must be waiting for GC to complete.");
     globals_.Collect(threadData->globalsThreadQueue());
 }
 

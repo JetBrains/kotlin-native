@@ -315,8 +315,6 @@ OBJ_GETTER(InitThreadLocalSingletonRelaxed, ObjHeader** location, const TypeInfo
 OBJ_GETTER(InitSingletonStrict, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*));
 OBJ_GETTER(InitSingletonRelaxed, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*));
 
-MODEL_VARIANTS(void, InitGlobal, ObjHeader** location, const ObjHeader* initialValue);
-
 MODEL_VARIANTS(void, SetStackRef, ObjHeader** location, const ObjHeader* object);
 MODEL_VARIANTS(void, SetHeapRef, ObjHeader** location, const ObjHeader* object);
 MODEL_VARIANTS(void, ZeroStackRef, ObjHeader** location);

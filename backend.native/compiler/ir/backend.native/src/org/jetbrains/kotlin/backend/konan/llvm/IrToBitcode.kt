@@ -424,10 +424,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                     } else {
                                         null
                                     }
-                                    if (irField.type.binaryTypeIsReference()) {
-                                        call(context.llvm.initGlobalFunction, listOf(address, initialValue ?: kNullObjHeaderPtr))
-                                    } else if(initialValue != null) {
-                                        store(initialValue, address)
+                                    val needRegistration =
+                                            context.memoryModel == MemoryModel.EXPERIMENTAL && // only for the new MM
+                                                    irField.type.binaryTypeIsReference() && // only for references
+                                                    (initialValue != null || // which are initialized from heap object
+                                                            !irField.isFinal) // or are not final
+                                    if (needRegistration) {
+                                        call(context.llvm.initAndRegisterGlobalFunction, listOf(address))
+                                    } else if (initialValue != null) {
+                                        storeAny(initialValue, address, false)
                                     }
                                 }
                             }

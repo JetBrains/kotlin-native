@@ -50,7 +50,7 @@ extern "C" OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeI
     RuntimeCheck(false, "Unimplemented");
 }
 
-extern "C" RUNTIME_NOTHROW void InitGlobal(ObjHeader** location, const ObjHeader* initialValue) {
+extern "C" RUNTIME_NOTHROW void InitAndRegisterGlobal(ObjHeader** location, const ObjHeader* initialValue) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
     RuntimeCheck(false, "Unimplemented");

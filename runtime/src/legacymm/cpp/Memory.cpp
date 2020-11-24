@@ -2417,13 +2417,6 @@ OBJ_GETTER(initSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (
 #endif  // KONAN_NO_THREADS
 }
 
-template <bool Strict>
-void initGlobal(ObjHeader** location, const ObjHeader* initialValue) {
-    if (initialValue == nullptr) return; // Do nothing, the appropriate initial value was already set.
-
-    updateHeapRef<Strict>(location, initialValue);
-}
-
 /**
  * We keep thread affinity and reference value based cookie in the atomic references, so that
  * repeating read operation of the same value do not lead to the repeating rememberNewContainer() operation.
@@ -3348,11 +3341,8 @@ OBJ_GETTER(InitSingletonRelaxed, ObjHeader** location, const TypeInfo* typeInfo,
     RETURN_RESULT_OF(initSingleton<false>, location, typeInfo, ctor);
 }
 
-void RUNTIME_NOTHROW InitGlobalStrict(ObjHeader** location, const ObjHeader* initialValue) {
-    initGlobal<true>(location, initialValue);
-}
-void RUNTIME_NOTHROW InitGlobalRelaxed(ObjHeader** location, const ObjHeader* initialValue) {
-    initGlobal<false>(location, initialValue);
+void RUNTIME_NOTHROW InitAndRegisterGlobal(ObjHeader** location, const ObjHeader* initialValue) {
+    RuntimeCheck(false, "Global registration is impossible in legacy MM");
 }
 
 RUNTIME_NOTHROW void SetStackRefStrict(ObjHeader** location, const ObjHeader* object) {
