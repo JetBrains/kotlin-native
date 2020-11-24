@@ -10,6 +10,7 @@ plugins {
 bitcode {
     create("hash")
     create("files")
+    create("env")
 }
 
 val hostName: String by project
@@ -17,6 +18,7 @@ val hostName: String by project
 val build by tasks.registering {
     dependsOn("${hostName}Hash")
     dependsOn("${hostName}Files")
+    dependsOn("${hostName}Env")
 }
 
 val clean by tasks.registering {

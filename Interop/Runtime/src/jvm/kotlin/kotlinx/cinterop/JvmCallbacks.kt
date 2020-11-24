@@ -16,7 +16,6 @@
 
 package kotlinx.cinterop
 
-import java.util.concurrent.ConcurrentHashMap
 import java.util.function.LongConsumer
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -60,9 +59,20 @@ private fun getVariableCType(type: KType): CType<*>? {
     }
 }
 
-private val structTypeCache = ConcurrentHashMap<Class<*>, CType<*>>()
+private class Caches {
+    val structTypeCache = mutableMapOf<Class<*>, CType<*>>()
+    val createdStaticFunctions = mutableMapOf<Class<*>, CPointer<CFunction<*>>>()
+}
 
-private fun getStructCType(structClass: KClass<*>): CType<*> = structTypeCache.computeIfAbsent(structClass.java) {
+private val cachesHolder = ThreadLocal<Caches>()
+private val caches: Caches
+    get() = cachesHolder.get() ?: Caches().also { cachesHolder.set(it) }
+
+fun clearJvmCallbackCaches() {
+    cachesHolder.remove()
+}
+
+private fun getStructCType(structClass: KClass<*>): CType<*> = caches.structTypeCache.getOrPut(structClass.java) {
     // Note that struct classes are not supposed to be user-defined,
     // so they don't require to be checked strictly.
 
@@ -197,11 +207,9 @@ private fun isStatic(function: Function<*>): Boolean {
     }
 }
 
-private val createdStaticFunctions = ConcurrentHashMap<Class<*>, CPointer<CFunction<*>>>()
-
 @Suppress("UNCHECKED_CAST")
 internal fun <F : Function<*>> staticCFunctionImpl(function: F) =
-        createdStaticFunctions.computeIfAbsent(function.javaClass) {
+        caches.createdStaticFunctions.getOrPut(function.javaClass) {
             createStaticCFunction(function)
         } as CPointer<CFunction<F>>
 
@@ -384,7 +392,7 @@ internal class ffi_type(rawPtr: NativePtr) : COpaque(rawPtr)
 /**
  * Reference to `ffi_cif` struct instance.
  */
-internal class ffi_cif(rawPtr: NativePtr) : COpaque(rawPtr)
+private class ffi_cif(rawPtr: NativePtr) : COpaque(rawPtr)
 
 private external fun ffiTypeVoid(): Long
 private external fun ffiTypeUInt8(): Long

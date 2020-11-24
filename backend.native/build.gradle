@@ -123,7 +123,22 @@ kotlinNativeInterop {
 
         pkg 'org.jetbrains.kotlin.backend.konan.files'
     }
-}
+
+    env {
+        if (!project.parent.convention.plugins.platformInfo.isWindows()) {
+            compilerOpts '-fPIC'
+            linkerOpts '-fPIC'
+        }
+        linker 'clang++'
+        linkOutputs ":common:${hostName}Env"
+
+        headers fileTree('../common/src/env/headers') {
+            include '**/*.h'
+            include '**/*.hpp'
+        }
+
+        pkg 'org.jetbrains.kotlin.backend.konan.env'
+    }}
 
 
 configurations {
@@ -163,6 +178,7 @@ dependencies {
     compilerCompile kotlinNativeInterop['llvm'].configuration
     compilerCompile kotlinNativeInterop['hash'].configuration
     compilerCompile kotlinNativeInterop['files'].configuration
+    compilerCompile kotlinNativeInterop['env'].configuration
     compilerCompile "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
 
     cli_bcCompile kotlinCompilerModule
@@ -248,6 +264,7 @@ jar {
             sourceSets.compiler.output,
             sourceSets.hashInteropStubs.output,
             sourceSets.filesInteropStubs.output,
+            sourceSets.envInteropStubs.output,
             sourceSets.llvmInteropStubs.output
 
     dependsOn ':runtime:hostRuntime', 'external_jars'
