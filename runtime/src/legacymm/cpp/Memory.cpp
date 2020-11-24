@@ -584,7 +584,7 @@ private:
 };
 
 class ThreadLocalStorage {
-    using Map = KStdUnorderedMap<void**, std::pair<KRef*, int>>;
+    using Map = KStdUnorderedMap<void**, int>;
 
 public:
     void Init() noexcept { map_ = konanConstructInstance<Map>(); }
@@ -595,41 +595,42 @@ public:
     }
 
     void Add(void** key, int size) noexcept {
+        RuntimeAssert(storage_ == nullptr, "Storage must not be committed");
         auto it = map_->find(key);
         RuntimeAssert(it == map_->end(), "Attempt to add TLS record with the same key");
-        KRef* start = reinterpret_cast<KRef*>(konanAllocMemory(size * sizeof(KRef)));
-        map_->emplace(key, std::make_pair(start, size));
+        map_->emplace(key, size_);
+        size_ += size;
     }
 
+    void Commit() noexcept { storage_ = reinterpret_cast<KRef*>(konanAllocMemory(size_ * sizeof(KRef))); }
+
     void Clear() noexcept {
-        for (auto& entry : *map_) {
-            KRef* start = entry.second.first;
-            int count = entry.second.second;
-            for (int i = 0; i < count; i++) {
-                UpdateHeapRef(start + i, nullptr);
-            }
-            konanFreeMemory(start);
+        for (int i = 0; i < size_; ++i) {
+            UpdateHeapRef(storage_ + i, nullptr);
         }
+        konanFreeMemory(storage_);
         map_->clear();
     }
 
     KRef* Lookup(void** key, int index) noexcept {
         // In many cases there is only one module, so this is one element cache.
         if (lastKey_ == key) {
-            return lastStart_ + index;
+            return storage_ + lastOffset_ + index;
         }
         auto it = map_->find(key);
         RuntimeAssert(it != map_->end(), "Must be there");
-        RuntimeAssert(index < it->second.second, "Out of bound in TLS access");
-        KRef* start = it->second.first;
+        int offset = it->second;
+        RuntimeAssert(offset + index < size_, "Out of bound in TLS access");
         lastKey_ = key;
-        lastStart_ = start;
-        return start + index;
+        lastOffset_ = offset;
+        return storage_ + offset + index;
     }
 
 private:
     Map* map_ = nullptr;
-    KRef* lastStart_ = nullptr;
+    KRef* storage_ = nullptr;
+    int size_ = 0;
+    int lastOffset_ = 0;
     void** lastKey_ = nullptr;
 };
 
@@ -3582,6 +3583,10 @@ void Kotlin_Any_share(ObjHeader* obj) {
 
 RUNTIME_NOTHROW void AddTLSRecord(MemoryState* memory, void** key, int size) {
     memory->tls.Add(key, size);
+}
+
+RUNTIME_NOTHROW void CommitTLSStorage(MemoryState* memory) {
+    memory->tls.Commit();
 }
 
 RUNTIME_NOTHROW void ClearTLS(MemoryState* memory) {

@@ -122,6 +122,7 @@ RuntimeState* initRuntime() {
   }
 
   InitOrDeinitGlobalVariables(ALLOC_THREAD_LOCAL_GLOBALS, result->memoryState);
+  CommitTLSStorage(result->memoryState);
   // Keep global variables in state as well.
   if (firstRuntime) {
     konan::consoleInit();
