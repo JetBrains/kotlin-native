@@ -12,7 +12,10 @@ import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
@@ -30,6 +33,18 @@ internal class CEnumByValueFunctionGenerator(
     override val irBuiltIns: IrBuiltIns = context.irBuiltIns
     override val symbolTable: SymbolTable = context.symbolTable
     override val typeTranslator: TypeTranslator = context.typeTranslator
+
+    // See KT-43530.
+    fun IrBuilderWithScope.irCallFromDescriptor(
+            callee: IrSimpleFunctionSymbol,
+            type: IrType,
+            valueArgumentsCount: Int = callee.descriptor.valueParameters.size,
+            typeArgumentsCount: Int = callee.descriptor.typeParameters.size
+    ): IrCall = IrCallImpl(
+                    startOffset, endOffset, type, callee,
+                    typeArgumentsCount = typeArgumentsCount,
+                    valueArgumentsCount = valueArgumentsCount
+            )
 
     fun generateByValueFunction(
             companionIrClass: IrClass,
@@ -54,19 +69,19 @@ internal class CEnumByValueFunctionGenerator(
                 val values = irTemporaryVar(irCall(valuesIrFunctionSymbol))
                 val inductionVariable = irTemporaryVar(irInt(0))
                 val arrayClass = values.type.classOrNull!!
-                val valuesSize = irCall(symbols.arraySize.getValue(arrayClass), irBuiltIns.intType).also { irCall ->
+                val valuesSize = irCallFromDescriptor(symbols.arraySize.getValue(arrayClass), irBuiltIns.intType).also { irCall ->
                     irCall.dispatchReceiver = irGet(values)
                 }
                 val getElementFn = symbols.arrayGet.getValue(arrayClass)
                 val plusFun = symbols.intPlusInt
                 val lessFunctionSymbol = irBuiltIns.lessFunByOperandType.getValue(irBuiltIns.intClass)
                 +irWhile().also { loop ->
-                    loop.condition = irCall(lessFunctionSymbol, irBuiltIns.booleanType).also { irCall ->
+                    loop.condition = irCallFromDescriptor(lessFunctionSymbol, irBuiltIns.booleanType).also { irCall ->
                         irCall.putValueArgument(0, irGet(inductionVariable))
                         irCall.putValueArgument(1, valuesSize)
                     }
                     loop.body = irBlock {
-                        val entry = irTemporaryVar(irCall(getElementFn, byValueIrFunction.returnType).also { irCall ->
+                        val entry = irTemporaryVar(irCallFromDescriptor(getElementFn, byValueIrFunction.returnType).also { irCall ->
                             irCall.dispatchReceiver = irGet(values)
                             irCall.putValueArgument(0, irGet(inductionVariable))
                         })
@@ -86,7 +101,7 @@ internal class CEnumByValueFunctionGenerator(
                         )
                     }
                 }
-                +irCall(symbols.throwNullPointerException, irBuiltIns.nothingType)
+                +irCallFromDescriptor(symbols.throwNullPointerException, irBuiltIns.nothingType)
             })
         }
         return byValueIrFunction
