@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
+import org.jetbrains.kotlin.backend.common.ir.createParameterDeclarations
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlock
 import org.jetbrains.kotlin.backend.konan.Context
@@ -15,13 +16,19 @@ import org.jetbrains.kotlin.backend.konan.ir.buildSimpleAnnotation
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrClassImpl
+import org.jetbrains.kotlin.ir.declarations.impl.IrConstructorImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
+import org.jetbrains.kotlin.ir.descriptors.WrappedClassConstructorDescriptor
+import org.jetbrains.kotlin.ir.descriptors.WrappedClassDescriptor
 import org.jetbrains.kotlin.ir.descriptors.WrappedFieldDescriptor
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrLocalDelegatedPropertyReference
 import org.jetbrains.kotlin.ir.expressions.IrPropertyReference
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
+import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
+import org.jetbrains.kotlin.ir.symbols.impl.IrConstructorSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.IrType
@@ -82,6 +89,22 @@ internal class PropertyDelegationLowering(val context: Context) : FileLoweringPa
         val anyType = context.irBuiltIns.anyType
         val kPropertyImplType = context.ir.symbols.kProperty1Impl.typeWith(anyType, anyType)
 
+        val kPropertiesHolder = WrappedClassDescriptor().let {
+            IrClassImpl(
+                    SYNTHETIC_OFFSET, SYNTHETIC_OFFSET,
+                    DECLARATION_ORIGIN_KPROPERTIES_FOR_DELEGATION,
+                    IrClassSymbolImpl(it),
+                    "KPropertiesHolder".synthesizedName,
+                    ClassKind.OBJECT,
+                    DescriptorVisibilities.PRIVATE,
+                    Modality.FINAL,
+            ).apply {
+                it.bind(this)
+                parent = irFile
+                createParameterDeclarations()
+            }
+        }
+
         val kPropertiesFieldType: IrType = context.ir.symbols.array.typeWith(kPropertyImplType)
 
         val kPropertiesField = WrappedFieldDescriptor().let {
@@ -89,16 +112,40 @@ internal class PropertyDelegationLowering(val context: Context) : FileLoweringPa
                     SYNTHETIC_OFFSET, SYNTHETIC_OFFSET,
                     DECLARATION_ORIGIN_KPROPERTIES_FOR_DELEGATION,
                     IrFieldSymbolImpl(it),
-                    "KPROPERTIES".synthesizedName,
+                    Name.identifier("kProperties"),
                     kPropertiesFieldType,
                     DescriptorVisibilities.PRIVATE,
                     isFinal = true,
                     isExternal = false,
-                    isStatic = true,
+                    isStatic = false,
             ).apply {
                 it.bind(this)
-                parent = irFile
-                annotations += buildSimpleAnnotation(context.irBuiltIns, startOffset, endOffset, context.ir.symbols.sharedImmutable.owner)
+                parent = kPropertiesHolder
+                kPropertiesHolder.declarations.add(this)
+            }
+        }
+
+        fun buildKPropertiesHolderConstructor(): IrConstructor {
+            val initializers = kProperties.values.sortedBy { it.second }.map { it.first }
+            val descriptor = WrappedClassConstructorDescriptor()
+            return IrConstructorImpl(
+                    SYNTHETIC_OFFSET, SYNTHETIC_OFFSET,
+                    DECLARATION_ORIGIN_KPROPERTIES_FOR_DELEGATION,
+                    IrConstructorSymbolImpl(descriptor),
+                    Name.special("<init>"),
+                    DescriptorVisibilities.PUBLIC,
+                    kPropertiesHolder.defaultType,
+                    isInline = false,
+                    isExternal = false,
+                    isPrimary = true,
+                    isExpect = false
+            ).apply {
+                descriptor.bind(this)
+                parent = kPropertiesHolder
+                body = context.createIrBuilder(symbol, startOffset, endOffset).irBlockBody {
+                    +irSetField(irGet(kPropertiesHolder.thisReceiver!!), kPropertiesField,
+                            this@PropertyDelegationLowering.context.createArrayOfExpression(startOffset, endOffset, kPropertyImplType, initializers))
+                }
             }
         }
 
@@ -124,7 +171,7 @@ internal class PropertyDelegationLowering(val context: Context) : FileLoweringPa
                             }
 
                             irCall(arrayItemGetter).apply {
-                                dispatchReceiver = irGetField(null, kPropertiesField)
+                                dispatchReceiver = irGetField(irGetObject(kPropertiesHolder.symbol), kPropertiesField)
                                 putValueArgument(0, irInt(field.second))
                             }
                         }
@@ -154,7 +201,7 @@ internal class PropertyDelegationLowering(val context: Context) : FileLoweringPa
                         }
 
                         return irCall(arrayItemGetter).apply {
-                            dispatchReceiver = irGetField(null, kPropertiesField)
+                            dispatchReceiver = irGetField(irGetObject(kPropertiesHolder.symbol), kPropertiesField)
                             putValueArgument(0, irInt(field.second))
                         }
                     }
@@ -163,12 +210,8 @@ internal class PropertyDelegationLowering(val context: Context) : FileLoweringPa
         })
 
         if (kProperties.isNotEmpty()) {
-            val initializers = kProperties.values.sortedBy { it.second }.map { it.first }
-            // TODO: move to object for lazy initialization.
-            irFile.declarations.add(0, kPropertiesField.apply {
-                initializer = IrExpressionBodyImpl(startOffset, endOffset,
-                        context.createArrayOfExpression(startOffset, endOffset, kPropertyImplType, initializers))
-            })
+            kPropertiesHolder.declarations.add(buildKPropertiesHolderConstructor())
+            irFile.declarations.add(kPropertiesHolder)
         }
     }
 
