@@ -17,7 +17,7 @@ void setEnv(const char* name, const char* value) {
 #include <windows.h>
 
 void setEnv(const char* name, const char* value) {
-  SetEnvironmentVariable(name, value);
+  SetEnvironmentVariableA(name, value);
 }
 
 #else
