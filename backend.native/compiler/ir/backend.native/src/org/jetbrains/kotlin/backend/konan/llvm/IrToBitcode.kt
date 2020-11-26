@@ -430,7 +430,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                                     (initialValue != null || // which are initialized from heap object
                                                             !irField.isFinal) // or are not final
                                     if (needRegistration) {
-                                        call(context.llvm.initAndRegisterGlobalFunction, listOf(address))
+                                        call(context.llvm.initAndRegisterGlobalFunction, listOf(address, initialValue
+                                                ?: kNullObjHeaderPtr))
                                     } else if (initialValue != null) {
                                         storeAny(initialValue, address, false)
                                     }
