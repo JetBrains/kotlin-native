@@ -43,7 +43,6 @@ private fun mainImpl(args: Array<String>, konancMain: (Array<String>) -> Unit) {
 fun main(args: Array<String>) = mainImpl(args, ::konancMain)
 
 private fun setupClangEnv() {
-    setEnv("LIBCLANG_NOTHREADS", "1")
     setEnv("LIBCLANG_DISABLE_CRASH_RECOVERY", "1")
 }
 
