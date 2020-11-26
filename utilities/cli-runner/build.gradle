@@ -25,6 +25,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
     implementation project(':backend.native')
     implementation project(':Interop:StubGenerator')
+    implementation project(":Interop:Indexer")
     implementation project(':klib')
     implementation project(":utilities:basic-utils")
 }

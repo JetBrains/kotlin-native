@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.cli.klib.main as klibMain
 import org.jetbrains.kotlin.cli.bc.mainNoExitWithGradleRenderer as konancMainForGradle
 import org.jetbrains.kotlin.backend.konan.env.setEnv
 import org.jetbrains.kotlin.konan.util.disposeNativeMemoryAllocator
+import kotlinx.cinterop.clearJvmCallbackCaches
 
 private fun mainImpl(args: Array<String>, konancMain: (Array<String>) -> Unit) {
     val utilityName = args[0]
@@ -51,7 +52,11 @@ fun daemonMain(args: Array<String>) {
     try {
         mainImpl(args, ::konancMainForGradle)
     } finally {
-        disposeNativeMemoryAllocator()
+        try {
+            disposeNativeMemoryAllocator()
+        } finally {
+            clearJvmCallbackCaches()
+        }
     }
 }
 

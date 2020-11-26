@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.native.interop.gen.jvm
 
-import kotlinx.cinterop.clearJvmCallbackCaches
 import org.jetbrains.kotlin.konan.TempFiles
 import org.jetbrains.kotlin.konan.exec.Command
 import org.jetbrains.kotlin.konan.util.DefFile
@@ -24,7 +23,6 @@ import org.jetbrains.kotlin.native.interop.gen.*
 import org.jetbrains.kotlin.native.interop.gen.wasm.processIdlLib
 import org.jetbrains.kotlin.native.interop.indexer.*
 import org.jetbrains.kotlin.native.interop.tool.*
-import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
 import kotlinx.cli.required
@@ -71,12 +69,8 @@ fun interop(
             "jvm", "native" -> {
                 val cinteropArguments = CInteropArguments()
                 cinteropArguments.argParser.parse(args)
-                try {
-                    val platform = KotlinPlatform.values().single { it.name.equals(flavor, ignoreCase = true) }
-                    processCLib(platform, cinteropArguments, additionalArgs)
-                } finally {
-                    clearJvmCallbackCaches()
-                }
+                val platform = KotlinPlatform.values().single { it.name.equals(flavor, ignoreCase = true) }
+                processCLib(platform, cinteropArguments, additionalArgs)
             }
             "wasm" -> processIdlLib(args, additionalArgs)
             else -> error("Unexpected flavor")
