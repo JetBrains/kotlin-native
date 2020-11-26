@@ -4,15 +4,7 @@
  */
 #include "Env.h"
 
-#include <cstdlib>
-
-#ifdef __APPLE__
-
-void setEnv(const char* name, const char* value) {
-  setenv(name, value, 1);
-}
-
-#elif _WIN32
+#ifdef _WIN32
 
 #include <windows.h>
 
