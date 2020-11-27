@@ -3283,6 +3283,10 @@ task deserialized_listof0(type: KonanLocalTest) {
     source = "serialization/deserialized_listof0.kt"
 }
 
+task deserialized_fields(type: KonanLocalTest) {
+    source = "serialization/deserialized_fields.kt"
+}
+
 task genKt39548 {
     doFirst {
         GenTestKT39548Kt.genTestKT39548(file("$buildDir/kt39548/kt39548.kt"))
@@ -3795,6 +3799,9 @@ if (PlatformInfo.isAppleTarget(project)) {
     createInterop("objc_illegal_sharing_with_weak") {
       it.defFile 'interop/objc/illegal_sharing_with_weak/objclib.def'
       it.headers "$projectDir/interop/objc/illegal_sharing_with_weak/objclib.h"
+    }
+    createInterop("objcKt43517") {
+        it.defFile 'framework/kt43517/kt43517.def'
     }
 }
 
@@ -4668,6 +4675,14 @@ if (isAppleTarget(project)) {
         }
         swiftSources = ['framework/kt42397']
     }
+
+    frameworkTest("testKt43517Framework") {
+        framework('Kt43517') {
+            sources = ['framework/kt43517']
+            library = 'objcKt43517'
+        }
+        swiftSources = ['framework/kt43517/']
+    }
 }
 
 /**
@@ -4868,6 +4883,7 @@ KotlinNativeTestKt.createTest(project, 'stdlibTest', KonanGTest) { task ->
             baseDir "$testOutputStdlib/stdlibTest"
             enableMultiplatform true
             extraOpts '-tr',
+                    '-Xverify-ir',
                     '-Xopt-in=kotlin.RequiresOptIn,kotlin.ExperimentalStdlibApi',
                     "-friend-modules", project.rootProject.file("${project.properties['konan.home']}/klib/common/stdlib").absolutePath
             extraOpts project.globalTestArgs
@@ -4907,6 +4923,7 @@ task buildKonanTests { t ->
             srcFiles sources
             baseDir testOutputLocal
             extraOpts '-tr'
+            extraOpts '-Xverify-ir'
             extraOpts project.globalTestArgs
         }
     }

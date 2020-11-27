@@ -47,16 +47,8 @@ static void destroyMetaObject(TypeInfo** location) {
 
 extern "C" {
 
-MemoryState* InitMemory(bool firstRuntime) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-void DeinitMemory(MemoryState*, bool destroyRuntime) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-void RestoreMemory(MemoryState* memoryState) {
-    RuntimeCheck(false, "Unimplemented");
+void RestoreMemory(MemoryState*) {
+    // TODO: Remove this function when legacy MM is gone.
 }
 
 RUNTIME_NOTHROW OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
@@ -67,11 +59,7 @@ OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-OBJ_GETTER(InitInstance, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-OBJ_GETTER(InitSharedInstance, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+OBJ_GETTER(InitThreadLocalSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
     RuntimeCheck(false, "Unimplemented");
 }
 
@@ -174,7 +162,11 @@ RUNTIME_NOTHROW void AddTLSRecord(MemoryState* memory, void** key, int size) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-RUNTIME_NOTHROW void ClearTLSRecord(MemoryState* memory, void** key) {
+RUNTIME_NOTHROW void CommitTLSStorage(MemoryState* memory) {
+    RuntimeCheck(false, "Unimplemented");
+}
+
+RUNTIME_NOTHROW void ClearTLS(MemoryState* memory) {
     RuntimeCheck(false, "Unimplemented");
 }
 
