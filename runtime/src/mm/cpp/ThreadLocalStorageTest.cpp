@@ -14,7 +14,7 @@ namespace {
 
 struct Key {};
 
-}
+} // namespace
 
 TEST(ThreadLocalStorageTest, Lookup) {
     Key key1;

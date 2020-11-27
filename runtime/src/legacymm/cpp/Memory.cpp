@@ -603,7 +603,7 @@ public:
             RuntimeAssert(it->second.size == size, "Attempt to add TLS record with the same key and different size");
             return;
         }
-        map_->emplace(key, Entry { size_, size });
+        map_->emplace(key, Entry{size_, size});
         size_ += size;
     }
 

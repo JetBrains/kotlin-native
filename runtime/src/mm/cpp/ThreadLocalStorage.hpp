@@ -27,8 +27,8 @@ public:
         ObjHeader** operator*() noexcept { return &*iterator_; }
 
         Iterator& operator++() noexcept {
-          ++iterator_;
-          return *this;
+            ++iterator_;
+            return *this;
         }
 
         bool operator==(const Iterator& rhs) const noexcept { return iterator_ == rhs.iterator_; }
@@ -67,11 +67,11 @@ private:
     // TODO: `std::unordered_map` is probably the wrong container here.
     std::unordered_map<Key, Entry> map_;
     State state_ = State::kBuilding;
-    int size_ = 0;  // Only used in `State::kBuilding`
+    int size_ = 0; // Only used in `State::kBuilding`
     std::pair<Key, Entry> lastEntry_;
 };
 
-}
-}
+} // namespace mm
+} // namespace kotlin
 
 #endif // RUNTIME_MM_THREAD_LOCAL_STORAGE_H
