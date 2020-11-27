@@ -11,6 +11,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "TestSupport.hpp"
+
 using namespace kotlin;
 
 using IntQueue = MultiSourceQueue<int>;
@@ -110,7 +112,7 @@ TEST(MultiSourceQueueTest, PublishInDestructor) {
 
 TEST(MultiSourceQueueTest, ConcurrentPublish) {
     IntQueue queue;
-    constexpr int kThreadCount = 100;
+    constexpr int kThreadCount = kDefaultThreadCount;
     std::atomic<bool> canStart(false);
     std::atomic<int> readyCount(0);
     std::vector<std::thread> threads;
@@ -146,7 +148,7 @@ TEST(MultiSourceQueueTest, ConcurrentPublish) {
 TEST(MultiSourceQueueTest, IterWhileConcurrentPublish) {
     IntQueue queue;
     constexpr int kStartCount = 50;
-    constexpr int kThreadCount = 100;
+    constexpr int kThreadCount = kDefaultThreadCount;
 
     std::vector<int> expectedBefore;
     std::vector<int> expectedAfter;
