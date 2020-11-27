@@ -18,7 +18,7 @@ class GlobalsRegistry : Pinned {
 public:
     class ThreadQueue : public MultiSourceQueue<ObjHeader**>::Producer {
     public:
-        explicit ThreadQueue(GlobalsRegistry& registry): Producer(registry.globals_) {}
+        explicit ThreadQueue(GlobalsRegistry& registry) : Producer(registry.globals_) {}
         // Do not add fields as this is just a wrapper and Producer does not have virtual destructor.
     };
 

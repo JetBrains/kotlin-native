@@ -27,9 +27,7 @@ public:
 
         // Merge `this` queue with owning `MultiSourceQueue`. `this` will have empty queue after the call.
         // This call is performed without heap allocations. TODO: Test that no allocations are happening.
-        void Publish() noexcept {
-            owner_.Collect(*this);
-        }
+        void Publish() noexcept { owner_.Collect(*this); }
 
     private:
         friend class MultiSourceQueue;

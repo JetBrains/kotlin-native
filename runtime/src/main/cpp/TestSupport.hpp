@@ -12,4 +12,4 @@ constexpr int kDefaultThreadCount = 10;
 constexpr int kDefaultThreadCount = 100;
 #endif
 
-}
+} // namespace kotlin
