@@ -16,7 +16,7 @@ mm::ThreadRegistry& mm::ThreadRegistry::Instance() noexcept {
 }
 
 mm::ThreadRegistry::Node* mm::ThreadRegistry::RegisterCurrentThread() noexcept {
-    auto* threadDataNode = list_.Emplace(pthread_self());
+    auto* threadDataNode = list_.EmplaceBack(pthread_self());
     ThreadData*& currentData = currentThreadData_;
     RuntimeAssert(currentData == nullptr, "This thread already had some data assigned to it.");
     currentData = threadDataNode->Get();

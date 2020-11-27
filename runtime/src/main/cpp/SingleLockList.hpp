@@ -16,16 +16,30 @@
 
 namespace kotlin {
 
-// TODO: Consider different locking mechanisms.
-template <typename Value, typename Mutex = SimpleMutex>
-class SingleLockList : private Pinned {
-public:
+template <typename, typename>
+class SingleLockList;
+
+namespace internal {
+
+template <typename Value>
+class SingleLockListBase : private Pinned {
+protected:
+    // Do not allow to construct and destruct `this` directly. This class does not
+    // have any fields, so destructor is not virtual.
+    SingleLockListBase() noexcept = default;
+    ~SingleLockListBase() = default;
+
+    class Iterator;
+
     class Node : Pinned {
     public:
         Value* Get() noexcept { return &value; }
 
     private:
-        friend class SingleLockList;
+        friend class Iterator;
+
+        template <typename, typename>
+        friend class ::kotlin::SingleLockList;
 
         template <typename... Args>
         Node(Args... args) noexcept : value(args...) {}
@@ -54,6 +68,18 @@ public:
         Node* node_;
     };
 
+    // NOTE: Do not add any fields here, this is an interface. Also, the destructor is non-virtual.
+};
+
+} // namespace internal
+
+// TODO: Consider different locking mechanisms.
+template <typename Value, typename Mutex = SimpleMutex>
+class SingleLockList : private internal::SingleLockListBase<Value> {
+public:
+    using Node = typename internal::SingleLockListBase<Value>::Node;
+    using Iterator = typename internal::SingleLockListBase<Value>::Iterator;
+
     class Iterable : private MoveOnly {
     public:
         explicit Iterable(SingleLockList* list) noexcept : list_(list), guard_(list->mutex_) {}
@@ -67,22 +93,30 @@ public:
         std::unique_lock<Mutex> guard_;
     };
 
+    SingleLockList() noexcept = default;
+    ~SingleLockList() = default;
+
     template <typename... Args>
-    Node* Emplace(Args... args) noexcept {
+    Node* EmplaceBack(Args... args) noexcept {
         auto* nodePtr = new Node(args...);
         std::unique_ptr<Node> node(nodePtr);
         LockGuard<Mutex> guard(mutex_);
-        if (root_) {
-            root_->previous = node.get();
+        if (Empty()) {
+            root_ = std::move(node);
+        } else {
+            last_->next = std::move(node);
+            nodePtr->previous = last_;
         }
-        node->next = std::move(root_);
-        root_ = std::move(node);
+        last_ = nodePtr;
         return nodePtr;
     }
 
     // Using `node` including its referred `Value` after `Erase` is undefined behaviour.
     void Erase(Node* node) noexcept {
         LockGuard<Mutex> guard(mutex_);
+        if (last_ == node) {
+            last_ = node->previous;
+        }
         if (root_.get() == node) {
             root_ = std::move(node->next);
             if (root_) {
@@ -99,6 +133,31 @@ public:
         }
     }
 
+    // Move all nodes from `other` to `this`. `other` will remain valid but empty.
+    // This call is performed without heap allocations. TODO: Test that no allocations are happening.
+    template <typename OtherMutex>
+    void SpliceBack(SingleLockList<Value, OtherMutex>& other) noexcept {
+        LockGuard<Mutex> guardThis(mutex_);
+        LockGuard<OtherMutex> guardOther(other.mutex_);
+
+        if (other.Empty()) {
+            return;
+        }
+
+        if (Empty()) {
+            root_ = std::move(other.root_);
+            last_ = other.last_;
+            other.last_ = nullptr;
+            return;
+        }
+
+        RuntimeAssert(last_->next == nullptr, "last_ cannot have next");
+        last_->next = std::move(other.root_);
+        last_->next->previous = last_;
+        last_ = other.last_;
+        other.last_ = nullptr;
+    }
+
     // Returned value locks `this` to perform safe iteration. `this` unlocks when
     // `Iterable` gets out of scope. Example usage:
     // for (auto& value: list.Iter()) {
@@ -109,7 +168,18 @@ public:
     Iterable Iter() noexcept { return Iterable(this); }
 
 private:
+    // Allow access to private data regardless of `Value` and `Mutex`.
+    template <typename, typename>
+    friend class SingleLockList;
+
+    bool Empty() const noexcept {
+        bool empty = root_ == nullptr;
+        RuntimeAssert((last_ == nullptr) == empty, "last_ is desynchronized with root_");
+        return empty;
+    }
+
     std::unique_ptr<Node> root_;
+    Node* last_ = nullptr; // weak
     Mutex mutex_;
 };
 
