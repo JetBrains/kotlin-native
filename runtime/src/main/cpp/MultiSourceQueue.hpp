@@ -6,10 +6,10 @@
 #ifndef RUNTIME_MULTI_SOURCE_QUEUE_H
 #define RUNTIME_MULTI_SOURCE_QUEUE_H
 
-#include <list>
 #include <mutex>
 
 #include "Mutex.hpp"
+#include "SingleLockList.hpp"
 
 namespace kotlin {
 
@@ -23,7 +23,7 @@ public:
 
         ~Producer() { Publish(); }
 
-        void Insert(const T& value) noexcept { queue_.push_back(value); }
+        void Insert(const T& value) noexcept { queue_.EmplaceBack(value); }
 
         // Merge `this` queue with owning `MultiSourceQueue`. `this` will have empty queue after the call.
         // This call is performed without heap allocations. TODO: Test that no allocations are happening.
@@ -33,36 +33,21 @@ public:
         friend class MultiSourceQueue;
 
         MultiSourceQueue& owner_; // weak
-        std::list<T> queue_;
+        SingleLockList<T, NoLock> queue_;
     };
 
-    using Iterator = typename std::list<T>::iterator;
-
-    class Iterable : MoveOnly {
-    public:
-        explicit Iterable(MultiSourceQueue& owner) noexcept : owner_(owner), guard_(owner_.mutex_) {}
-
-        Iterator begin() noexcept { return owner_.commonQueue_.begin(); }
-        Iterator end() noexcept { return owner_.commonQueue_.end(); }
-
-    private:
-        MultiSourceQueue& owner_; // weak
-        std::unique_lock<SimpleMutex> guard_;
-    };
+    using Iterator = typename SingleLockList<T, SimpleMutex>::Iterator;
+    using Iterable = typename SingleLockList<T, SimpleMutex>::Iterable;
 
     // Lock MultiSourceQueue for safe iteration.
-    Iterable Iter() noexcept { return Iterable(*this); }
+    Iterable Iter() noexcept { return commonQueue_.Iter(); }
 
 private:
-    void Collect(Producer& producer) noexcept {
-        std::lock_guard<SimpleMutex> guard(mutex_);
-        commonQueue_.splice(commonQueue_.end(), producer.queue_);
-    }
+    void Collect(Producer& producer) noexcept { commonQueue_.SpliceBack(producer.queue_); }
 
-    // Using `std::list` as it allows to implement `Collect` without memory allocations,
+    // Using `SingleLockList` as it allows to implement `Collect` without memory allocations,
     // which is important for GC mark phase.
-    std::list<T> commonQueue_;
-    SimpleMutex mutex_;
+    SingleLockList<T, SimpleMutex> commonQueue_;
 };
 
 } // namespace kotlin

@@ -39,6 +39,13 @@ class SimpleMutex {
   }
 };
 
+// Allows locking collections to operate without any actual locking.
+class NoLock {
+public:
+    void lock() noexcept {}
+    void unlock() noexcept {}
+};
+
 // TODO: use std::lock_guard instead?
 template <class Mutex>
 class LockGuard : private kotlin::Pinned {
