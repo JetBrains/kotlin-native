@@ -8,7 +8,7 @@
 using namespace kotlin;
 
 void mm::ThreadLocalStorage::AddRecord(Key key, int size) noexcept {
-    RuntimeAssert(state_ == State::kBuilding, "Storage must not be committed");
+    RuntimeAssert(state_ == State::kBuilding, "Storage must be in the building state");
     RuntimeAssert(size >= 0, "Size cannot be negative");
     auto it = map_.find(key);
     if (it != map_.end()) {
@@ -20,25 +20,26 @@ void mm::ThreadLocalStorage::AddRecord(Key key, int size) noexcept {
 }
 
 void mm::ThreadLocalStorage::Commit() noexcept {
-    RuntimeAssert(state_ == State::kBuilding, "Storage must not be committed");
+    RuntimeAssert(state_ == State::kBuilding, "Storage must be in the building state");
     storage_.resize(size_);
     state_ = State::kCommitted;
 }
 
 void mm::ThreadLocalStorage::Clear() noexcept {
-    RuntimeAssert(state_ == State::kCommitted, "Storage must be committed");
+    RuntimeAssert(state_ == State::kCommitted, "Storage must be in the committed state");
     // Just free the storage.
     storage_.clear();
+    state_ = State::kCleared;
 }
 
 ObjHeader** mm::ThreadLocalStorage::Lookup(Key key, int index) noexcept {
-    RuntimeAssert(state_ == State::kCommitted, "Storage must be committed");
-    if (lastEntry_.first == key) {
-        return Lookup(lastEntry_.second, index);
+    RuntimeAssert(state_ == State::kCommitted, "Storage must be in the committed state");
+    if (lastKeyAndEntry_.first == key) {
+        return Lookup(lastKeyAndEntry_.second, index);
     }
     auto it = map_.find(key);
     RuntimeAssert(it != map_.end(), "Unknown TLS key");
-    lastEntry_ = *it;
+    lastKeyAndEntry_ = *it;
     return Lookup(it->second, index);
 }
 

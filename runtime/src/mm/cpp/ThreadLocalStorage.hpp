@@ -54,6 +54,7 @@ private:
     enum class State {
         kBuilding,
         kCommitted,
+        kCleared,
     };
 
     struct Entry {
@@ -68,7 +69,7 @@ private:
     std::unordered_map<Key, Entry> map_;
     State state_ = State::kBuilding;
     int size_ = 0; // Only used in `State::kBuilding`
-    std::pair<Key, Entry> lastEntry_;
+    std::pair<Key, Entry> lastKeyAndEntry_;
 };
 
 } // namespace mm
