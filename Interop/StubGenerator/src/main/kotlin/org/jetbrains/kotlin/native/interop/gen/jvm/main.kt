@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.native.interop.gen.*
 import org.jetbrains.kotlin.native.interop.gen.wasm.processIdlLib
 import org.jetbrains.kotlin.native.interop.indexer.*
 import org.jetbrains.kotlin.native.interop.tool.*
+import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
 import kotlinx.cli.required
