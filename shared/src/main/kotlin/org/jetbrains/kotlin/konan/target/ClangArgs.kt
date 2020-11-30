@@ -51,13 +51,11 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "--sysroot=$absoluteTargetSysRoot"
                 )
 
-                KonanTarget.LINUX_ARM32_HFP ->
-                    listOf("-target", targetArg!!,
-                            "-mfpu=vfp", "-mfloat-abi=hard",
-                            "--sysroot=$absoluteTargetSysRoot",
-                            // TODO: those two are hacks.
-                            "-I$absoluteTargetSysRoot/usr/include/c++/4.8.3",
-                            "-I$absoluteTargetSysRoot/usr/include/c++/4.8.3/arm-linux-gnueabihf")
+                KonanTarget.LINUX_ARM32_HFP -> listOf(
+                        "-target", targetArg!!,
+                        "--sysroot=$absoluteTargetSysRoot",
+                        "-mfpu=vfp", "-mfloat-abi=hard",
+                )
 
                 KonanTarget.LINUX_ARM64 -> listOf(
                     "-target", targetArg!!,
