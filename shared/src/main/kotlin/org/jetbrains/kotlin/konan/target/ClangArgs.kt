@@ -33,9 +33,23 @@ internal object Android {
 
 class ClangArgs(private val configurables: Configurables) : Configurables by configurables {
 
-    val targetArg = if (configurables is TargetableConfigurables)
-        configurables.targetArg
-    else null
+    private val binDir = when (HostManager.host) {
+        KonanTarget.LINUX_X64 -> "$absoluteTargetToolchain/bin"
+        KonanTarget.MINGW_X64 -> "$absoluteTargetToolchain/bin"
+        KonanTarget.MACOS_X64 -> "$absoluteTargetToolchain/usr/bin"
+        else -> throw TargetSupportException("Unexpected host platform")
+    }
+
+    // TODO: Use `buildList`
+    private val commonClangArgs: List<String> = mutableListOf<List<String>>().apply {
+        add(listOf("-B$binDir", "-fno-stack-protector"))
+        if (configurables is GccConfigurables) {
+            add(listOf("--gcc-toolchain=${configurables.absoluteGccToolchain}"))
+        }
+        if (configurables is TargetableConfigurables) {
+            add(listOf("-target", configurables.targetArg!!))
+        }
+    }.flatten()
 
     private val osVersionMin: String
             get() {
@@ -44,137 +58,139 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
             }
 
     val specificClangArgs: List<String>
-        get() {
-            val result = when (target) {
-                KonanTarget.LINUX_X64 -> listOf(
-                        "-target", targetArg!!,
-                        "--sysroot=$absoluteTargetSysRoot"
-                )
+        get() = when (target) {
+            KonanTarget.LINUX_X64 -> listOf(
+                    "--sysroot=$absoluteTargetSysRoot"
+            )
 
-                KonanTarget.LINUX_ARM32_HFP -> listOf(
-                        "-target", targetArg!!,
-                        "--sysroot=$absoluteTargetSysRoot",
-                        "-mfpu=vfp", "-mfloat-abi=hard",
-                )
-
-                KonanTarget.LINUX_ARM64 -> listOf(
-                    "-target", targetArg!!,
+            KonanTarget.LINUX_ARM32_HFP -> listOf(
                     "--sysroot=$absoluteTargetSysRoot",
-                )
+                    "-mfpu=vfp", "-mfloat-abi=hard",
+            )
 
-                KonanTarget.LINUX_MIPS32 ->
-                    listOf("-target", targetArg!!,
-                            "--sysroot=$absoluteTargetSysRoot",
-                            "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4",
-                            "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4/mips-unknown-linux-gnu")
+            KonanTarget.LINUX_ARM64 -> listOf(
+                    "--sysroot=$absoluteTargetSysRoot",
+            )
 
-                KonanTarget.LINUX_MIPSEL32 ->
-                    listOf("-target", targetArg!!,
-                            "--sysroot=$absoluteTargetSysRoot",
-                            "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4",
-                            "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4/mipsel-unknown-linux-gnu")
+            KonanTarget.LINUX_MIPS32 -> listOf(
+                    "--sysroot=$absoluteTargetSysRoot",
+                    "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4",
+                    "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4/mips-unknown-linux-gnu"
+            )
 
-                KonanTarget.MINGW_X64, KonanTarget.MINGW_X86 ->
-                    listOf("-target", targetArg!!, "--sysroot=$absoluteTargetSysRoot", "-Xclang", "-flto-visibility-public-std")
+            KonanTarget.LINUX_MIPSEL32 -> listOf(
+                    "--sysroot=$absoluteTargetSysRoot",
+                    "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4",
+                    "-I$absoluteTargetSysRoot/usr/include/c++/4.9.4/mipsel-unknown-linux-gnu"
+            )
 
-                KonanTarget.MACOS_X64 ->
-                    listOf("--sysroot=$absoluteTargetSysRoot", "-mmacosx-version-min=$osVersionMin")
+            KonanTarget.MINGW_X64, KonanTarget.MINGW_X86 -> listOf(
+                    "--sysroot=$absoluteTargetSysRoot",
+                    "-Xclang", "-flto-visibility-public-std"
+            )
 
-                KonanTarget.IOS_ARM32 ->
-                    listOf("-stdlib=libc++", "-arch", "armv7", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=$osVersionMin")
+            KonanTarget.MACOS_X64 -> listOf(
+                    "--sysroot=$absoluteTargetSysRoot",
+                    "-mmacosx-version-min=$osVersionMin"
+            )
 
-                KonanTarget.IOS_ARM64 ->
-                    listOf("-stdlib=libc++", "-arch", "arm64", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=$osVersionMin")
+            KonanTarget.IOS_ARM32 -> listOf(
+                    "-stdlib=libc++", "-arch", "armv7",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-miphoneos-version-min=$osVersionMin"
+            )
 
-                KonanTarget.IOS_X64 ->
-                    listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=$osVersionMin")
+            KonanTarget.IOS_ARM64 -> listOf(
+                    "-stdlib=libc++", "-arch", "arm64",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-miphoneos-version-min=$osVersionMin"
+            )
 
-                KonanTarget.TVOS_ARM64 ->
-                    listOf("-stdlib=libc++", "-arch", "arm64", "-isysroot", absoluteTargetSysRoot, "-mtvos-version-min=$osVersionMin")
+            KonanTarget.IOS_X64 -> listOf(
+                    "-stdlib=libc++",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-miphoneos-version-min=$osVersionMin"
+            )
 
-                KonanTarget.TVOS_X64 ->
-                    listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-mtvos-simulator-version-min=$osVersionMin")
+            KonanTarget.TVOS_ARM64 -> listOf(
+                    "-stdlib=libc++", "-arch", "arm64",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-mtvos-version-min=$osVersionMin"
+            )
 
-                KonanTarget.WATCHOS_ARM64,
-                KonanTarget.WATCHOS_ARM32 ->
-                    listOf("-stdlib=libc++", "-arch", "armv7k", "-isysroot", absoluteTargetSysRoot, "-mwatchos-version-min=$osVersionMin")
+            KonanTarget.TVOS_X64 -> listOf(
+                    "-stdlib=libc++",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-mtvos-simulator-version-min=$osVersionMin"
+            )
 
-                KonanTarget.WATCHOS_X86 ->
-                    listOf("-stdlib=libc++", "-arch", "i386", "-isysroot", absoluteTargetSysRoot, "-mwatchos-simulator-version-min=$osVersionMin")
+            KonanTarget.WATCHOS_ARM64,
+            KonanTarget.WATCHOS_ARM32 -> listOf(
+                    "-stdlib=libc++", "-arch", "armv7k",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-mwatchos-version-min=$osVersionMin"
+            )
 
-                KonanTarget.WATCHOS_X64 ->
-                    listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-mwatchos-simulator-version-min=$osVersionMin")
+            KonanTarget.WATCHOS_X86 -> listOf(
+                    "-stdlib=libc++", "-arch", "i386",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-mwatchos-simulator-version-min=$osVersionMin"
+            )
 
-                KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64,
-                KonanTarget.ANDROID_X86, KonanTarget.ANDROID_X64 -> {
-                    val clangTarget = targetArg!!
-                    val architectureDir = Android.architectureDirForTarget(target)
-                    val toolchainSysroot = "$absoluteTargetToolchain/sysroot"
-                    listOf("-target", clangTarget,
-                            "-D__ANDROID_API__=${Android.API}",
-                            "--sysroot=$absoluteTargetSysRoot/$architectureDir",
-                            "-I$toolchainSysroot/usr/include/c++/v1",
-                            "-I$toolchainSysroot/usr/include",
-                            "-I$toolchainSysroot/usr/include/$clangTarget")
-                }
+            KonanTarget.WATCHOS_X64 -> listOf(
+                    "-stdlib=libc++",
+                    "-isysroot", absoluteTargetSysRoot,
+                    "-mwatchos-simulator-version-min=$osVersionMin"
+            )
 
-                // By default WASM target forces `hidden` visibility which causes linkage problems.
-                KonanTarget.WASM32 ->
-                    listOf("-target", targetArg!!,
-                            "-fno-rtti",
-                            "-fno-exceptions",
-                            "-fvisibility=default",
-                            "-D_LIBCPP_ABI_VERSION=2",
-                            "-D_LIBCPP_NO_EXCEPTIONS=1",
-                            "-nostdinc",
-                            "-Xclang", "-nobuiltininc",
-                            "-Xclang", "-nostdsysteminc",
-                            "-Xclang", "-isystem$absoluteTargetSysRoot/include/libcxx",
-                            "-Xclang", "-isystem$absoluteTargetSysRoot/lib/libcxxabi/include",
-                            "-Xclang", "-isystem$absoluteTargetSysRoot/include/compat",
-                            "-Xclang", "-isystem$absoluteTargetSysRoot/include/libc")
-
-                is KonanTarget.ZEPHYR ->
-                    listOf("-target", targetArg!!,
-                        "-fno-rtti",
-                        "-fno-exceptions",
-                        "-fno-asynchronous-unwind-tables",
-                        "-fno-pie",
-                        "-fno-pic",
-                        "-fshort-enums",
-                        "-nostdinc",
-                        // TODO: make it a libGcc property? 
-                        // We need to get rid of wasm sysroot first.
-                        "-isystem $targetToolchain/../lib/gcc/arm-none-eabi/7.2.1/include",
-                        "-isystem $targetToolchain/../lib/gcc/arm-none-eabi/7.2.1/include-fixed",
-                        "-isystem$absoluteTargetSysRoot/include/libcxx",
-                        "-isystem$absoluteTargetSysRoot/include/libc"
-                        ) +
-                    (configurables as ZephyrConfigurables).constructClangArgs()
+            KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64,
+            KonanTarget.ANDROID_X86, KonanTarget.ANDROID_X64 -> {
+                val target = (configurables as AndroidConfigurables).target
+                val architectureDir = Android.architectureDirForTarget(this.target)
+                val toolchainSysroot = "$absoluteTargetToolchain/sysroot"
+                listOf(
+                        "-D__ANDROID_API__=${Android.API}",
+                        "--sysroot=$absoluteTargetSysRoot/$architectureDir",
+                        "-I$toolchainSysroot/usr/include/c++/v1",
+                        "-I$toolchainSysroot/usr/include",
+                        "-I$toolchainSysroot/usr/include/${this.target}")
             }
-            return result
+
+            // By default WASM target forces `hidden` visibility which causes linkage problems.
+            KonanTarget.WASM32 -> listOf(
+                "-fno-rtti",
+                "-fno-exceptions",
+                "-fvisibility=default",
+                "-D_LIBCPP_ABI_VERSION=2",
+                "-D_LIBCPP_NO_EXCEPTIONS=1",
+                "-nostdinc",
+                "-Xclang", "-nobuiltininc",
+                "-Xclang", "-nostdsysteminc",
+                "-Xclang", "-isystem$absoluteTargetSysRoot/include/libcxx",
+                "-Xclang", "-isystem$absoluteTargetSysRoot/lib/libcxxabi/include",
+                "-Xclang", "-isystem$absoluteTargetSysRoot/include/compat",
+                "-Xclang", "-isystem$absoluteTargetSysRoot/include/libc"
+            )
+
+            is KonanTarget.ZEPHYR -> listOf(
+                "-fno-rtti",
+                "-fno-exceptions",
+                "-fno-asynchronous-unwind-tables",
+                "-fno-pie",
+                "-fno-pic",
+                "-fshort-enums",
+                "-nostdinc",
+                // TODO: make it a libGcc property?
+                // We need to get rid of wasm sysroot first.
+                "-isystem $targetToolchain/../lib/gcc/arm-none-eabi/7.2.1/include",
+                "-isystem $targetToolchain/../lib/gcc/arm-none-eabi/7.2.1/include-fixed",
+                "-isystem$absoluteTargetSysRoot/include/libcxx",
+                "-isystem$absoluteTargetSysRoot/include/libc"
+            ) + (configurables as ZephyrConfigurables).constructClangArgs()
         }
 
     val clangArgsSpecificForKonanSources
         get() = runtimeDefinitions.map { "-D$it" }
-
-    private val host = HostManager.host
-
-    private val binDir = when (host) {
-        KonanTarget.LINUX_X64 -> "$absoluteTargetToolchain/bin"
-        KonanTarget.MINGW_X64 -> "$absoluteTargetToolchain/bin"
-        KonanTarget.MACOS_X64 -> "$absoluteTargetToolchain/usr/bin"
-        else -> throw TargetSupportException("Unexpected host platform")
-    }
-
-    private val extraHostClangArgs =
-            if (configurables is GccConfigurables) {
-                listOf("--gcc-toolchain=${configurables.absoluteGccToolchain}")
-            } else {
-                emptyList()
-            }
-
-    val commonClangArgs = listOf("-B$binDir", "-fno-stack-protector") + extraHostClangArgs
 
     val clangPaths = listOf("$absoluteLlvmHome/bin", binDir)
 
