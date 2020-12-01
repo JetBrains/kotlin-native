@@ -75,3 +75,6 @@ runtime/googletest/
 
 # code style
 !.idea/codeStyles/
+
+# Toolchain builder artifacts
+tools/toolchain_builder/artifacts
