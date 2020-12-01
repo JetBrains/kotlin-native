@@ -126,22 +126,6 @@ RUNTIME_NOTHROW bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-RUNTIME_NOTHROW void* CreateStablePointer(ObjHeader* obj) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-RUNTIME_NOTHROW void DisposeStablePointer(void* pointer) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-RUNTIME_NOTHROW OBJ_GETTER(DerefStablePointer, void*) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-RUNTIME_NOTHROW OBJ_GETTER(AdoptStablePointer, void*) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
 void MutationCheck(ObjHeader* obj) {
     RuntimeCheck(false, "Unimplemented");
 }
@@ -187,26 +171,6 @@ RUNTIME_NOTHROW void ReleaseHeapRef(const ObjHeader* object) {
 }
 
 RUNTIME_NOTHROW void ReleaseHeapRefNoCollect(const ObjHeader* object) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-ForeignRefContext InitLocalForeignRef(ObjHeader* object) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-ForeignRefContext InitForeignRef(ObjHeader* object) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-void DeinitForeignRef(ObjHeader* object, ForeignRefContext context) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-void AdoptReferenceFromSharedVariable(ObjHeader* object) {
     RuntimeCheck(false, "Unimplemented");
 }
 
