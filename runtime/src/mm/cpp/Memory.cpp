@@ -6,6 +6,7 @@
 #include "Memory.h"
 
 #include "GlobalsRegistry.hpp"
+#include "Porting.h"
 #include "StableRefRegistry.hpp"
 #include "ThreadData.hpp"
 #include "ThreadRegistry.hpp"
@@ -55,12 +56,21 @@ ALWAYS_INLINE mm::ThreadData* GetThreadData(MemoryState* state) {
 
 } // namespace
 
+ALWAYS_INLINE bool isShareable(const ObjHeader* obj) {
+    // TODO: Remove when legacy MM is gone.
+    return true;
+}
+
 extern "C" MemoryState* InitMemory(bool firstRuntime) {
     return ToMemoryState(mm::ThreadRegistry::Instance().RegisterCurrentThread());
 }
 
 extern "C" void DeinitMemory(MemoryState* state, bool destroyRuntime) {
     mm::ThreadRegistry::Instance().Unregister(FromMemoryState(state));
+}
+
+extern "C" void RestoreMemory(MemoryState*) {
+    // TODO: Remove when legacy MM is gone.
 }
 
 extern "C" OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
@@ -94,6 +104,31 @@ extern "C" RUNTIME_NOTHROW ObjHeader** LookupTLS(void** key, int index) {
     return mm::ThreadRegistry::Instance().CurrentThreadData()->tls().Lookup(key, index);
 }
 
+extern "C" RUNTIME_NOTHROW void GC_RegisterWorker(void* worker) {
+    // TODO: Remove when legacy MM is gone.
+    // Nothing to do
+}
+
+extern "C" RUNTIME_NOTHROW void GC_UnregisterWorker(void* worker) {
+    // TODO: Remove when legacy MM is gone.
+    // Nothing to do
+}
+
+extern "C" RUNTIME_NOTHROW void GC_CollectorCallback(void* worker) {
+    // TODO: Remove when legacy MM is gone.
+    // Nothing to do
+}
+
+extern "C" bool Kotlin_Any_isShareable(ObjHeader* thiz) {
+    // TODO: Remove when legacy MM is gone.
+    return true;
+}
+
+extern "C" RUNTIME_NOTHROW bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
+    // TODO: Remove when legacy MM is gone.
+    return true;
+}
+
 extern "C" RUNTIME_NOTHROW void* CreateStablePointer(ObjHeader* object) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     return mm::StableRefRegistry::Instance().RegisterStableRef(threadData, object);
@@ -120,6 +155,14 @@ extern "C" RUNTIME_NOTHROW OBJ_GETTER(AdoptStablePointer, void* pointer) {
     return object;
 }
 
+extern "C" RUNTIME_NOTHROW void CheckLifetimesConstraint(ObjHeader* obj, ObjHeader* pointee) {
+    if (!obj->local() && pointee != nullptr && pointee->local()) {
+        konan::consolePrintf("Attempt to store a stack object %p into a heap object %p\n", pointee, obj);
+        konan::consolePrintf("This is a compiler bug, please report it to https://kotl.in/issue\n");
+        konan::abort();
+    }
+}
+
 extern "C" ForeignRefContext InitForeignRef(ObjHeader* object) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     auto* node = mm::StableRefRegistry::Instance().RegisterStableRef(threadData, object);
@@ -141,4 +184,9 @@ extern "C" bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext cont
 extern "C" void AdoptReferenceFromSharedVariable(ObjHeader* object) {
     // TODO: Remove when legacy MM is gone.
     // Nothing to do.
+}
+
+void CheckGlobalsAccessible() {
+    // TODO: Remove when legacy MM is gone.
+    // Always accessible
 }

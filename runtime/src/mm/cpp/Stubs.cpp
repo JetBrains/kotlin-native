@@ -13,10 +13,6 @@ ALWAYS_INLINE bool isPermanentOrFrozen(const ObjHeader* obj) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-ALWAYS_INLINE bool isShareable(const ObjHeader* obj) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
 ObjHeader** ObjHeader::GetWeakCounterLocation() {
     RuntimeCheck(false, "Unimplemented");
 }
@@ -46,10 +42,6 @@ static void destroyMetaObject(TypeInfo** location) {
 }
 
 extern "C" {
-
-void RestoreMemory(MemoryState*) {
-    // TODO: Remove this function when legacy MM is gone.
-}
 
 RUNTIME_NOTHROW OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
     RuntimeCheck(false, "Unimplemented");
@@ -122,15 +114,7 @@ RUNTIME_NOTHROW void LeaveFrame(ObjHeader** start, int parameters, int count) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-RUNTIME_NOTHROW bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
 void MutationCheck(ObjHeader* obj) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-RUNTIME_NOTHROW void CheckLifetimesConstraint(ObjHeader* obj, ObjHeader* pointee) {
     RuntimeCheck(false, "Unimplemented");
 }
 
@@ -139,22 +123,6 @@ void FreezeSubgraph(ObjHeader* obj) {
 }
 
 void EnsureNeverFrozen(ObjHeader* obj) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-RUNTIME_NOTHROW void GC_RegisterWorker(void* worker) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-RUNTIME_NOTHROW void GC_UnregisterWorker(void* worker) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-RUNTIME_NOTHROW void GC_CollectorCallback(void* worker) {
-    RuntimeCheck(false, "Unimplemented");
-}
-
-bool Kotlin_Any_isShareable(ObjHeader* thiz) {
     RuntimeCheck(false, "Unimplemented");
 }
 
@@ -176,10 +144,6 @@ RUNTIME_NOTHROW void ReleaseHeapRefNoCollect(const ObjHeader* object) {
 
 ForeignRefContext InitLocalForeignRef(ObjHeader* object) {
     RuntimeCheck(false, "Unimplemented");
-}
-
-void CheckGlobalsAccessible() {
-    // Globals are always accessible.
 }
 
 } // extern "C"
