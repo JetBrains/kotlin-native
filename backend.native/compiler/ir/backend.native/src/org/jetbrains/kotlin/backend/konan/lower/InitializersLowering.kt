@@ -83,8 +83,7 @@ internal class InitializersLowering(val context: CommonBackendContext) : ClassLo
 
                     // We shall keep initializer for constants for compile-time instantiation.
                     declaration.initializer =
-                            if (initExpression is IrConst<*> &&
-                                    (initExpression.type.isPrimitiveType() || initExpression.type.isString())) {
+                            if (initExpression is IrConst<*>) {
                                 IrExpressionBodyImpl(initExpression.copy())
                             } else {
                                 null

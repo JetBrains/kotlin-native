@@ -391,6 +391,8 @@ internal val bitcodePhase = NamedCompilerPhase(
                 ghaPhase then
                 RTTIPhase then
                 generateDebugInfoHeaderPhase then
+                propertyAccessorInlinePhase then
+                inlineClassPropertyAccessorInlinePhase then
                 escapeAnalysisPhase then
                 localEscapeAnalysisPhase then
                 codegenPhase then
@@ -468,6 +470,8 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(buildDFGPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(devirtualizationPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(escapeAnalysisPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
+        disableUnless(propertyAccessorInlinePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
+        disableUnless(inlineClassPropertyAccessorInlinePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(dcePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(ghaPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(verifyBitcodePhase, config.needCompilerVerification || getBoolean(KonanConfigKeys.VERIFY_BITCODE))
