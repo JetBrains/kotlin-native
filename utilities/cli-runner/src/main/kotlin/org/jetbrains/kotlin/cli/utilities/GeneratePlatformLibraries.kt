@@ -293,12 +293,18 @@ private fun buildCache(
         libraryCacheDir.deleteRecursively()
     }
 
+    val targetSpecificArgs = when (target) {
+        KonanTarget.IOS_ARM64 -> listOf("-Xembed-bitcode-marker")
+        else -> listOf()
+    }
+
     val compilerArgs = arrayOf(
             "-p", cacheKind,
             "-target", target.visibleName,
             "-repo", outputDirectory.absolutePath,
             "-Xadd-cache=${outputDirectory.absolutePath}/${def.libraryName}",
             "-Xcache-directory=${cacheDirectory.absolutePath}",
+            *targetSpecificArgs.toTypedArray(),
             *cacheArgs.toTypedArray()
     )
     logger.verbose("Run compiler with args: ${compilerArgs.joinToString(separator = " ")}")

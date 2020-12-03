@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.gradle.plugin.konan.hostManager
 import org.jetbrains.kotlin.gradle.plugin.konan.konanHome
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.io.File
 
 enum class KonanCacheKind(val outputKind: CompilerOutputKind) {
@@ -57,13 +58,18 @@ open class KonanCacheTask: DefaultTask() {
             check(deleted) { "Cannot delete stale cache: ${cacheFile.absolutePath}" }
         }
 
+        val targetSpecificArgs = when (target) {
+            "ios_arm64" -> listOf("-Xembed-bitcode-marker")
+            else -> listOf()
+        }
+
         val args = listOf(
             "-g",
             "-target", target,
             "-produce", cacheKind.outputKind.name.toLowerCase(),
             "-Xadd-cache=${originalKlib.absolutePath}",
             "-Xcache-directory=${cacheDirectory.absolutePath}"
-        )
+        ) + targetSpecificArgs
         KonanCompilerRunner(project, konanHome = compilerDistributionPath.get().absolutePath).run(args)
     }
 }
