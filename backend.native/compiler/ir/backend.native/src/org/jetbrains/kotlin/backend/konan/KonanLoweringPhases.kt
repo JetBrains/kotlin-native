@@ -113,12 +113,6 @@ internal val propertyAccessorInlinePhase = makeKonanModuleLoweringPhase(
         description = "Property accessor inline lowering"
 )
 
-internal val inlineClassPropertyAccessorInlinePhase = makeKonanModuleLoweringPhase(
-        ::InlineClassPropertyAccessorsLowering,
-        name = "InlineClassPropertyAccessorsLowering",
-        description = "Inline Class Property accessor lowering"
-)
-
 internal val sharedVariablesPhase = makeKonanModuleLoweringPhase(
         ::SharedVariablesLowering,
         name = "SharedVariables",

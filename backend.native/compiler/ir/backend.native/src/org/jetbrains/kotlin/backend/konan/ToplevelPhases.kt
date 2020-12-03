@@ -392,7 +392,6 @@ internal val bitcodePhase = NamedCompilerPhase(
                 RTTIPhase then
                 generateDebugInfoHeaderPhase then
                 propertyAccessorInlinePhase then
-                inlineClassPropertyAccessorInlinePhase then
                 escapeAnalysisPhase then
                 localEscapeAnalysisPhase then
                 codegenPhase then
