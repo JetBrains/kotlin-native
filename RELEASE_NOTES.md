@@ -53,9 +53,9 @@ the following platforms:
 To run _Kotlin/Native_ compiler JDK 8 or later  (JDK) for the host platform has to be installed.
 Produced programs are fully self-sufficient and do not need JVM or other runtime.
 
-On macOS it also requires Xcode 11.0 or newer to be installed.
+On macOS it also requires Xcode 12.0 or newer to be installed.
 
-The language and library version supported by this EAP release match Kotlin 1.3.
+The language and library version supported by this release match Kotlin 1.4.
 However, there are certain limitations, see section [Known Limitations](#limitations).
 
  Currently _Kotlin/Native_ uses reference counting based memory management scheme with a cycle
