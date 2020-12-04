@@ -470,7 +470,6 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(devirtualizationPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(escapeAnalysisPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(propertyAccessorInlinePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
-        disableUnless(inlineClassPropertyAccessorInlinePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(dcePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(ghaPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(verifyBitcodePhase, config.needCompilerVerification || getBoolean(KonanConfigKeys.VERIFY_BITCODE))
