@@ -311,14 +311,19 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
 
     override fun visitCall(expression: IrCall): IrExpression {
         expression.transformChildrenVoid(this)
+        // Make replacement only in optimized builds due to separate compilation and possibility to get broken
+        // debug information.
         if (context.shouldOptimize()) {
             val property = expression.symbol.owner.correspondingPropertySymbol?.owner ?: return expression
 
             property.parent.let {
                 if (it is IrClass && it.isInline && property.backingField != null) {
-                    expression.dispatchReceiver?.let {
-                        it.type = expression.type
-                        return it
+                    expression.dispatchReceiver?.let { receiver ->
+                        return builder.at(expression)
+                                .irCall(symbols.reinterpret, expression.type, listOf(receiver.type, expression.type))
+                                .apply {
+                                    extensionReceiver = receiver
+                                }
                     }
                 }
             }
