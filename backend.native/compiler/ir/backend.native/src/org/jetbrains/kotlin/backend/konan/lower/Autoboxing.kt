@@ -314,7 +314,7 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
         if (context.shouldOptimize()) {
             val property = expression.symbol.owner.correspondingPropertySymbol?.owner ?: return expression
 
-            property.parent.also {
+            property.parent.let {
                 if (it is IrClass && it.isInline && property.backingField != null) {
                     expression.dispatchReceiver?.let {
                         it.type = expression.type
