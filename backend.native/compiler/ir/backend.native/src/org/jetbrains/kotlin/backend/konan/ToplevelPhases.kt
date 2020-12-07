@@ -391,7 +391,8 @@ internal val bitcodePhase = NamedCompilerPhase(
                 ghaPhase then
                 RTTIPhase then
                 generateDebugInfoHeaderPhase then
-                propertyAccessorInlinePhase then
+                propertyAccessorInlinePhase then // Have to run after link dependencies phase, because fields
+                                                 // from dependencies can be changed during lowerings.
                 escapeAnalysisPhase then
                 localEscapeAnalysisPhase then
                 codegenPhase then
