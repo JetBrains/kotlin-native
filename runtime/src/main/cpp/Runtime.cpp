@@ -161,6 +161,7 @@ void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
   DeinitMemory(state->memoryState, destroyRuntime);
   konanDestructInstance(state);
   WorkerDestroyThreadDataIfNeeded(workerId);
+  ::runtimeState = kInvalidRuntime;
 }
 
 void Kotlin_deinitRuntimeCallback(void* argument) {
@@ -193,7 +194,6 @@ void Kotlin_initRuntimeIfNeeded() {
 void Kotlin_deinitRuntimeIfNeeded() {
   if (isValidRuntime()) {
     deinitRuntime(::runtimeState, false);
-    ::runtimeState = kInvalidRuntime;
   }
 }
 
@@ -251,7 +251,6 @@ void Kotlin_shutdownRuntime() {
     }
 
     deinitRuntime(runtime, canDestroyRuntime);
-    ::runtimeState = kInvalidRuntime;
 }
 
 KInt Konan_Platform_canAccessUnaligned() {
