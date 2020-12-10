@@ -174,6 +174,10 @@ RUNTIME_NOTHROW void ReleaseHeapRefNoCollect(const ObjHeader* object) {
     RuntimeCheck(false, "Unimplemented");
 }
 
+ForeignRefContext InitLocalForeignRef(ObjHeader* object) {
+    RuntimeCheck(false, "Unimplemented");
+}
+
 void CheckGlobalsAccessible() {
     // Globals are always accessible.
 }

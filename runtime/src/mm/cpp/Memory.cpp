@@ -115,14 +115,9 @@ extern "C" RUNTIME_NOTHROW OBJ_GETTER(AdoptStablePointer, void* pointer) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     auto* node = static_cast<mm::StableRefRegistry::Node*>(pointer);
     ObjHeader* object = **node;
+    UpdateReturnRef(OBJ_RESULT, object);
     mm::StableRefRegistry::Instance().UnregisterStableRef(threadData, node);
-    RETURN_OBJ(object);
-}
-
-extern "C" ForeignRefContext InitLocalForeignRef(ObjHeader* object) {
-    auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
-    auto* node = mm::StableRefRegistry::Instance().RegisterStableRef(threadData, object);
-    return ToForeignRefManager(node);
+    return object;
 }
 
 extern "C" ForeignRefContext InitForeignRef(ObjHeader* object) {
