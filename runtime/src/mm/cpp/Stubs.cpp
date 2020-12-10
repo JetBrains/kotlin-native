@@ -55,8 +55,6 @@ OBJ_GETTER(InitThreadLocalSingleton, ObjHeader** location, const TypeInfo* typeI
     RuntimeCheck(false, "Unimplemented");
 }
 
-extern const bool IsStrictMemoryModel = true;
-
 RUNTIME_NOTHROW void SetStackRef(ObjHeader** location, const ObjHeader* object) {
     RuntimeCheck(false, "Unimplemented");
 }

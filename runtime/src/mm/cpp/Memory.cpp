@@ -88,6 +88,8 @@ extern "C" RUNTIME_NOTHROW void InitAndRegisterGlobal(ObjHeader** location, cons
     RuntimeCheck(false, "Unimplemented");
 }
 
+extern "C" const MemoryModel CurrentMemoryModel = MemoryModel::kExperimental;
+
 extern "C" RUNTIME_NOTHROW void AddTLSRecord(MemoryState* memory, void** key, int size) {
     GetThreadData(memory)->tls().AddRecord(key, size);
 }
