@@ -9,7 +9,7 @@
 
 extern "C" {
 
-const MemoryModel CurrentMemoryModel = MemoryModel::kStrict;
+const MemoryModel CurrentMemoryModel = MemoryModel::kRelaxed;
 
 OBJ_GETTER(AllocInstance, const TypeInfo* typeInfo) {
   RETURN_RESULT_OF(AllocInstanceRelaxed, typeInfo);

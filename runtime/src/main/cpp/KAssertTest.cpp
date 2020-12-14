@@ -10,11 +10,11 @@
 TEST(TODODeathTest, EmptyTODO) {
     EXPECT_DEATH({
         TODO();
-    }, "Unimplemented");
+    }, "KAssertTest.cpp:12: runtime assert: Unimplemented");
 }
 
 TEST(TODODeathTest, TODOWithMessage) {
     EXPECT_DEATH({
         TODO("Nope");
-    }, "Nope");
+    }, "KAssertTest.cpp:18: runtime assert: Nope");
 }

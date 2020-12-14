@@ -72,7 +72,7 @@
 
 namespace {
 
-bool IsStrictMemoryModel() noexcept {
+ALWAYS_INLINE bool IsStrictMemoryModel() noexcept {
     return CurrentMemoryModel == MemoryModel::kStrict;
 }
 
