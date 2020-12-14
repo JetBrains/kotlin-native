@@ -140,7 +140,9 @@ RuntimeState* initRuntime() {
 void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
   RuntimeAssert(state->status == RuntimeStatus::kRunning, "Runtime must be in the running state");
   state->status = RuntimeStatus::kDestroying;
-  // This may be called after TLS is zeroed out, so ::memoryState in Memory cannot be trusted.
+  // This may be called after TLS is zeroed out, so ::runtimeState and ::memoryState in Memory cannot be trusted.
+  // TODO: This may in fact reallocate TLS without guarantees that it'll be deallocated again.
+  ::runtimeState = state;
   RestoreMemory(state->memoryState);
   bool lastRuntime = atomicAdd(&aliveRuntimesCount, -1) == 0;
   switch (Kotlin_getDestroyRuntimeMode()) {
@@ -159,6 +161,7 @@ void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
   DeinitMemory(state->memoryState, destroyRuntime);
   konanDestructInstance(state);
   WorkerDestroyThreadDataIfNeeded(workerId);
+  ::runtimeState = kInvalidRuntime;
 }
 
 void Kotlin_deinitRuntimeCallback(void* argument) {
@@ -191,7 +194,6 @@ void Kotlin_initRuntimeIfNeeded() {
 void Kotlin_deinitRuntimeIfNeeded() {
   if (isValidRuntime()) {
     deinitRuntime(::runtimeState, false);
-    ::runtimeState = kInvalidRuntime;
   }
 }
 
@@ -227,24 +229,28 @@ void Kotlin_shutdownRuntime() {
     auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShutdown);
     RuntimeAssert(lastStatus == kGlobalRuntimeRunning, "Invalid runtime status for shutdown");
 
+    bool canDestroyRuntime = true;
+
     // TODO: When legacy mode is gone, this `if` will become unnecessary.
     if (Kotlin_forceCheckedShutdown() || Kotlin_memoryLeakCheckerEnabled() || Kotlin_cleanersLeakCheckerEnabled()) {
         // First make sure workers are gone.
         WaitNativeWorkersTermination();
 
+        // Now check for existence of any other runtimes.
+        auto otherRuntimesCount = atomicGet(&aliveRuntimesCount) - 1;
+        RuntimeAssert(otherRuntimesCount >= 0, "Cannot be negative");
         if (Kotlin_forceCheckedShutdown()) {
-            // Now check for existence of any other runtimes.
-            auto otherRuntimesCount = atomicGet(&aliveRuntimesCount) - 1;
-            RuntimeAssert(otherRuntimesCount >= 0, "Cannot be negative");
             if (otherRuntimesCount > 0) {
                 konan::consoleErrorf("Cannot run checkers when there are %d alive runtimes at the shutdown", otherRuntimesCount);
                 konan::abort();
             }
+        } else {
+            // Cannot destroy runtime globally if there're some other threads with Kotlin runtime on them.
+            canDestroyRuntime = otherRuntimesCount == 0;
         }
     }
 
-    deinitRuntime(runtime, true);
-    ::runtimeState = kInvalidRuntime;
+    deinitRuntime(runtime, canDestroyRuntime);
 }
 
 KInt Konan_Platform_canAccessUnaligned() {

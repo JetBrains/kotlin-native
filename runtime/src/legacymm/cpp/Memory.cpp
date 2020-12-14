@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include <cstddef> // for offsetof
+#include <mutex>
 
 // Allow concurrent global cycle collector.
 #define USE_CYCLIC_GC 0
@@ -218,14 +219,14 @@ class CycleDetector : private kotlin::Pinned {
   }
 
   void insertCandidate(KRef candidate) {
-    LockGuard<SimpleMutex> guard(lock_);
+    std::lock_guard<kotlin::SpinLock> guard(lock_);
 
     auto it = candidateList_.insert(candidateList_.begin(), candidate);
     candidateInList_.emplace(candidate, it);
   }
 
   void removeCandidate(KRef candidate) {
-    LockGuard<SimpleMutex> guard(lock_);
+    std::lock_guard<kotlin::SpinLock> guard(lock_);
 
     auto it = candidateInList_.find(candidate);
     if (it == candidateInList_.end())
@@ -234,7 +235,7 @@ class CycleDetector : private kotlin::Pinned {
     candidateInList_.erase(it);
   }
 
-  SimpleMutex lock_;
+  kotlin::SpinLock lock_;
   using CandidateList = KStdList<KRef>;
   CandidateList candidateList_;
   KStdUnorderedMap<KRef, CandidateList::iterator> candidateInList_;
@@ -600,10 +601,10 @@ public:
         RuntimeAssert(storage_ == nullptr, "Storage must not be committed");
         auto it = map_->find(key);
         if (it != map_->end()) {
-            RuntimeAssert(it->second.second == size, "Attempt to add TLS record with the same key and different size");
+            RuntimeAssert(it->second.size == size, "Attempt to add TLS record with the same key and different size");
             return;
         }
-        map_->emplace(key, std::make_pair(size_, size));
+        map_->emplace(key, Entry{size_, size});
         size_ += size;
     }
 
@@ -629,15 +630,20 @@ public:
         }
         auto it = map_->find(key);
         RuntimeAssert(it != map_->end(), "Must be there");
-        int offset = it->second.first;
-        RuntimeAssert(offset + index < size_, "Out of bound in TLS access");
+        auto entry = it->second;
+        RuntimeAssert(index < entry.size, "Out of bounds in TLS access");
         lastKey_ = key;
-        lastOffset_ = offset;
-        return storage_ + offset + index;
+        lastOffset_ = entry.offset;
+        return storage_ + entry.offset + index;
     }
 
 private:
-    using Map = KStdUnorderedMap<Key, std::pair<int, int>>;
+    struct Entry {
+        int offset;
+        int size;
+    };
+
+    using Map = KStdUnorderedMap<Key, Entry>;
 
     Map* map_ = nullptr;
     KRef* storage_ = nullptr;
@@ -2985,7 +2991,7 @@ ScopedRefHolder::~ScopedRefHolder() {
 CycleDetectorRootset CycleDetector::collectRootset() {
   auto& detector = instance();
   CycleDetectorRootset rootset;
-  LockGuard<SimpleMutex> guard(detector.lock_);
+  std::lock_guard<kotlin::SpinLock> guard(detector.lock_);
   for (auto* candidate: detector.candidateList_) {
     // Only frozen candidates are to be analyzed.
     if (!isPermanentOrFrozen(candidate))
