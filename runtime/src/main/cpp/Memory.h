@@ -50,7 +50,7 @@ struct ObjHeader {
   MetaObjHeader* meta_object() {
      return has_meta_object() ?
         reinterpret_cast<MetaObjHeader*>(clearPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK)) :
-        createMetaObject(&typeInfoOrMeta_);
+        createMetaObject(this);
   }
 
   ALWAYS_INLINE ObjHeader** GetWeakCounterLocation();
@@ -75,8 +75,8 @@ struct ObjHeader {
     return hasPointerBits(typeInfoOrMeta_, OBJECT_TAG_PERMANENT_CONTAINER);
   }
 
-  static MetaObjHeader* createMetaObject(TypeInfo** location);
-  static void destroyMetaObject(TypeInfo** location);
+  static MetaObjHeader* createMetaObject(ObjHeader* object);
+  static void destroyMetaObject(ObjHeader* object);
 };
 
 // Header of value type array objects. Keep layout in sync with that of object header.
