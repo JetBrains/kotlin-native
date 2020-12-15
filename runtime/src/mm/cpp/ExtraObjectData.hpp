@@ -46,7 +46,7 @@ private:
     ObjHeader* weakReferenceCounter_ = nullptr;
 };
 
-}
-}
+} // namespace mm
+} // namespace kotlin
 
 #endif // RUNTIME_MM_EXTRA_OBJECT_DATA_H

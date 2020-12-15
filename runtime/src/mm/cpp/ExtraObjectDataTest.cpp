@@ -51,13 +51,15 @@ TEST(ExtraObjectDataTest, ConcurrentInstall) {
     for (int i = 0; i < kThreadCount; ++i) {
         threads.emplace_back([i, &actual, &object, &canStart, &readyCount]() {
             ++readyCount;
-            while (!canStart) {}
+            while (!canStart) {
+            }
             auto& extraData = mm::ExtraObjectData::Install(&object);
             actual[i] = &extraData;
         });
     }
 
-    while (readyCount < kThreadCount) {}
+    while (readyCount < kThreadCount) {
+    }
     canStart = true;
 
     for (auto& t : threads) {
