@@ -6,6 +6,8 @@
 #ifndef RUNTIME_MM_OBJECT_FACTORY_H
 #define RUNTIME_MM_OBJECT_FACTORY_H
 
+#include <algorithm>
+#include <memory>
 #include <mutex>
 
 #include "Alignment.hpp"
@@ -33,25 +35,38 @@ public:
         static void operator delete(void* ptr) noexcept { konanFreeMemory(ptr); }
 
         // Note: This can only be trivially destructible data, as nobody can invoke its destructor.
-        void* Data() noexcept { return this + 1; }
+        void* Data() noexcept { return data_; }
 
     private:
         friend class ObjectFactoryStorage;
 
-        Node() noexcept = default;
+        explicit Node(void* data) noexcept : data_(data) {}
 
-        static void* operator new(size_t size, size_t dataSize, size_t dataAlignment) noexcept {
-            size_t allocSize = AlignUp(size + dataSize, dataAlignment);
+        static std::unique_ptr<Node> Create(size_t dataSize, size_t dataAlignment) noexcept {
+            RuntimeAssert(IsValidAlignment(dataAlignment), "dataAlignment=%zu is not a valid alignment", dataAlignment);
+            RuntimeAssert(IsAligned(dataSize, dataAlignment), "dataSize=%zu must be aligned to dataAlignment=%zu", dataSize, dataAlignment);
+            size_t alignment = std::max(alignof(Node), dataAlignment);
+            size_t size = sizeof(Node) + dataSize;
+            size_t allocSize = AlignUp(size, alignment);
             void* ptr = konanAllocMemory(allocSize);
             if (!ptr) {
                 // TODO: Try doing GC first.
                 konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", allocSize);
                 konan::abort();
             }
-            return ptr;
+            void* alignedPtr = AlignUp(ptr, alignment);
+            RuntimeAssert(
+                    reinterpret_cast<uintptr_t>(alignedPtr) + size <= reinterpret_cast<uintptr_t>(ptr) + allocSize,
+                    "Aligning %p (with size %zu) to %p overflowed allocated size %zu", ptr, size, alignedPtr, allocSize);
+            size_t dataOffset = AlignUp(sizeof(Node), dataAlignment);
+            void* data = static_cast<uint8_t*>(ptr) + dataOffset;
+            RuntimeAssert(IsAligned(data, dataAlignment), "data=%p is not aligned to %zu", data, dataAlignment);
+            auto* nodePtr = new (ptr) Node(data);
+            return std::unique_ptr<Node>(nodePtr);
         }
 
         std::unique_ptr<Node> next_;
+        void* data_; // TODO: In our most common case (the alignment is the same across `Node`s) this is an overkill.
         // There's some more data of an unknown (at compile-time) size here, but it cannot be represented
         // with C++ members.
     };
@@ -64,8 +79,8 @@ public:
 
         Node& Insert(size_t dataSize, size_t dataAlignment) noexcept {
             AssertCorrect();
-            auto* nodePtr = new (dataSize, dataAlignment) Node();
-            std::unique_ptr<Node> node(nodePtr);
+            auto node = Node::Create(dataSize, dataAlignment);
+            auto* nodePtr = node.get();
             if (!root_) {
                 RuntimeAssert(last_ == nullptr, "Unsynchronized root_ and last_");
                 root_ = std::move(node);
@@ -111,7 +126,7 @@ public:
     private:
         friend class ObjectFactoryStorage;
 
-        void AssertCorrect() const noexcept {
+        ALWAYS_INLINE void AssertCorrect() const noexcept {
             if (root_ == nullptr) {
                 RuntimeAssert(last_ == nullptr, "last_ must be null");
             } else {
@@ -193,7 +208,7 @@ private:
     }
 
     // Expects `mutex_` to be held by the current thread.
-    void AssertCorrectUnsafe() const noexcept {
+    ALWAYS_INLINE void AssertCorrectUnsafe() const noexcept {
         if (root_ == nullptr) {
             RuntimeAssert(last_ == nullptr, "last_ must be null");
         } else {

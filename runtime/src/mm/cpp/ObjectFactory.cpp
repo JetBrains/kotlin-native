@@ -14,7 +14,8 @@ using namespace kotlin;
 
 namespace {
 
-constexpr uint32_t kObjectAlignment = 8;
+constexpr size_t kObjectAlignment = 8;
+static_assert(IsValidAlignment(kObjectAlignment), "kObjectAlignment must be a valid alignment");
 static_assert(kObjectAlignment % alignof(KLong) == 0, "");
 static_assert(kObjectAlignment % alignof(KDouble) == 0, "");
 

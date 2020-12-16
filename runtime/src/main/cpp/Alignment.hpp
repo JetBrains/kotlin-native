@@ -7,11 +7,28 @@
 #define RUNTIME_ALIGNMENT_H
 
 #include <cstddef>
+#include <cstdint>
 
 namespace kotlin {
 
 constexpr inline size_t AlignUp(size_t size, size_t alignment) {
     return (size + alignment - 1) & ~(alignment - 1);
+}
+
+inline void* AlignUp(void* ptr, size_t alignment) {
+    return reinterpret_cast<void*>(reinterpret_cast<size_t>(ptr) + (alignment - 1) & -alignment);
+}
+
+constexpr inline bool IsValidAlignment(size_t alignment) {
+    return alignment != 0 && (alignment & (alignment - 1)) == 0;
+}
+
+constexpr inline bool IsAligned(size_t size, size_t alignment) {
+    return size % alignment == 0;
+}
+
+inline bool IsAligned(void* ptr, size_t alignment) {
+    return reinterpret_cast<uintptr_t>(ptr) % alignment == 0;
 }
 
 } // namespace kotlin

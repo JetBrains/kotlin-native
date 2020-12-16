@@ -46,7 +46,9 @@ ObjectFactoryStorage::Node& Insert(ObjectFactoryStorage::Producer& producer, Arg
 
 template <typename T>
 T& GetData(ObjectFactoryStorage::Iterator& iterator) {
-    return *static_cast<T*>((*iterator).Data());
+    auto* data = static_cast<T*>((*iterator).Data());
+    EXPECT_TRUE(IsAligned(data, alignof(T)));
+    return *data;
 }
 
 struct MoveOnlyImpl : private MoveOnly {
@@ -62,6 +64,13 @@ struct PinnedImpl : private Pinned {
     int value1;
     int value2;
     int value3;
+};
+
+struct MaxAlignedData {
+    explicit MaxAlignedData(int value) : value(value) {}
+
+    std::max_align_t padding;
+    int value;
 };
 
 } // namespace
@@ -112,6 +121,7 @@ TEST(ObjectFactoryStorageTest, PublishDifferentTypes) {
     Insert<size_t>(producer, 2);
     Insert<MoveOnlyImpl>(producer, 3, 4);
     Insert<PinnedImpl>(producer, 5, 6, 7);
+    Insert<MaxAlignedData>(producer, 8);
 
     producer.Publish();
 
@@ -129,6 +139,9 @@ TEST(ObjectFactoryStorageTest, PublishDifferentTypes) {
     EXPECT_THAT(pinned.value1, 5);
     EXPECT_THAT(pinned.value2, 6);
     EXPECT_THAT(pinned.value3, 7);
+    ++it;
+    auto& maxAlign = GetData<MaxAlignedData>(it);
+    EXPECT_THAT(maxAlign.value, 8);
     ++it;
     EXPECT_THAT(it, actual.end());
 }
