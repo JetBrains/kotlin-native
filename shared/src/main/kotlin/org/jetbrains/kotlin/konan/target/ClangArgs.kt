@@ -89,6 +89,11 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                 "-mmacosx-version-min=$osVersionMin"
         )
 
+        KonanTarget.MACOS_ARM64 -> listOf(
+                "-mmacosx-version-min=$osVersionMin",
+                "-arch", "arm64"
+        )
+
         KonanTarget.IOS_ARM32 -> listOf(
                 "-stdlib=libc++",
                 "-arch", "armv7",

@@ -1611,6 +1611,7 @@ private fun Context.is64BitNSInteger(): Boolean = when (val target = this.config
     KonanTarget.TVOS_ARM64,
     KonanTarget.TVOS_X64,
     KonanTarget.MACOS_X64,
+    KonanTarget.MACOS_ARM64,
     KonanTarget.WATCHOS_X64 -> true
     KonanTarget.WATCHOS_ARM64,
     KonanTarget.WATCHOS_ARM32,
@@ -1642,6 +1643,7 @@ internal fun Context.is64BitLong(): Boolean = when (this.config.target) {
     KonanTarget.MINGW_X64,
     KonanTarget.LINUX_X64,
     KonanTarget.MACOS_X64,
+    KonanTarget.MACOS_ARM64,
     KonanTarget.WATCHOS_X64 -> true
     KonanTarget.WATCHOS_ARM64,
     KonanTarget.WATCHOS_ARM32,

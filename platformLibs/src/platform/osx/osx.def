@@ -6,12 +6,12 @@ headers = NSSystemDirectories.h \
     com_err.h \
     crt_externs.h \
     disktab.h dtrace.h \
-    emmintrin.h eti.h expat.h \
+    eti.h expat.h \
     expat_external.h form.h fsproperties.h get_compat.h \
     gssapi.h histedit.h \
     krb5.h launch.h lber.h lber_types.h ldif.h libc.h libcharset.h \
     libproc.h localcharset.h \
-    mmintrin.h monitor.h \
+    monitor.h \
     nc_tparm.h ncurses.h ncurses_dll.h \
     nlist.h \
     panel.h pcap-bpf.h pcap-namedb.h pcap.h printerdb.h \
@@ -20,10 +20,10 @@ headers = NSSystemDirectories.h \
     struct.h term.h \
     term_entry.h termcap.h tic.h timeconv.h tzfile.h \
     unctrl.h vproc.h \
-    xmmintrin.h \
     atm/atm_types.h corpses/task_corpse.h \
     hfs/hfs_format.h hfs/hfs_mount.h hfs/hfs_unistr.h \
-    sys/kauth.h
+    sys/kauth.h \
+    arm64/hv/hv_kern_types.h
 
 headerFilter = **
 
