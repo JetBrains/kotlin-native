@@ -12,6 +12,7 @@
 
 #include "Alignment.hpp"
 #include "Alloc.h"
+#include "CppSupport.hpp"
 #include "Memory.h"
 #include "Mutex.hpp"
 #include "Utils.hpp"
@@ -56,19 +57,18 @@ public:
 
         Node() noexcept = default;
 
-        static std::unique_ptr<Node> Create(size_t dataSize) noexcept {
+        static void* operator new(size_t size, size_t dataSize) noexcept {
             size_t dataSizeAligned = AlignUp(dataSize, DataAlignment);
-            size_t alignment = std::max(alignof(Node), DataAlignment);
-            size_t size = AlignUp(sizeof(Node) + AlignUp(dataSizeAligned, DataAlignment), alignment);
-            void* ptr = konanAllocAlignedMemory(size, alignment);
+            size_t totalAlignment = std::max(alignof(Node), DataAlignment);
+            size_t totalSize = AlignUp(sizeof(Node) + dataSizeAligned, totalAlignment);
+            void* ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
             if (!ptr) {
                 // TODO: Try doing GC first.
-                konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", size);
+                konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", totalSize);
                 konan::abort();
             }
-            RuntimeAssert(IsAligned(ptr, alignment), "Allocator returned unaligned to %zu pointer %p", alignment, ptr);
-            auto* nodePtr = new (ptr) Node();
-            return std::unique_ptr<Node>(nodePtr);
+            RuntimeAssert(IsAligned(ptr, totalAlignment), "Allocator returned unaligned to %zu pointer %p", totalAlignment, ptr);
+            return ptr;
         }
 
         std::unique_ptr<Node> next_;
@@ -84,8 +84,8 @@ public:
 
         Node& Insert(size_t dataSize) noexcept {
             AssertCorrect();
-            auto node = Node::Create(dataSize);
-            auto* nodePtr = node.get();
+            auto* nodePtr = new (dataSize) Node();
+            std::unique_ptr<Node> node(nodePtr);
             if (!root_) {
                 RuntimeAssert(last_ == nullptr, "Unsynchronized root_ and last_");
                 root_ = std::move(node);
