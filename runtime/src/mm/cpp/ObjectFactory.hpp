@@ -46,18 +46,14 @@ public:
             RuntimeAssert(IsValidAlignment(dataAlignment), "dataAlignment=%zu is not a valid alignment", dataAlignment);
             RuntimeAssert(IsAligned(dataSize, dataAlignment), "dataSize=%zu must be aligned to dataAlignment=%zu", dataSize, dataAlignment);
             size_t alignment = std::max(alignof(Node), dataAlignment);
-            size_t size = sizeof(Node) + dataSize;
-            size_t allocSize = AlignUp(size, alignment);
-            void* ptr = konanAllocMemory(allocSize);
+            size_t size = AlignUp(sizeof(Node) + dataSize, alignment);
+            void* ptr = konanAllocAlignedMemory(size, alignment);
             if (!ptr) {
                 // TODO: Try doing GC first.
-                konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", allocSize);
+                konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", size);
                 konan::abort();
             }
-            void* alignedPtr = AlignUp(ptr, alignment);
-            RuntimeAssert(
-                    reinterpret_cast<uintptr_t>(alignedPtr) + size <= reinterpret_cast<uintptr_t>(ptr) + allocSize,
-                    "Aligning %p (with size %zu) to %p overflowed allocated size %zu", ptr, size, alignedPtr, allocSize);
+            RuntimeAssert(IsAligned(ptr, alignment), "Allocator returned unaligned to %zu pointer %p", alignment, ptr);
             size_t dataOffset = AlignUp(sizeof(Node), dataAlignment);
             void* data = static_cast<uint8_t*>(ptr) + dataOffset;
             RuntimeAssert(IsAligned(data, dataAlignment), "data=%p is not aligned to %zu", data, dataAlignment);

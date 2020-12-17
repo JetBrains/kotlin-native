@@ -16,7 +16,8 @@ constexpr inline size_t AlignUp(size_t size, size_t alignment) {
 }
 
 inline void* AlignUp(void* ptr, size_t alignment) {
-    return reinterpret_cast<void*>(reinterpret_cast<size_t>(ptr) + (alignment - 1) & -alignment);
+    static_assert(sizeof(void*) == sizeof(size_t), "size_t size must be equal to pointer size for this to work");
+    return reinterpret_cast<void*>(AlignUp(reinterpret_cast<size_t>(ptr), alignment));
 }
 
 constexpr inline bool IsValidAlignment(size_t alignment) {
