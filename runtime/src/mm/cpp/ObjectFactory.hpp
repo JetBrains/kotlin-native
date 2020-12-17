@@ -25,7 +25,10 @@ namespace internal {
 // This is essentially a heterogeneous `MultiSourceQueue` on top of a singly linked list that
 // uses `konanAllocMemory` and `konanFreeMemory`
 // TODO: Consider merging with `MultiSourceQueue` somehow.
+template <size_t DataAlignment>
 class ObjectFactoryStorage : private Pinned {
+    static_assert(IsValidAlignment(DataAlignment), "DataAlignment is not a valid alignment");
+
 public:
     // This class does not know its size at compile-time.
     class Node : private Pinned {
@@ -35,18 +38,28 @@ public:
         static void operator delete(void* ptr) noexcept { konanFreeMemory(ptr); }
 
         // Note: This can only be trivially destructible data, as nobody can invoke its destructor.
-        void* Data() noexcept { return data_; }
+        void* Data() noexcept {
+            constexpr size_t kDataOffset = AlignUp(sizeof(Node), DataAlignment);
+            void* ptr = reinterpret_cast<uint8_t*>(this) + kDataOffset;
+            RuntimeAssert(IsAligned(ptr, DataAlignment), "Data=%p is not aligned to %zu", ptr, DataAlignment);
+            return ptr;
+        }
+
+        // It's a caller responsibility to know if the underlying data is `T`.
+        template <typename T>
+        T& Data() noexcept {
+            return *static_cast<T*>(Data());
+        }
 
     private:
         friend class ObjectFactoryStorage;
 
-        explicit Node(void* data) noexcept : data_(data) {}
+        Node() noexcept = default;
 
-        static std::unique_ptr<Node> Create(size_t dataSize, size_t dataAlignment) noexcept {
-            RuntimeAssert(IsValidAlignment(dataAlignment), "dataAlignment=%zu is not a valid alignment", dataAlignment);
-            RuntimeAssert(IsAligned(dataSize, dataAlignment), "dataSize=%zu must be aligned to dataAlignment=%zu", dataSize, dataAlignment);
-            size_t alignment = std::max(alignof(Node), dataAlignment);
-            size_t size = AlignUp(sizeof(Node) + dataSize, alignment);
+        static std::unique_ptr<Node> Create(size_t dataSize) noexcept {
+            size_t dataSizeAligned = AlignUp(dataSize, DataAlignment);
+            size_t alignment = std::max(alignof(Node), DataAlignment);
+            size_t size = AlignUp(sizeof(Node) + AlignUp(dataSizeAligned, DataAlignment), alignment);
             void* ptr = konanAllocAlignedMemory(size, alignment);
             if (!ptr) {
                 // TODO: Try doing GC first.
@@ -54,15 +67,11 @@ public:
                 konan::abort();
             }
             RuntimeAssert(IsAligned(ptr, alignment), "Allocator returned unaligned to %zu pointer %p", alignment, ptr);
-            size_t dataOffset = AlignUp(sizeof(Node), dataAlignment);
-            void* data = static_cast<uint8_t*>(ptr) + dataOffset;
-            RuntimeAssert(IsAligned(data, dataAlignment), "data=%p is not aligned to %zu", data, dataAlignment);
-            auto* nodePtr = new (ptr) Node(data);
+            auto* nodePtr = new (ptr) Node();
             return std::unique_ptr<Node>(nodePtr);
         }
 
         std::unique_ptr<Node> next_;
-        void* data_; // TODO: In our most common case (the alignment is the same across `Node`s) this is an overkill.
         // There's some more data of an unknown (at compile-time) size here, but it cannot be represented
         // with C++ members.
     };
@@ -73,9 +82,9 @@ public:
 
         ~Producer() { Publish(); }
 
-        Node& Insert(size_t dataSize, size_t dataAlignment) noexcept {
+        Node& Insert(size_t dataSize) noexcept {
             AssertCorrect();
-            auto node = Node::Create(dataSize, dataAlignment);
+            auto node = Node::Create(dataSize);
             auto* nodePtr = node.get();
             if (!root_) {
                 RuntimeAssert(last_ == nullptr, "Unsynchronized root_ and last_");
@@ -89,6 +98,15 @@ public:
             RuntimeAssert(root_ != nullptr, "Must not be empty");
             AssertCorrect();
             return *nodePtr;
+        }
+
+        template <typename T, typename... Args>
+        Node& Insert(Args&&... args) noexcept {
+            static_assert(alignof(T) <= DataAlignment, "Cannot insert type with alignment bigger than DataAlignment");
+            static_assert(std_support::is_trivially_destructible_v<T>, "Type must be trivially destructible");
+            auto& node = Insert(sizeof(T));
+            new (node.Data()) T(std::forward<Args>(args)...);
+            return node;
         }
 
         // Merge `this` queue with owning `ObjectFactoryStorage`.
@@ -139,6 +157,7 @@ public:
     class Iterator {
     public:
         Node& operator*() noexcept { return *node_; }
+        Node* operator->() noexcept { return node_; }
 
         Iterator& operator++() noexcept {
             previousNode_ = node_;
@@ -222,6 +241,8 @@ private:
 
 class ObjectFactory : private Pinned {
 public:
+    using Storage = internal::ObjectFactoryStorage<kObjectAlignment>;
+
     class ThreadQueue : private MoveOnly {
     public:
         explicit ThreadQueue(ObjectFactory& owner) noexcept : producer_(owner.storage_) {}
@@ -232,12 +253,12 @@ public:
         void Publish() noexcept { producer_.Publish(); }
 
     private:
-        internal::ObjectFactoryStorage::Producer producer_;
+        Storage::Producer producer_;
     };
 
     class Iterator {
     public:
-        internal::ObjectFactoryStorage::Node& operator*() noexcept { return *iterator_; }
+        Storage::Node& operator*() noexcept { return *iterator_; }
 
         Iterator& operator++() noexcept {
             ++iterator_;
@@ -256,9 +277,9 @@ public:
     private:
         friend class ObjectFactory;
 
-        explicit Iterator(internal::ObjectFactoryStorage::Iterator iterator) noexcept : iterator_(std::move(iterator)) {}
+        explicit Iterator(Storage::Iterator iterator) noexcept : iterator_(std::move(iterator)) {}
 
-        internal::ObjectFactoryStorage::Iterator iterator_;
+        Storage::Iterator iterator_;
     };
 
     class Iterable {
@@ -271,7 +292,7 @@ public:
         void EraseAndAdvance(Iterator& iterator) noexcept { iter_.EraseAndAdvance(iterator.iterator_); }
 
     private:
-        internal::ObjectFactoryStorage::Iterable iter_;
+        Storage::Iterable iter_;
     };
 
     ObjectFactory() noexcept;
@@ -282,7 +303,7 @@ public:
     Iterable Iter() noexcept { return Iterable(*this); }
 
 private:
-    internal::ObjectFactoryStorage storage_;
+    Storage storage_;
 };
 
 } // namespace mm

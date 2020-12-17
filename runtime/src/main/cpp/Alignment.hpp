@@ -11,6 +11,8 @@
 
 namespace kotlin {
 
+constexpr size_t kObjectAlignment = 8;
+
 constexpr inline size_t AlignUp(size_t size, size_t alignment) {
     return (size + alignment - 1) & ~(alignment - 1);
 }

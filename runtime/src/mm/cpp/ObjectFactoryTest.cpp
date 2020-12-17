@@ -16,11 +16,15 @@
 
 using namespace kotlin;
 
-using mm::internal::ObjectFactoryStorage;
+template <size_t DataAlignment>
+using ObjectFactoryStorage = mm::internal::ObjectFactoryStorage<DataAlignment>;
+
+using ObjectFactoryStorageRegular = ObjectFactoryStorage<alignof(void*)>;
 
 namespace {
 
-std::vector<void*> Collect(ObjectFactoryStorage& storage) {
+template <size_t DataAlignment>
+std::vector<void*> Collect(ObjectFactoryStorage<DataAlignment>& storage) {
     std::vector<void*> result;
     for (auto& node : storage.Iter()) {
         result.push_back(node.Data());
@@ -28,27 +32,13 @@ std::vector<void*> Collect(ObjectFactoryStorage& storage) {
     return result;
 }
 
-template <typename T>
-std::vector<T> Collect(ObjectFactoryStorage& storage) {
+template <typename T, size_t DataAlignment>
+std::vector<T> Collect(ObjectFactoryStorage<DataAlignment>& storage) {
     std::vector<T> result;
     for (auto& node : storage.Iter()) {
         result.push_back(*static_cast<T*>(node.Data()));
     }
     return result;
-}
-
-template <typename T, typename... Args>
-ObjectFactoryStorage::Node& Insert(ObjectFactoryStorage::Producer& producer, Args&&... args) {
-    auto& node = producer.Insert(sizeof(T), alignof(T));
-    new (node.Data()) T(std::forward<Args>(args)...);
-    return node;
-}
-
-template <typename T>
-T& GetData(ObjectFactoryStorage::Iterator& iterator) {
-    auto* data = static_cast<T*>((*iterator).Data());
-    EXPECT_TRUE(IsAligned(data, alignof(T)));
-    return *data;
 }
 
 struct MoveOnlyImpl : private MoveOnly {
@@ -76,7 +66,7 @@ struct MaxAlignedData {
 } // namespace
 
 TEST(ObjectFactoryStorageTest, Empty) {
-    ObjectFactoryStorage storage;
+    ObjectFactoryStorageRegular storage;
 
     auto actual = Collect(storage);
 
@@ -84,11 +74,11 @@ TEST(ObjectFactoryStorageTest, Empty) {
 }
 
 TEST(ObjectFactoryStorageTest, DoNotPublish) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer(storage);
 
-    Insert<int>(producer, 1);
-    Insert<int>(producer, 2);
+    producer.Insert<int>(1);
+    producer.Insert<int>(2);
 
     auto actual = Collect(storage);
 
@@ -96,14 +86,14 @@ TEST(ObjectFactoryStorageTest, DoNotPublish) {
 }
 
 TEST(ObjectFactoryStorageTest, Publish) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer1(storage);
-    ObjectFactoryStorage::Producer producer2(storage);
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer1(storage);
+    ObjectFactoryStorageRegular::Producer producer2(storage);
 
-    Insert<int>(producer1, 1);
-    Insert<int>(producer1, 2);
-    Insert<int>(producer2, 10);
-    Insert<int>(producer2, 20);
+    producer1.Insert<int>(1);
+    producer1.Insert<int>(2);
+    producer2.Insert<int>(10);
+    producer2.Insert<int>(20);
 
     producer1.Publish();
     producer2.Publish();
@@ -114,57 +104,57 @@ TEST(ObjectFactoryStorageTest, Publish) {
 }
 
 TEST(ObjectFactoryStorageTest, PublishDifferentTypes) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorage<alignof(MaxAlignedData)> storage;
+    ObjectFactoryStorage<alignof(MaxAlignedData)>::Producer producer(storage);
 
-    Insert<int>(producer, 1);
-    Insert<size_t>(producer, 2);
-    Insert<MoveOnlyImpl>(producer, 3, 4);
-    Insert<PinnedImpl>(producer, 5, 6, 7);
-    Insert<MaxAlignedData>(producer, 8);
+    producer.Insert<int>(1);
+    producer.Insert<size_t>(2);
+    producer.Insert<MoveOnlyImpl>(3, 4);
+    producer.Insert<PinnedImpl>(5, 6, 7);
+    producer.Insert<MaxAlignedData>(8);
 
     producer.Publish();
 
     auto actual = storage.Iter();
     auto it = actual.begin();
-    EXPECT_THAT(GetData<int>(it), 1);
+    EXPECT_THAT(it->Data<int>(), 1);
     ++it;
-    EXPECT_THAT(GetData<size_t>(it), 2);
+    EXPECT_THAT(it->Data<size_t>(), 2);
     ++it;
-    auto& moveOnly = GetData<MoveOnlyImpl>(it);
+    auto& moveOnly = it->Data<MoveOnlyImpl>();
     EXPECT_THAT(moveOnly.value1, 3);
     EXPECT_THAT(moveOnly.value2, 4);
     ++it;
-    auto& pinned = GetData<PinnedImpl>(it);
+    auto& pinned = it->Data<PinnedImpl>();
     EXPECT_THAT(pinned.value1, 5);
     EXPECT_THAT(pinned.value2, 6);
     EXPECT_THAT(pinned.value3, 7);
     ++it;
-    auto& maxAlign = GetData<MaxAlignedData>(it);
+    auto& maxAlign = it->Data<MaxAlignedData>();
     EXPECT_THAT(maxAlign.value, 8);
     ++it;
     EXPECT_THAT(it, actual.end());
 }
 
 TEST(ObjectFactoryStorageTest, PublishSeveralTimes) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer(storage);
 
     // Add 2 elements and publish.
-    Insert<int>(producer, 1);
-    Insert<int>(producer, 2);
+    producer.Insert<int>(1);
+    producer.Insert<int>(2);
     producer.Publish();
 
     // Add another element and publish.
-    Insert<int>(producer, 3);
+    producer.Insert<int>(3);
     producer.Publish();
 
     // Publish without adding elements.
     producer.Publish();
 
     // Add yet another two elements and publish.
-    Insert<int>(producer, 4);
-    Insert<int>(producer, 5);
+    producer.Insert<int>(4);
+    producer.Insert<int>(5);
     producer.Publish();
 
     auto actual = Collect<int>(storage);
@@ -173,12 +163,12 @@ TEST(ObjectFactoryStorageTest, PublishSeveralTimes) {
 }
 
 TEST(ObjectFactoryStorageTest, PublishInDestructor) {
-    ObjectFactoryStorage storage;
+    ObjectFactoryStorageRegular storage;
 
     {
-        ObjectFactoryStorage::Producer producer(storage);
-        Insert<int>(producer, 1);
-        Insert<int>(producer, 2);
+        ObjectFactoryStorageRegular::Producer producer(storage);
+        producer.Insert<int>(1);
+        producer.Insert<int>(2);
     }
 
     auto actual = Collect<int>(storage);
@@ -187,19 +177,19 @@ TEST(ObjectFactoryStorageTest, PublishInDestructor) {
 }
 
 TEST(ObjectFactoryStorageTest, EraseFirst) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer(storage);
 
-    Insert<int>(producer, 1);
-    Insert<int>(producer, 2);
-    Insert<int>(producer, 3);
+    producer.Insert<int>(1);
+    producer.Insert<int>(2);
+    producer.Insert<int>(3);
 
     producer.Publish();
 
     {
         auto iter = storage.Iter();
         for (auto it = iter.begin(); it != iter.end();) {
-            if (GetData<int>(it) == 1) {
+            if (it->Data<int>() == 1) {
                 iter.EraseAndAdvance(it);
             } else {
                 ++it;
@@ -213,19 +203,19 @@ TEST(ObjectFactoryStorageTest, EraseFirst) {
 }
 
 TEST(ObjectFactoryStorageTest, EraseMiddle) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer(storage);
 
-    Insert<int>(producer, 1);
-    Insert<int>(producer, 2);
-    Insert<int>(producer, 3);
+    producer.Insert<int>(1);
+    producer.Insert<int>(2);
+    producer.Insert<int>(3);
 
     producer.Publish();
 
     {
         auto iter = storage.Iter();
         for (auto it = iter.begin(); it != iter.end();) {
-            if (GetData<int>(it) == 2) {
+            if (it->Data<int>() == 2) {
                 iter.EraseAndAdvance(it);
             } else {
                 ++it;
@@ -239,19 +229,19 @@ TEST(ObjectFactoryStorageTest, EraseMiddle) {
 }
 
 TEST(ObjectFactoryStorageTest, EraseLast) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer(storage);
 
-    Insert<int>(producer, 1);
-    Insert<int>(producer, 2);
-    Insert<int>(producer, 3);
+    producer.Insert<int>(1);
+    producer.Insert<int>(2);
+    producer.Insert<int>(3);
 
     producer.Publish();
 
     {
         auto iter = storage.Iter();
         for (auto it = iter.begin(); it != iter.end();) {
-            if (GetData<int>(it) == 3) {
+            if (it->Data<int>() == 3) {
                 iter.EraseAndAdvance(it);
             } else {
                 ++it;
@@ -265,12 +255,12 @@ TEST(ObjectFactoryStorageTest, EraseLast) {
 }
 
 TEST(ObjectFactoryStorageTest, EraseAll) {
-    ObjectFactoryStorage storage;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer(storage);
 
-    Insert<int>(producer, 1);
-    Insert<int>(producer, 2);
-    Insert<int>(producer, 3);
+    producer.Insert<int>(1);
+    producer.Insert<int>(2);
+    producer.Insert<int>(3);
 
     producer.Publish();
 
@@ -287,7 +277,7 @@ TEST(ObjectFactoryStorageTest, EraseAll) {
 }
 
 TEST(ObjectFactoryStorageTest, ConcurrentPublish) {
-    ObjectFactoryStorage storage;
+    ObjectFactoryStorageRegular storage;
     constexpr int kThreadCount = kDefaultThreadCount;
     std::atomic<bool> canStart(false);
     std::atomic<int> readyCount(0);
@@ -297,8 +287,8 @@ TEST(ObjectFactoryStorageTest, ConcurrentPublish) {
     for (int i = 0; i < kThreadCount; ++i) {
         expected.push_back(i);
         threads.emplace_back([i, &storage, &canStart, &readyCount]() {
-            ObjectFactoryStorage::Producer producer(storage);
-            Insert<int>(producer, i);
+            ObjectFactoryStorageRegular::Producer producer(storage);
+            producer.Insert<int>(i);
             ++readyCount;
             while (!canStart) {
             }
@@ -319,17 +309,17 @@ TEST(ObjectFactoryStorageTest, ConcurrentPublish) {
 }
 
 TEST(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
-    ObjectFactoryStorage storage;
+    ObjectFactoryStorageRegular storage;
     constexpr int kStartCount = 50;
     constexpr int kThreadCount = kDefaultThreadCount;
 
     std::vector<int> expectedBefore;
     std::vector<int> expectedAfter;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(storage);
     for (int i = 0; i < kStartCount; ++i) {
         expectedBefore.push_back(i);
         expectedAfter.push_back(i);
-        Insert<int>(producer, i);
+        producer.Insert<int>(i);
     }
     producer.Publish();
 
@@ -341,8 +331,8 @@ TEST(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
         int j = i + kStartCount;
         expectedAfter.push_back(j);
         threads.emplace_back([j, &storage, &canStart, &startedCount, &readyCount]() {
-            ObjectFactoryStorage::Producer producer(storage);
-            Insert<int>(producer, j);
+            ObjectFactoryStorageRegular::Producer producer(storage);
+            producer.Insert<int>(j);
             ++readyCount;
             while (!canStart) {
             }
@@ -378,17 +368,17 @@ TEST(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
 }
 
 TEST(ObjectFactoryStorageTest, EraseWhileConcurrentPublish) {
-    ObjectFactoryStorage storage;
+    ObjectFactoryStorageRegular storage;
     constexpr int kStartCount = 50;
     constexpr int kThreadCount = kDefaultThreadCount;
 
     std::vector<int> expectedAfter;
-    ObjectFactoryStorage::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(storage);
     for (int i = 0; i < kStartCount; ++i) {
         if (i % 2 == 0) {
             expectedAfter.push_back(i);
         }
-        Insert<int>(producer, i);
+        producer.Insert<int>(i);
     }
     producer.Publish();
 
@@ -400,8 +390,8 @@ TEST(ObjectFactoryStorageTest, EraseWhileConcurrentPublish) {
         int j = i + kStartCount;
         expectedAfter.push_back(j);
         threads.emplace_back([j, &storage, &canStart, &startedCount, &readyCount]() {
-            ObjectFactoryStorage::Producer producer(storage);
-            Insert<int>(producer, j);
+            ObjectFactoryStorageRegular::Producer producer(storage);
+            producer.Insert<int>(j);
             ++readyCount;
             while (!canStart) {
             }
@@ -419,7 +409,7 @@ TEST(ObjectFactoryStorageTest, EraseWhileConcurrentPublish) {
         }
 
         for (auto it = iter.begin(); it != iter.end();) {
-            if (GetData<int>(it) % 2 != 0) {
+            if (it->Data<int>() % 2 != 0) {
                 iter.EraseAndAdvance(it);
             } else {
                 ++it;

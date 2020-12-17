@@ -12,19 +12,10 @@
 
 using namespace kotlin;
 
-namespace {
-
-constexpr size_t kObjectAlignment = 8;
-static_assert(IsValidAlignment(kObjectAlignment), "kObjectAlignment must be a valid alignment");
-static_assert(kObjectAlignment % alignof(KLong) == 0, "");
-static_assert(kObjectAlignment % alignof(KDouble) == 0, "");
-
-} // namespace
-
 ObjHeader* mm::ObjectFactory::ThreadQueue::CreateObject(const TypeInfo* typeInfo) noexcept {
     RuntimeAssert(!typeInfo->IsArray(), "Must not be an array");
     size_t allocSize = typeInfo->instanceSize_;
-    auto& node = producer_.Insert(allocSize, kObjectAlignment);
+    auto& node = producer_.Insert(allocSize);
     auto* object = static_cast<ObjHeader*>(node.Data());
     object->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
     return object;
@@ -35,7 +26,7 @@ ArrayHeader* mm::ObjectFactory::ThreadQueue::CreateArray(const TypeInfo* typeInf
     uint32_t arraySize = static_cast<uint32_t>(-typeInfo->instanceSize_) * count;
     // Note: array body is aligned, but for size computation it is enough to align the sum.
     size_t allocSize = AlignUp(sizeof(ArrayHeader) + arraySize, kObjectAlignment);
-    auto& node = producer_.Insert(allocSize, kObjectAlignment);
+    auto& node = producer_.Insert(allocSize);
     auto* array = static_cast<ArrayHeader*>(node.Data());
     array->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
     array->count_ = count;

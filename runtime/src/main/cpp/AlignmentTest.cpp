@@ -11,6 +11,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+#include "Types.h"
+
 using namespace kotlin;
 
 namespace {
@@ -147,3 +149,9 @@ INSTANTIATE_NAMED_TEST(
         std::make_tuple("2_2", 2, 2, 2),
         std::make_tuple("3_2", 3, 2, 4),
         std::make_tuple("4_2", 4, 2, 4));
+
+TEST(AlignmentTest, ObjectAlignment) {
+    static_assert(IsValidAlignment(kObjectAlignment), "kObjectAlignment must be a valid alignment");
+    static_assert(kObjectAlignment % alignof(KLong) == 0, "");
+    static_assert(kObjectAlignment % alignof(KDouble) == 0, "");
+}
