@@ -25,7 +25,7 @@
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
-RUNTIME_NORETURN void RuntimeAssertFailed(const char* location, const char* message, ...);
+RUNTIME_NORETURN NO_INLINE void RuntimeAssertFailed(const char* location, const char* message, ...);
 
 namespace internal {
 
