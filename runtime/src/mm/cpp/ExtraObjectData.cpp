@@ -16,11 +16,11 @@ using namespace kotlin;
 
 // static
 mm::ExtraObjectData& mm::ExtraObjectData::Install(ObjHeader* object) noexcept {
-    if (object->has_meta_object()) {
-        return mm::ExtraObjectData::FromMetaObjHeader(object->meta_object());
+    TypeInfo* typeInfo = object->typeInfoOrMeta_;
+    if (auto* metaObject = ObjHeader::AsMetaObject(typeInfo)) {
+        return mm::ExtraObjectData::FromMetaObjHeader(metaObject);
     }
 
-    TypeInfo* typeInfo = object->typeInfoOrMeta_;
     RuntimeCheck(!hasPointerBits(typeInfo, OBJECT_TAG_MASK), "Object must not be tagged");
 
     auto* data = new ExtraObjectData(typeInfo);
