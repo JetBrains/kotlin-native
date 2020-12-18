@@ -4442,8 +4442,8 @@ task library_ir_provider_mismatch(type: KonanDriverTest) {
     def currentTarget = project.target.name
 
     doBeforeBuild {
-        konanc("$lib -p library -o $dir/supported_ir_provider/empty -target $currentTarget")
-        konanc("$lib -p library -o $dir/unsupported_ir_provider/empty -manifest $invalidManifest -target $currentTarget")
+        konanc("$lib -p library -o $dir/supported_ir_provider/empty.klib -target $currentTarget")
+        konanc("$lib -p library -o $dir/unsupported_ir_provider/empty.klib -manifest $invalidManifest -target $currentTarget")
 
     }
     source = "link/ir_providers/hello.kt"
