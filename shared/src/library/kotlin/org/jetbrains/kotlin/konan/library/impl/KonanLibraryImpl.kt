@@ -108,6 +108,6 @@ fun createKonanLibraryComponents(
     val baseAccess = BaseLibraryAccess<KotlinLibraryLayout>(libraryFile, null)
     val base = BaseKotlinLibraryImpl(baseAccess, isDefault)
     return base.componentList.map {
-        createKonanLibrary(libraryFile, it, target, isDefault)
+        createKonanLibrary(libraryFile, it.path, target, isDefault)
     }
 }
