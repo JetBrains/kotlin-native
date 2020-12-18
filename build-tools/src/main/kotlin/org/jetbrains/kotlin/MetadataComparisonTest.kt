@@ -60,7 +60,7 @@ open class MetadataComparisonTest : DefaultTask() {
 
     private fun cinterop(defFile: File, mode: Mode): File {
         val dist = project.kotlinNativeDist
-        val output = "${project.buildDir.absolutePath}/${defFile.nameWithoutExtension}_$mode"
+        val output = "${project.buildDir.absolutePath}/${defFile.nameWithoutExtension}_$mode.klib"
         val tool = if (HostManager.hostIsMingw) "cinterop.bat" else "cinterop"
         val cinterop = File("${dist.canonicalPath}/bin/$tool").absolutePath
         val args = listOf(
