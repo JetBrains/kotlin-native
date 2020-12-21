@@ -27,6 +27,7 @@
 #include <deque>
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
 #include <set>
 #include <unordered_map>
@@ -81,6 +82,13 @@ template<class Value>
 using KStdVector = std::vector<Value, KonanAllocator<Value>>;
 template<class Value>
 using KStdList = std::list<Value, KonanAllocator<Value>>;
+template <class Value>
+using KStdUniquePtr = std::unique_ptr<Value, KonanDeleter<Value>>;
+
+template <typename T, typename... Args>
+KStdUniquePtr<T> MakeUnique(Args&&... args) noexcept {
+    return KStdUniquePtr<T>(konanConstructInstance<T>(std::forward<Args>(args)...));
+}
 
 #ifdef __cplusplus
 extern "C" {

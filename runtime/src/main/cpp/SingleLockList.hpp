@@ -12,6 +12,7 @@
 
 #include "CppSupport.hpp"
 #include "Mutex.hpp"
+#include "Types.h"
 #include "Utils.hpp"
 
 namespace kotlin {
@@ -31,7 +32,7 @@ public:
         Node(Args... args) noexcept : value(args...) {}
 
         Value value;
-        std::unique_ptr<Node> next;
+        KStdUniquePtr<Node> next;
         Node* previous = nullptr; // weak
     };
 
@@ -68,9 +69,9 @@ public:
     };
 
     template <typename... Args>
-    Node* Emplace(Args... args) noexcept {
-        auto* nodePtr = new Node(args...);
-        std::unique_ptr<Node> node(nodePtr);
+    Node* Emplace(Args&&... args) noexcept {
+        auto* nodePtr = new (konanAllocMemory(sizeof(Node))) Node(std::forward<Args>(args)...);
+        KStdUniquePtr<Node> node(nodePtr);
         std::lock_guard<Mutex> guard(mutex_);
         if (root_) {
             root_->previous = node.get();
@@ -109,7 +110,7 @@ public:
     Iterable Iter() noexcept { return Iterable(this); }
 
 private:
-    std::unique_ptr<Node> root_;
+    KStdUniquePtr<Node> root_;
     Mutex mutex_;
 };
 

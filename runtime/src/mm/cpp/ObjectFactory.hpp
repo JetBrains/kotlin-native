@@ -15,6 +15,7 @@
 #include "CppSupport.hpp"
 #include "Memory.h"
 #include "Mutex.hpp"
+#include "Types.h"
 #include "Utils.hpp"
 
 namespace kotlin {
@@ -38,8 +39,6 @@ public:
     public:
         ~Node() = default;
 
-        static void operator delete(void* ptr) noexcept { konanFreeMemory(ptr); }
-
         // Note: This can only be trivially destructible data, as nobody can invoke its destructor.
         void* Data() noexcept {
             constexpr size_t kDataOffset = DataOffset();
@@ -59,24 +58,24 @@ public:
 
         Node() noexcept = default;
 
-        static void* operator new(size_t size, size_t dataSize) noexcept {
+        static KStdUniquePtr<Node> Create(size_t dataSize) noexcept {
             size_t dataSizeAligned = AlignUp(dataSize, DataAlignment);
             size_t totalAlignment = std::max(alignof(Node), DataAlignment);
             size_t totalSize = AlignUp(sizeof(Node) + dataSizeAligned, totalAlignment);
             RuntimeAssert(
                     DataOffset() + dataSize <= totalSize, "totalSize %zu is not enough to fit data %zu at offset %zu", totalSize, dataSize,
                     DataOffset());
-            void* ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
+            void *ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
             if (!ptr) {
                 // TODO: Try doing GC first.
                 konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", totalSize);
                 konan::abort();
             }
             RuntimeAssert(IsAligned(ptr, totalAlignment), "Allocator returned unaligned to %zu pointer %p", totalAlignment, ptr);
-            return ptr;
+            return KStdUniquePtr<Node>(new (ptr) Node());
         }
 
-        std::unique_ptr<Node> next_;
+        KStdUniquePtr<Node> next_;
         // There's some more data of an unknown (at compile-time) size here, but it cannot be represented
         // with C++ members.
     };
@@ -89,13 +88,11 @@ public:
 
         Node& Insert(size_t dataSize) noexcept {
             AssertCorrect();
-            auto* nodePtr = new (dataSize) Node();
-            std::unique_ptr<Node> node(nodePtr);
+            auto node = Node::Create(dataSize);
+            auto* nodePtr = node.get();
             if (!root_) {
-                RuntimeAssert(last_ == nullptr, "Unsynchronized root_ and last_");
                 root_ = std::move(node);
             } else {
-                RuntimeAssert(last_ != nullptr, "Unsynchronized root_ and last_");
                 last_->next_ = std::move(node);
             }
 
@@ -155,7 +152,7 @@ public:
         }
 
         ObjectFactoryStorage& owner_; // weak
-        std::unique_ptr<Node> root_;
+        KStdUniquePtr<Node> root_;
         Node* last_ = nullptr;
     };
 
@@ -236,7 +233,7 @@ private:
         }
     }
 
-    std::unique_ptr<Node> root_;
+    KStdUniquePtr<Node> root_;
     Node* last_ = nullptr;
     SpinLock mutex_;
 };

@@ -119,4 +119,10 @@ bool operator!=(
     return !(x == y);
 }
 
+template <class T>
+class KonanDeleter {
+public:
+    void operator()(T* instance) noexcept { konanDestructInstance(instance); }
+};
+
 #endif // RUNTIME_ALLOC_H
