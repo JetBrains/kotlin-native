@@ -5,6 +5,9 @@
 package org.jetbrains.kotlin.native.interop.gen.jvm
 
 import kotlinx.metadata.*
+import kotlinx.metadata.KmModuleFragment
+import kotlinx.metadata.klib.fqName
+import kotlinx.metadata.klib.className
 import kotlinx.metadata.klib.KlibModuleFragmentWriteStrategy
 import kotlinx.metadata.klib.KlibModuleMetadata
 import org.jetbrains.kotlin.backend.common.serialization.KlibIrVersion
@@ -72,6 +75,7 @@ class ChunkingWriteStrategy(
 
     override fun processPackageParts(parts: List<KmModuleFragment>): List<KmModuleFragment> {
         if (parts.isEmpty()) return emptyList()
+//        val kmf: KmModuleFragment = parts.first()
         val fqName = parts.first().fqName
                 ?: error("KmModuleFragment should have a not-null fqName!")
         val classFragments = parts.flatMap(KmModuleFragment::classes)
@@ -79,7 +83,9 @@ class ChunkingWriteStrategy(
                     KmModuleFragment().also { fragment ->
                         fragment.fqName = fqName
                         fragment.classes += chunk
-                        chunk.mapTo(fragment.className, KmClass::name)
+                        chunk.mapTo(fragment.className) {
+                            it.name
+                        }
                     }
                 }
         val packageFragments = parts.mapNotNull(KmModuleFragment::pkg)
