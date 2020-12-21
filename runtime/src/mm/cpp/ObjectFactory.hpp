@@ -208,8 +208,7 @@ private:
 
         if (previousNode == nullptr) {
             // Deleting the root.
-            auto newRoot = std::move(root_->next_);
-            root_ = std::move(newRoot);
+            root_ = std::move(root_->next_);
             if (!root_) {
                 last_ = nullptr;
             }
