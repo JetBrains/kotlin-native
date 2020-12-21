@@ -5,6 +5,7 @@
 
 #include "Memory.h"
 
+#include "Exceptions.h"
 #include "GlobalsRegistry.hpp"
 #include "KAssert.h"
 #include "Porting.h"
@@ -81,7 +82,9 @@ extern "C" RUNTIME_NOTHROW OBJ_GETTER(AllocInstance, const TypeInfo* typeInfo) {
 }
 
 extern "C" OBJ_GETTER(AllocArrayInstance, const TypeInfo* typeInfo, int32_t elements) {
-    RuntimeAssert(elements >= 0, "elements cannot be negative");
+    if (elements < 0) {
+        ThrowIllegalArgumentException();
+    }
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     auto* array = threadData->objectFactoryThreadQueue().CreateArray(typeInfo, static_cast<uint32_t>(elements));
     // `ArrayHeader` and `ObjHeader` are expected to be compatible.

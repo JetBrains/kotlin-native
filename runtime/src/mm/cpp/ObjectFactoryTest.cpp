@@ -276,6 +276,25 @@ TEST(ObjectFactoryStorageTest, EraseAll) {
     EXPECT_THAT(actual, testing::IsEmpty());
 }
 
+TEST(ObjectFactoryStorageTest, EraseTheOnlyElement) {
+    ObjectFactoryStorageRegular storage;
+    ObjectFactoryStorageRegular::Producer producer(storage);
+
+    producer.Insert<int>(1);
+
+    producer.Publish();
+
+    {
+        auto iter = storage.Iter();
+        auto it = iter.begin();
+        iter.EraseAndAdvance(it);
+    }
+
+    auto actual = Collect<int>(storage);
+
+    EXPECT_THAT(actual, testing::IsEmpty());
+}
+
 TEST(ObjectFactoryStorageTest, ConcurrentPublish) {
     ObjectFactoryStorageRegular storage;
     constexpr int kThreadCount = kDefaultThreadCount;

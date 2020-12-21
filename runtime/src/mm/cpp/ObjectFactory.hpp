@@ -33,6 +33,8 @@ class ObjectFactoryStorage : private Pinned {
 public:
     // This class does not know its size at compile-time.
     class Node : private Pinned {
+        constexpr static size_t DataOffset() noexcept { return AlignUp(sizeof(Node), DataAlignment); }
+
     public:
         ~Node() = default;
 
@@ -40,7 +42,7 @@ public:
 
         // Note: This can only be trivially destructible data, as nobody can invoke its destructor.
         void* Data() noexcept {
-            constexpr size_t kDataOffset = AlignUp(sizeof(Node), DataAlignment);
+            constexpr size_t kDataOffset = DataOffset();
             void* ptr = reinterpret_cast<uint8_t*>(this) + kDataOffset;
             RuntimeAssert(IsAligned(ptr, DataAlignment), "Data=%p is not aligned to %zu", ptr, DataAlignment);
             return ptr;
@@ -61,6 +63,9 @@ public:
             size_t dataSizeAligned = AlignUp(dataSize, DataAlignment);
             size_t totalAlignment = std::max(alignof(Node), DataAlignment);
             size_t totalSize = AlignUp(sizeof(Node) + dataSizeAligned, totalAlignment);
+            RuntimeAssert(
+                    DataOffset() + dataSize <= totalSize, "totalSize %zu is not enough to fit data %zu at offset %zu", totalSize, dataSize,
+                    DataOffset());
             void* ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
             if (!ptr) {
                 // TODO: Try doing GC first.
