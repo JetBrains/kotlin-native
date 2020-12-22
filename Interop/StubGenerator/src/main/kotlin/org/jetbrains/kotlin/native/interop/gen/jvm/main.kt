@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.Distribution
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.KonanHomeProvider
+import org.jetbrains.kotlin.konan.util.usingNativeMemoryAllocator
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.packageFqName
 import org.jetbrains.kotlin.library.resolver.impl.KotlinLibraryResolverImpl
@@ -60,7 +61,9 @@ fun main(args: Array<String>) {
     val arguments = FullCInteropArguments()
     arguments.argParser.parse(args)
     val flavorName = arguments.flavor
-    processCLib(flavorName, arguments, InternalInteropOptions(arguments.generated, arguments.natives))
+    usingNativeMemoryAllocator {
+        processCLib(flavorName, arguments, InternalInteropOptions(arguments.generated, arguments.natives))
+    }
 }
 
 fun interop(
@@ -71,7 +74,9 @@ fun interop(
                 val cinteropArguments = CInteropArguments()
                 cinteropArguments.argParser.parse(args)
                 val platform = KotlinPlatform.values().single { it.name.equals(flavor, ignoreCase = true) }
-                processCLib(platform, cinteropArguments, additionalArgs)
+                usingNativeMemoryAllocator {
+                    processCLib(platform, cinteropArguments, additionalArgs)
+                }
             }
             "wasm" -> processIdlLib(args, additionalArgs)
             else -> error("Unexpected flavor")

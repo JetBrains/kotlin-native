@@ -7,14 +7,22 @@ package org.jetbrains.kotlin.konan.util
 
 import sun.misc.Unsafe
 
-private val allocatorHolder = ThreadLocal<NativeMemoryAllocator>()
-val nativeMemoryAllocator: NativeMemoryAllocator
-    get() = allocatorHolder.get() ?: NativeMemoryAllocator().also { allocatorHolder.set(it) }
+@PublishedApi
+internal var allocatorHolder: NativeMemoryAllocator? = null
 
-fun disposeNativeMemoryAllocator() {
-    allocatorHolder.get()?.freeAll()
-    allocatorHolder.remove()
+inline fun <R> usingNativeMemoryAllocator(block: () -> R): R {
+    val allocator = NativeMemoryAllocator()
+    allocatorHolder = allocator
+    return try {
+        block()
+    } finally {
+        allocator.freeAll()
+        allocatorHolder = null
+    }
 }
+
+val nativeMemoryAllocator: NativeMemoryAllocator
+    get() = allocatorHolder ?: error("Native memory allocator hasn't been created")
 
 // 256 buckets for sizes <= 2048 padded to 8
 // 256 buckets for sizes <= 64KB padded to 256
