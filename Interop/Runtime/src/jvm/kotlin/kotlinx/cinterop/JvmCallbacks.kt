@@ -16,6 +16,7 @@
 
 package kotlinx.cinterop
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.function.LongConsumer
 import kotlin.reflect.KClass
 import kotlin.reflect.KFunction
@@ -59,27 +60,52 @@ private fun getVariableCType(type: KType): CType<*>? {
     }
 }
 
-private class Caches {
-    val structTypeCache = mutableMapOf<Class<*>, CType<*>>()
-    val createdStaticFunctions = mutableMapOf<Class<*>, CPointer<CFunction<*>>>()
+@PublishedApi
+internal class Caches {
+    val structTypeCache = ConcurrentHashMap<Class<*>, CType<*>>()
+    val createdStaticFunctions = ConcurrentHashMap<Class<*>, CPointer<CFunction<*>>>()
 
-    val createdTypeStructs = mutableListOf<NativePtr>()
-    val createdCifs = mutableListOf<NativePtr>()
-    val createdClosures = mutableListOf<NativePtr>()
+    // TODO: No concurrent bag or something in Java?
+    private val createdTypeStructs = mutableListOf<NativePtr>()
+    private val createdCifs = mutableListOf<NativePtr>()
+    private val createdClosures = mutableListOf<NativePtr>()
+
+    fun addTypeStruct(ptr: NativePtr) {
+        synchronized(createdTypeStructs) { createdTypeStructs.add(ptr) }
+    }
+
+    fun addCif(ptr: NativePtr) {
+        synchronized(createdCifs) { createdCifs.add(ptr) }
+    }
+
+    fun addClosure(ptr: NativePtr) {
+        synchronized(createdClosures) { createdClosures.add(ptr) }
+    }
+
+    fun disposeFfi() {
+        createdTypeStructs.forEach { ffiFreeTypeStruct0(it) }
+        createdCifs.forEach { ffiFreeCif0(it) }
+        createdClosures.forEach { ffiFreeClosure0(it) }
+    }
 }
 
-private val cachesHolder = ThreadLocal<Caches>()
+@PublishedApi
+internal var cachesHolder: Caches? = null
 private val caches: Caches
-    get() = cachesHolder.get() ?: Caches().also { cachesHolder.set(it) }
+    get() = cachesHolder ?: error("Caches hasn't been created")
 
-fun clearJvmCallbackCaches() {
-    caches.createdTypeStructs.forEach { ffiFreeTypeStruct0(it) }
-    caches.createdCifs.forEach { ffiFreeCif0(it) }
-    caches.createdClosures.forEach { ffiFreeClosure0(it) }
-    cachesHolder.remove()
+inline fun <R> usingJvmCallbacks(block: () -> R): R {
+    val caches = Caches()
+    cachesHolder = caches
+    return try {
+        block()
+    } finally {
+        caches.disposeFfi()
+        cachesHolder = null
+    }
 }
 
-private fun getStructCType(structClass: KClass<*>): CType<*> = caches.structTypeCache.getOrPut(structClass.java) {
+private fun getStructCType(structClass: KClass<*>): CType<*> = caches.structTypeCache.computeIfAbsent(structClass.java) {
     // Note that struct classes are not supposed to be user-defined,
     // so they don't require to be checked strictly.
 
@@ -216,7 +242,7 @@ private fun isStatic(function: Function<*>): Boolean {
 
 @Suppress("UNCHECKED_CAST")
 internal fun <F : Function<*>> staticCFunctionImpl(function: F) =
-        caches.createdStaticFunctions.getOrPut(function.javaClass) {
+        caches.createdStaticFunctions.computeIfAbsent(function.javaClass) {
             createStaticCFunction(function)
         } as CPointer<CFunction<F>>
 
@@ -315,7 +341,7 @@ private inline fun ffiClosureImpl(
  *
  * This description omits the details that are irrelevant for the ABI.
  */
-private abstract class CType<T> internal constructor(val ffiType: ffi_type) {
+internal abstract class CType<T> internal constructor(val ffiType: ffi_type) {
     internal constructor(ffiTypePtr: Long) : this(interpretPointed<ffi_type>(ffiTypePtr))
     abstract fun read(location: NativePtr): T
     abstract fun write(location: NativePtr, value: T): Unit
@@ -427,7 +453,7 @@ private fun ffiTypeStruct(elementTypes: List<ffi_type>): ffi_type {
         throw OutOfMemoryError()
     }
 
-    caches.createdTypeStructs.add(res)
+    caches.addTypeStruct(res)
 
     return interpretPointed(res)
 }
@@ -455,7 +481,7 @@ private fun ffiCreateCif(returnType: ffi_type, paramTypes: List<ffi_type>): ffi_
         -3L -> throw Error("libffi error occurred")
     }
 
-    caches.createdCifs.add(res)
+    caches.addCif(res)
 
     return interpretPointed(res)
 }
@@ -476,7 +502,7 @@ private fun ffiCreateClosure(ffiCif: ffi_cif, impl: FfiClosureImpl): NativePtr {
         -1L -> throw Error("libffi error occurred")
     }
 
-    caches.createdClosures.add(res)
+    caches.addClosure(res)
 
     return res
 }

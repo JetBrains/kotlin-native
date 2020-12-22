@@ -27,6 +27,7 @@ import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
 import kotlinx.cli.default
 import kotlinx.cli.required
+import kotlinx.cinterop.usingJvmCallbacks
 import org.jetbrains.kotlin.konan.ForeignExceptionMode
 import org.jetbrains.kotlin.konan.library.*
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
@@ -62,7 +63,9 @@ fun main(args: Array<String>) {
     arguments.argParser.parse(args)
     val flavorName = arguments.flavor
     usingNativeMemoryAllocator {
-        processCLib(flavorName, arguments, InternalInteropOptions(arguments.generated, arguments.natives))
+        usingJvmCallbacks {
+            processCLib(flavorName, arguments, InternalInteropOptions(arguments.generated, arguments.natives))
+        }
     }
 }
 
@@ -75,7 +78,9 @@ fun interop(
                 cinteropArguments.argParser.parse(args)
                 val platform = KotlinPlatform.values().single { it.name.equals(flavor, ignoreCase = true) }
                 usingNativeMemoryAllocator {
-                    processCLib(platform, cinteropArguments, additionalArgs)
+                    usingJvmCallbacks {
+                        processCLib(platform, cinteropArguments, additionalArgs)
+                    }
                 }
             }
             "wasm" -> processIdlLib(args, additionalArgs)

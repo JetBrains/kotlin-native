@@ -9,7 +9,6 @@ import org.jetbrains.kotlin.cli.bc.main as konancMain
 import org.jetbrains.kotlin.cli.klib.main as klibMain
 import org.jetbrains.kotlin.cli.bc.mainNoExitWithGradleRenderer as konancMainForGradle
 import org.jetbrains.kotlin.backend.konan.env.setEnv
-import kotlinx.cinterop.clearJvmCallbackCaches
 import org.jetbrains.kotlin.konan.util.usingNativeMemoryAllocator
 
 private fun mainImpl(args: Array<String>, konancMain: (Array<String>) -> Unit) {
@@ -49,9 +48,5 @@ private fun setupClangEnv() {
 
 fun daemonMain(args: Array<String>) {
     usingNativeMemoryAllocator { setupClangEnv() }
-    try {
-        mainImpl(args, ::konancMainForGradle)
-    } finally {
-        clearJvmCallbackCaches()
-    }
+    mainImpl(args, ::konancMainForGradle)
 }
