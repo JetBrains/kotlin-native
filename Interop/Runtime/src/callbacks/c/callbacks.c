@@ -112,6 +112,15 @@ JNIEXPORT jlong JNICALL Java_kotlinx_cinterop_JvmCallbacksKt_ffiTypeStruct0(JNIE
 
 /*
  * Class:     kotlinx_cinterop_JvmCallbacksKt
+ * Method:    ffiFreeTypeStruct0
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_kotlinx_cinterop_JvmCallbacksKt_ffiFreeTypeStruct0(JNIEnv *env, jclass cls, jlong ptr) {
+    if (ptr) free((void*)ptr);
+}
+
+/*
+ * Class:     kotlinx_cinterop_JvmCallbacksKt
  * Method:    ffiCreateCif0
  * Signature: (IJJ)J
  */
@@ -130,6 +139,15 @@ JNIEXPORT jlong JNICALL Java_kotlinx_cinterop_JvmCallbacksKt_ffiCreateCif0(JNIEn
         }
     }
     return (jlong) res;
+}
+
+/*
+ * Class:     kotlinx_cinterop_JvmCallbacksKt
+ * Method:    ffiFreeCif0
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_kotlinx_cinterop_JvmCallbacksKt_ffiFreeCif0(JNIEnv *env, jclass cls, jlong ptr) {
+    if (ptr) free((void*)ptr);
 }
 
 static JavaVM *vm = NULL;
@@ -212,6 +230,15 @@ JNIEXPORT jlong JNICALL Java_kotlinx_cinterop_JvmCallbacksKt_ffiCreateClosure0(J
     }
 
     return (jlong) res;
+}
+
+/*
+ * Class:     kotlinx_cinterop_JvmCallbacksKt
+ * Method:    ffiFreeClosure0
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_kotlinx_cinterop_JvmCallbacksKt_ffiFreeClosure0(JNIEnv *env, jclass cls, jlong ptr) {
+    if (ptr) ffi_closure_free((void*)ptr);
 }
 
 /*

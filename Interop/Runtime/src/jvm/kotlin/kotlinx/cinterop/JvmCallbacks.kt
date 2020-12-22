@@ -62,6 +62,10 @@ private fun getVariableCType(type: KType): CType<*>? {
 private class Caches {
     val structTypeCache = mutableMapOf<Class<*>, CType<*>>()
     val createdStaticFunctions = mutableMapOf<Class<*>, CPointer<CFunction<*>>>()
+
+    val createdTypeStructs = mutableListOf<NativePtr>()
+    val createdCifs = mutableListOf<NativePtr>()
+    val createdClosures = mutableListOf<NativePtr>()
 }
 
 private val cachesHolder = ThreadLocal<Caches>()
@@ -69,6 +73,9 @@ private val caches: Caches
     get() = cachesHolder.get() ?: Caches().also { cachesHolder.set(it) }
 
 fun clearJvmCallbackCaches() {
+    caches.createdTypeStructs.forEach { ffiFreeTypeStruct0(it) }
+    caches.createdCifs.forEach { ffiFreeCif0(it) }
+    caches.createdClosures.forEach { ffiFreeClosure0(it) }
     cachesHolder.remove()
 }
 
@@ -406,6 +413,7 @@ private external fun ffiTypeSInt64(): Long
 private external fun ffiTypePointer(): Long
 
 private external fun ffiTypeStruct0(elements: Long): Long
+private external fun ffiFreeTypeStruct0(ptr: Long)
 
 /**
  * Allocates and initializes `ffi_type` describing the struct.
@@ -418,10 +426,14 @@ private fun ffiTypeStruct(elementTypes: List<ffi_type>): ffi_type {
     if (res == 0L) {
         throw OutOfMemoryError()
     }
+
+    caches.createdTypeStructs.add(res)
+
     return interpretPointed(res)
 }
 
 private external fun ffiCreateCif0(nArgs: Int, rType: Long, argTypes: Long): Long
+private external fun ffiFreeCif0(ptr: Long)
 
 /**
  * Creates and prepares an `ffi_cif`.
@@ -443,10 +455,13 @@ private fun ffiCreateCif(returnType: ffi_type, paramTypes: List<ffi_type>): ffi_
         -3L -> throw Error("libffi error occurred")
     }
 
+    caches.createdCifs.add(res)
+
     return interpretPointed(res)
 }
 
 private external fun ffiCreateClosure0(ffiCif: Long, userData: Any): Long
+private external fun ffiFreeClosure0(ptr: Long)
 
 /**
  * Uses libffi to allocate a native function which will call [impl] when invoked.
@@ -460,6 +475,8 @@ private fun ffiCreateClosure(ffiCif: ffi_cif, impl: FfiClosureImpl): NativePtr {
         0L -> throw OutOfMemoryError()
         -1L -> throw Error("libffi error occurred")
     }
+
+    caches.createdClosures.add(res)
 
     return res
 }
