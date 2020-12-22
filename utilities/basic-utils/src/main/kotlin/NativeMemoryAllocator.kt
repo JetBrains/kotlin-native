@@ -38,9 +38,12 @@ class NativeMemoryAllocator {
     private val smallChunks = LongArray(ChunkBucketSize)
     private val mediumChunks = LongArray(ChunkBucketSize)
     private val bigChunks = LongArray(ChunkBucketSize)
+    private val lock = Any()
+
+    fun alloc(size: Long, align: Int) = synchronized(lock) { allocNoLock(size, align) }
 
     // Chunk layout: [chunk size,...padding...,diff to start,aligned data start,.....data.....]
-    fun alloc(size: Long, align: Int): Long {
+    private fun allocNoLock(size: Long, align: Int): Long {
         val totalChunkSize = ChunkHeaderSize + size + align
         val ptr = ChunkHeaderSize + when {
             totalChunkSize <= MaxSmallSize -> allocFromFreeList(totalChunkSize.toInt(), SmallChunksSizeAlignment, smallChunks)
@@ -91,7 +94,9 @@ class NativeMemoryAllocator {
         return (rawChunks.last() + rawOffset).also { rawOffset += size }
     }
 
-    fun free(mem: Long) {
+    fun free(mem: Long) = synchronized(lock) { freeNoLock(mem) }
+
+    private fun freeNoLock(mem: Long) {
         val chunkStart = mem - ChunkHeaderSize - unsafe.getInt(mem - Int.SIZE_BYTES)
         val chunkSize = unsafe.getInt(chunkStart)
         when {
