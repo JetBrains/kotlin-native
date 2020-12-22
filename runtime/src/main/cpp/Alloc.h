@@ -125,7 +125,8 @@ public:
     void operator()(T* instance) noexcept { konanDestructInstance(instance); }
 };
 
-// Force a class to be heap allocated using `konanAllocMemory`.
+// Force a class to be heap-allocated using `konanAllocMemory`. Does not prevent stack allocation, or
+// allocation as part of another object.
 // Usage:
 // class A : public KonanAllocatorAware<A> {
 //     ...

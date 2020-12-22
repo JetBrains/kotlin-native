@@ -23,7 +23,7 @@ public:
 
     // TODO: Consider switching from `KStdList` to `SingleLockList` to hide the constructor
     // and to not store the iterator.
-    class Node : private Pinned {
+    class Node : private Pinned, public KonanAllocatorAware<Node> {
     public:
         Node(const T& value, Producer* owner) noexcept : value_(value), owner_(owner) {}
 
