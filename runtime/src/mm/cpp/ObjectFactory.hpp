@@ -65,7 +65,7 @@ public:
             RuntimeAssert(
                     DataOffset() + dataSize <= totalSize, "totalSize %zu is not enough to fit data %zu at offset %zu", totalSize, dataSize,
                     DataOffset());
-            void *ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
+            void* ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
             if (!ptr) {
                 // TODO: Try doing GC first.
                 konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", totalSize);
