@@ -6,12 +6,15 @@
 #ifndef RUNTIME_MM_THREAD_DATA_H
 #define RUNTIME_MM_THREAD_DATA_H
 
+#include <atomic>
 #include <pthread.h>
 
+#include "ObjectFactory.hpp"
 #include "GlobalsRegistry.hpp"
 #include "StableRefRegistry.hpp"
 #include "ThreadLocalStorage.hpp"
 #include "Utils.hpp"
+#include "ThreadState.hpp"
 
 namespace kotlin {
 namespace mm {
@@ -21,7 +24,11 @@ namespace mm {
 class ThreadData final : private Pinned {
 public:
     ThreadData(pthread_t threadId) noexcept :
-        threadId_(threadId), globalsThreadQueue_(GlobalsRegistry::Instance()), stableRefThreadQueue_(StableRefRegistry::Instance()) {}
+        threadId_(threadId),
+        globalsThreadQueue_(GlobalsRegistry::Instance()),
+        stableRefThreadQueue_(StableRefRegistry::Instance()),
+        state_(ThreadState::kRunnable),
+        objectFactoryThreadQueue_(ObjectFactory::Instance()) {}
 
     ~ThreadData() = default;
 
@@ -33,11 +40,19 @@ public:
 
     StableRefRegistry::ThreadQueue& stableRefThreadQueue() noexcept { return stableRefThreadQueue_; }
 
+    ThreadState state() noexcept { return state_; }
+
+    ThreadState setState(ThreadState state) noexcept { return state_.exchange(state); }
+
+    ObjectFactory::ThreadQueue& objectFactoryThreadQueue() noexcept { return objectFactoryThreadQueue_; }
+
 private:
     const pthread_t threadId_;
     GlobalsRegistry::ThreadQueue globalsThreadQueue_;
     ThreadLocalStorage tls_;
     StableRefRegistry::ThreadQueue stableRefThreadQueue_;
+    std::atomic<ThreadState> state_;
+    ObjectFactory::ThreadQueue objectFactoryThreadQueue_;
 };
 
 } // namespace mm
