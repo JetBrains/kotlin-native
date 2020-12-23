@@ -102,19 +102,18 @@ TEST_F(KonanAllocatorAwareTest, AllocateArray) {
 }
 
 TEST_F(KonanAllocatorAwareTest, PlacementAllocated) {
-    void* ptr = ::operator new(sizeof(A));
-    A* a = new (ptr) A(42);
+    std::array<uint8_t, sizeof(A)> buffer;
+    A* a = new (buffer.data()) A(42);
     EXPECT_THAT(a->value(), 42);
     EXPECT_CALL(*destructorHook, Call(42));
     a->~A();
     testing::Mock::VerifyAndClearExpectations(destructorHook.get());
-    ::operator delete(ptr);
 }
 
 TEST_F(KonanAllocatorAwareTest, PlacementConstructedArray) {
     constexpr size_t kCount = 5;
-    void* ptr = ::operator new[](sizeof(A) * kCount);
-    A* as = new (ptr) A[kCount];
+    std::array<uint8_t, sizeof(A) * kCount> buffer;
+    A* as = new (buffer.data()) A[kCount];
 
     std::vector<int> actual;
     for (A* a = as; a != as + kCount; ++a) {
@@ -131,5 +130,4 @@ TEST_F(KonanAllocatorAwareTest, PlacementConstructedArray) {
         a->~A();
     }
     testing::Mock::VerifyAndClearExpectations(destructorHook.get());
-    ::operator delete[](ptr);
 }
