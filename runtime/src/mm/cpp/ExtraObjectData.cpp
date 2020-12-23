@@ -23,7 +23,7 @@ mm::ExtraObjectData& mm::ExtraObjectData::Install(ObjHeader* object) noexcept {
 
     RuntimeCheck(!hasPointerBits(typeInfo, OBJECT_TAG_MASK), "Object must not be tagged");
 
-    auto* data = new (ExtraObjectData::Alloc()) ExtraObjectData(typeInfo);
+    auto* data = new (KonanAlloc) ExtraObjectData(typeInfo);
 
     TypeInfo* old = __sync_val_compare_and_swap(&object->typeInfoOrMeta_, typeInfo, reinterpret_cast<TypeInfo*>(data));
     if (old != typeInfo) {

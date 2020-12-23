@@ -23,7 +23,8 @@
 * For `extern "C"` declarations emulate namespaces with `Kotlin_[module_name]_` prefixes.
 * To mark type as move-only, privately inherit from `kotlin::MoveOnly`
 * To mark type unmovable and uncopyable, privately inherit from `kotlin::Pinned`
-* All heap-allocated classes should publicly inherit from `KonanAllocatorAware` with CRTP (i.e. `class A` should inherit from `KonanAllocatorAware<A>`). **TODO**: revisit after allocator substitution discussion.
+* All heap-allocated classes should publicly inherit from `KonanAllocatorAware`, and should be heap allocated with `new (KonanAlloc) MyType(...)`. **TODO**: revisit after allocator substitution discussion.
+* Use `KStd*` containers and smart pointers instead of `std::*` ones. **TODO**: revisit after allocator substitution discussion.
 
 ## Naming
 

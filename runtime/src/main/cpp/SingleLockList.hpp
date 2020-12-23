@@ -21,7 +21,7 @@ namespace kotlin {
 template <typename Value, typename Mutex = SpinLock>
 class SingleLockList : private Pinned {
 public:
-    class Node : private Pinned, public KonanAllocatorAware<Node> {
+    class Node : private Pinned, public KonanAllocatorAware {
     public:
         Value* Get() noexcept { return &value; }
 
@@ -70,7 +70,7 @@ public:
 
     template <typename... Args>
     Node* Emplace(Args&&... args) noexcept {
-        auto* nodePtr = new (Node::Alloc()) Node(std::forward<Args>(args)...);
+        auto* nodePtr = new (KonanAlloc) Node(std::forward<Args>(args)...);
         KStdUniquePtr<Node> node(nodePtr);
         std::lock_guard<Mutex> guard(mutex_);
         if (root_) {

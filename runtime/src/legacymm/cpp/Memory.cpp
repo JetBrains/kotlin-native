@@ -192,7 +192,7 @@ struct CycleDetectorRootset {
   KStdVector<ScopedRefHolder> heldRefs;
 };
 
-class CycleDetector : private kotlin::Pinned, public KonanAllocatorAware<CycleDetector> {
+class CycleDetector : private kotlin::Pinned, public KonanAllocatorAware {
  public:
   static void insertCandidateIfNeeded(KRef object) {
     if (canBeACandidate(object))
@@ -212,7 +212,7 @@ class CycleDetector : private kotlin::Pinned, public KonanAllocatorAware<CycleDe
 
   static CycleDetector& instance() {
     // Only store a pointer to CycleDetector in .bss
-    static CycleDetector* result = new (CycleDetector::Alloc()) CycleDetector();
+    static CycleDetector* result = new (KonanAlloc) CycleDetector();
     return *result;
   }
 

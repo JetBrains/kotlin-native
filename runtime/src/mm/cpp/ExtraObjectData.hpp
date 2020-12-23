@@ -18,7 +18,7 @@ namespace kotlin {
 namespace mm {
 
 // Optional data that's lazily allocated only for objects that need it.
-class ExtraObjectData : private Pinned, public KonanAllocatorAware<ExtraObjectData> {
+class ExtraObjectData : private Pinned, public KonanAllocatorAware {
 public:
     MetaObjHeader* AsMetaObjHeader() noexcept { return reinterpret_cast<MetaObjHeader*>(this); }
     static ExtraObjectData& FromMetaObjHeader(MetaObjHeader* header) noexcept { return *reinterpret_cast<ExtraObjectData*>(header); }

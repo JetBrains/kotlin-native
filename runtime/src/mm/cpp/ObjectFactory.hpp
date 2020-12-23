@@ -32,8 +32,8 @@ class ObjectFactoryStorage : private Pinned {
     static_assert(IsValidAlignment(DataAlignment), "DataAlignment is not a valid alignment");
 
 public:
-    // This class does not know its size at compile-time. Does not inherit from KonanAllocatorAware because
-    // `KonanAllocatorAware<Node>::Alloc()` would be incorrect.
+    // This class does not know its size at compile-time. Does not inherit from `KonanAllocatorAware` because
+    // in `KonanAllocatorAware::operator new(size_t size, KonanAllocTag)` `size` would be incorrect.
     class Node : private Pinned {
         constexpr static size_t DataOffset() noexcept { return AlignUp(sizeof(Node), DataAlignment); }
 
