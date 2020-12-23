@@ -90,18 +90,25 @@ internal class Caches {
 }
 
 @PublishedApi
+@Volatile
 internal var cachesHolder: Caches? = null
 private val caches: Caches
     get() = cachesHolder ?: error("Caches hasn't been created")
 
+@PublishedApi
+internal var counter = java.util.concurrent.atomic.AtomicInteger(0)
+
 inline fun <R> usingJvmCallbacks(block: () -> R): R {
-    val caches = Caches()
-    cachesHolder = caches
+    if (counter.getAndIncrement() == 0) {
+        cachesHolder = Caches()
+    }
     return try {
         block()
     } finally {
-        caches.disposeFfi()
-        cachesHolder = null
+        if (counter.decrementAndGet() == 0) {
+            cachesHolder!!.disposeFfi()
+            cachesHolder = null
+        }
     }
 }
 

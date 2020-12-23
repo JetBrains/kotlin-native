@@ -8,16 +8,23 @@ package org.jetbrains.kotlin.konan.util
 import sun.misc.Unsafe
 
 @PublishedApi
+@Volatile
 internal var allocatorHolder: NativeMemoryAllocator? = null
 
+@PublishedApi
+internal var counter = java.util.concurrent.atomic.AtomicInteger(0)
+
 inline fun <R> usingNativeMemoryAllocator(block: () -> R): R {
-    val allocator = NativeMemoryAllocator()
-    allocatorHolder = allocator
+    if (counter.getAndIncrement() == 0) {
+        allocatorHolder = NativeMemoryAllocator()
+    }
     return try {
         block()
     } finally {
-        allocator.freeAll()
-        allocatorHolder = null
+        if (counter.decrementAndGet() == 0) {
+            allocatorHolder!!.freeAll()
+            allocatorHolder = null
+        }
     }
 }
 
