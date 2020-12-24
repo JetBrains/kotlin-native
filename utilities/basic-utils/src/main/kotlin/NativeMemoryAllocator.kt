@@ -6,37 +6,41 @@
 package org.jetbrains.kotlin.konan.util
 
 import sun.misc.Unsafe
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicStampedReference
 
-@PublishedApi
-internal val allocatorHolder = AtomicStampedReference<NativeMemoryAllocator>(null, 0)
+class ThreadSafeDisposableHelper<T>(val create: () -> T, val dispose: (T) -> Unit) {
+    @Volatile
+    var counter = 0
+    @Volatile
+    var holder: T? = null
+    val lock = Any()
 
-@PublishedApi
-internal var counter = AtomicInteger(0)
+    inline fun <R> usingDisposable(block: () -> R): R {
+        synchronized (lock) {
+            ++counter
+            if (holder == null)
+                holder = create()
+        }
 
-inline fun <R> usingNativeMemoryAllocator(block: () -> R): R {
-    counter.getAndIncrement()
-    do {
-        val reference = allocatorHolder.reference
-        val stamp = allocatorHolder.stamp
-        val allocator = reference ?: NativeMemoryAllocator()
-    } while (!allocatorHolder.compareAndSet(reference, allocator, stamp, stamp + 1))
-
-    return try {
-        block()
-    } finally {
-        val reference = allocatorHolder.reference
-        val stamp = allocatorHolder.stamp
-        if (counter.decrementAndGet() == 0) {
-            if (allocatorHolder.compareAndSet(reference, null, stamp, stamp + 1))
-                reference!!.freeAll()
+        return try {
+            block()
+        } finally {
+            synchronized (lock) {
+                if (--counter == 0) {
+                    dispose(holder!!)
+                    holder = null
+                }
+            }
         }
     }
 }
 
+@PublishedApi
+internal val allocatorDisposeHelper = ThreadSafeDisposableHelper({ NativeMemoryAllocator() }, { it.freeAll() })
+
+inline fun <R> usingNativeMemoryAllocator(block: () -> R) = allocatorDisposeHelper.usingDisposable(block)
+
 val nativeMemoryAllocator: NativeMemoryAllocator
-    get() = allocatorHolder.reference ?: error("Native memory allocator hasn't been created")
+    get() = allocatorDisposeHelper.holder ?: error("Native memory allocator hasn't been created")
 
 // 256 buckets for sizes <= 2048 padded to 8
 // 256 buckets for sizes <= 64KB padded to 256

@@ -16,6 +16,7 @@
 
 package kotlinx.cinterop
 
+import org.jetbrains.kotlin.konan.util.ThreadSafeDisposableHelper
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.LongConsumer
 import kotlin.reflect.KClass
@@ -90,27 +91,12 @@ internal class Caches {
 }
 
 @PublishedApi
-@Volatile
-internal var cachesHolder: Caches? = null
+internal val cachesDisposeHelper = ThreadSafeDisposableHelper({ Caches() }, { it.disposeFfi() })
+
+inline fun <R> usingJvmCallbacks(block: () -> R) = cachesDisposeHelper.usingDisposable(block)
+
 private val caches: Caches
-    get() = cachesHolder ?: error("Caches hasn't been created")
-
-@PublishedApi
-internal var counter = java.util.concurrent.atomic.AtomicInteger(0)
-
-inline fun <R> usingJvmCallbacks(block: () -> R): R {
-    if (counter.getAndIncrement() == 0) {
-        cachesHolder = Caches()
-    }
-    return try {
-        block()
-    } finally {
-        if (counter.decrementAndGet() == 0) {
-            cachesHolder!!.disposeFfi()
-            cachesHolder = null
-        }
-    }
-}
+    get() = cachesDisposeHelper.holder ?: error("Caches hasn't been created")
 
 private fun getStructCType(structClass: KClass<*>): CType<*> = caches.structTypeCache.computeIfAbsent(structClass.java) {
     // Note that struct classes are not supposed to be user-defined,
