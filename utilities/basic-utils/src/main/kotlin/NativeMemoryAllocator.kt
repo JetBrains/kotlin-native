@@ -6,30 +6,37 @@
 package org.jetbrains.kotlin.konan.util
 
 import sun.misc.Unsafe
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicStampedReference
 
 @PublishedApi
-@Volatile
-internal var allocatorHolder: NativeMemoryAllocator? = null
+internal val allocatorHolder = AtomicStampedReference<NativeMemoryAllocator>(null, 0)
 
 @PublishedApi
-internal var counter = java.util.concurrent.atomic.AtomicInteger(0)
+internal var counter = AtomicInteger(0)
 
 inline fun <R> usingNativeMemoryAllocator(block: () -> R): R {
-    if (counter.getAndIncrement() == 0) {
-        allocatorHolder = NativeMemoryAllocator()
-    }
+    counter.getAndIncrement()
+    do {
+        val reference = allocatorHolder.reference
+        val stamp = allocatorHolder.stamp
+        val allocator = reference ?: NativeMemoryAllocator()
+    } while (!allocatorHolder.compareAndSet(reference, allocator, stamp, stamp + 1))
+
     return try {
         block()
     } finally {
+        val reference = allocatorHolder.reference
+        val stamp = allocatorHolder.stamp
         if (counter.decrementAndGet() == 0) {
-            allocatorHolder!!.freeAll()
-            allocatorHolder = null
+            if (allocatorHolder.compareAndSet(reference, null, stamp, stamp + 1))
+                reference!!.freeAll()
         }
     }
 }
 
 val nativeMemoryAllocator: NativeMemoryAllocator
-    get() = allocatorHolder ?: error("Native memory allocator hasn't been created")
+    get() = allocatorHolder.reference ?: error("Native memory allocator hasn't been created")
 
 // 256 buckets for sizes <= 2048 padded to 8
 // 256 buckets for sizes <= 64KB padded to 256
