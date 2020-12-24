@@ -1,11 +1,10 @@
-# 1.4.30-M1 (Dev 2020)
+# 1.4.30-M1 (Dec 2020)
   * [KT-43597](https://youtrack.jetbrains.com/issue/KT-43597) Xcode 12.2 support
   * [KT-43276](https://youtrack.jetbrains.com/issue/KT-43276) Add watchos_x64 target
-  * Support value classes
   * [KT-43198](https://youtrack.jetbrains.com/issue/KT-43198) Init blocks inside of inline classes
   * [KT-42649](https://youtrack.jetbrains.com/issue/KT-42649) Fix secondary constructors of generic inline classes
   * [KT-38772](https://youtrack.jetbrains.com/issue/KT-38772) Support non-reified type parameters in typeOf
-  * Untying LLVM
+  * Compiler customization
     * [KT-40584](https://youtrack.jetbrains.com/issue/KT-40584) Untie Kotlin/Native from the fixed LLVM distribution
     * [KT-42234](https://youtrack.jetbrains.com/issue/KT-42234) Move LLVM optimization parameters into konan.properties
     * [KT-40670](https://youtrack.jetbrains.com/issue/KT-40670) Allow to override konan.properties via CLI
@@ -20,6 +19,7 @@
     * [KT-38530](https://youtrack.jetbrains.com/issue/KT-38530) values() method of enum classes is not exposed to Objective-C/Swift
     * [GH-4572](https://github.com/JetBrains/kotlin-native/pull/4572) Fix for interop enum and struct generation
   * Optimizations
+    * [KT-42294](https://youtrack.jetbrains.com/issue/KT-42294) Significantly improved compilation time
     * [KT-42942](https://youtrack.jetbrains.com/issue/KT-42942) Optimize peak backend memory by clearing BindingContext after psi2ir
     * [KT-31072](https://youtrack.jetbrains.com/issue/KT-31072) Don't use non-reified arguments to specialize type operations in IR inliner
 
