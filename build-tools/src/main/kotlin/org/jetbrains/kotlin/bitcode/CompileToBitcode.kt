@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ExecClang
 import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.target.SanitizerKind
 import java.io.File
 import javax.inject.Inject
 
@@ -19,7 +20,8 @@ open class CompileToBitcode @Inject constructor(
         val srcRoot: File,
         val folderName: String,
         val target: String,
-        val outputGroup: String
+        val outputGroup: String,
+        @Input val sanitizer: SanitizerKind,
 ) : DefaultTask() {
 
     enum class Language {
@@ -46,7 +48,14 @@ open class CompileToBitcode @Inject constructor(
     @Input
     var language = Language.CPP
 
-    private val targetDir by lazy { project.buildDir.resolve("bitcode/$outputGroup/$target") }
+    private val targetDir by lazy {
+        val sanitizerSuffix = when (sanitizer) {
+            SanitizerKind.NONE -> ""
+            SanitizerKind.ADDRESS -> "-asan"
+            SanitizerKind.THREAD -> "-tsan"
+        }
+        project.buildDir.resolve("bitcode/$outputGroup/$target$sanitizerSuffix")
+    }
 
     val objDir by lazy { File(targetDir, folderName) }
 
@@ -63,6 +72,11 @@ open class CompileToBitcode @Inject constructor(
     val compilerFlags: List<String>
         get() {
             val commonFlags = listOf("-c", "-emit-llvm") + headersDirs.map { "-I$it" }
+            val sanitizerFlags = when (sanitizer) {
+                SanitizerKind.NONE -> listOf()
+                SanitizerKind.ADDRESS -> listOf("-fsanitize=address")
+                SanitizerKind.THREAD -> listOf("-fsanitize=thread")
+            }
             val languageFlags = when (language) {
                 Language.C ->
                     // Used flags provided by original build of allocator C code.
@@ -73,7 +87,7 @@ open class CompileToBitcode @Inject constructor(
                             "-Wno-unused-parameter",  // False positives with polymorphic functions.
                             "-fPIC".takeIf { !HostManager().targetByName(target).isMINGW })
             }
-            return commonFlags + languageFlags + compilerArgs
+            return commonFlags + sanitizerFlags + languageFlags + compilerArgs
         }
 
     @get:SkipWhenEmpty

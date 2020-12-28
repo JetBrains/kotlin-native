@@ -13,11 +13,13 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.tasks.*
 import org.jetbrains.kotlin.ExecClang
 import org.jetbrains.kotlin.bitcode.CompileToBitcode
+import org.jetbrains.kotlin.bitcode.CompileToBitcodeExtension
 import org.jetbrains.kotlin.konan.target.*
 
 open class CompileNativeTest @Inject constructor(
         @InputFile val inputFile: File,
         @Input val target: KonanTarget,
+        sanitizer: SanitizerKind,
 ) : DefaultTask() {
     @OutputFile
     var outputFile = project.buildDir.resolve("bin/test/${target.name}/${inputFile.nameWithoutExtension}.o")
@@ -25,18 +27,26 @@ open class CompileNativeTest @Inject constructor(
     @Input
     val clangArgs = mutableListOf<String>()
 
+    @Input
+    private val sanitizerFlags = when (sanitizer) {
+        SanitizerKind.NONE -> listOf()
+        SanitizerKind.ADDRESS -> listOf("-fsanitize=address")
+        SanitizerKind.THREAD -> listOf("-fsanitize=thread")
+    }
+
     @TaskAction
     fun compile() {
         val plugin = project.convention.getPlugin(ExecClang::class.java)
+        val args = clangArgs + sanitizerFlags + listOf(inputFile.absolutePath, "-o", outputFile.absolutePath)
         if (target.family.isAppleFamily) {
             plugin.execToolchainClang(target) {
                 it.executable = "clang++"
-                it.args = clangArgs + listOf(inputFile.absolutePath, "-o", outputFile.absolutePath)
+                it.args = args
             }
         } else {
             plugin.execBareClang {
                 it.executable = "clang++"
-                it.args = clangArgs + listOf(inputFile.absolutePath, "-o", outputFile.absolutePath)
+                it.args = args
             }
         }
     }
@@ -92,7 +102,8 @@ open class LinkNativeTest @Inject constructor(
         @Internal val target: String,
         @Internal val linkerArgs: List<String>,
         private val  platformManager: PlatformManager,
-        private val mimallocEnabled: Boolean
+        private val mimallocEnabled: Boolean,
+        private val sanitizer: SanitizerKind,
 ) : DefaultTask () {
     companion object {
         fun create(
@@ -103,7 +114,8 @@ open class LinkNativeTest @Inject constructor(
                 target: String,
                 outputFile: File,
                 linkerArgs: List<String>,
-                mimallocEnabled: Boolean
+                mimallocEnabled: Boolean,
+                sanitizer: SanitizerKind,
         ): LinkNativeTest = project.tasks.create(
                 taskName,
                 LinkNativeTest::class.java,
@@ -112,7 +124,8 @@ open class LinkNativeTest @Inject constructor(
                 target,
                 linkerArgs,
                 platformManager,
-                mimallocEnabled)
+                mimallocEnabled,
+                sanitizer)
 
         fun create(
                 project: Project,
@@ -122,6 +135,7 @@ open class LinkNativeTest @Inject constructor(
                 target: String,
                 executableName: String,
                 mimallocEnabled: Boolean,
+                sanitizer: SanitizerKind,
                 linkerArgs: List<String> = listOf()
         ): LinkNativeTest = create(
                 project,
@@ -130,7 +144,7 @@ open class LinkNativeTest @Inject constructor(
                 inputFiles,
                 target,
                 project.buildDir.resolve("bin/test/$target/$executableName"),
-                linkerArgs, mimallocEnabled)
+                linkerArgs, mimallocEnabled, sanitizer)
     }
 
     @get:Input
@@ -149,7 +163,8 @@ open class LinkNativeTest @Inject constructor(
                     kind = LinkerOutputKind.EXECUTABLE,
                     outputDsymBundle = "",
                     needsProfileLibrary = false,
-                    mimallocEnabled = mimallocEnabled
+                    mimallocEnabled = mimallocEnabled,
+                    sanitizer = sanitizer,
             ).map { it.argsWithExecutable }
         }
 
@@ -163,11 +178,11 @@ open class LinkNativeTest @Inject constructor(
     }
 }
 
-fun createTestTask(
+private fun createTestTask(
         project: Project,
         testName: String,
-        testTaskName: String,
         testedTaskNames: List<String>,
+        sanitizer: SanitizerKind,
         configureCompileToBitcode: CompileToBitcode.() -> Unit = {},
 ): Task {
     val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
@@ -186,7 +201,7 @@ fun createTestTask(
                     CompileToBitcode::class.java,
                     it.srcRoot,
                     "${it.folderName}Tests",
-                    target, "test"
+                    target, "test", sanitizer
                     ).apply {
                 excludeFiles = emptyList()
                 includeFiles = listOf("**/*Test.cpp", "**/*Test.mm")
@@ -201,18 +216,19 @@ fun createTestTask(
         else
             task
     }
+    // TODO: Consider using sanitized versions.
     val testFrameworkTasks = listOf(
         project.tasks.getByName("${target}Googletest") as CompileToBitcode,
         project.tasks.getByName("${target}Googlemock") as CompileToBitcode
     )
 
-    val testSupportTask = project.tasks.getByName("${target}TestSupport") as CompileToBitcode
+    val testSupportTask = project.tasks.getByName("${target}TestSupport${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}") as CompileToBitcode
 
     // TODO: It may make sense to merge llvm-link, compile and link to a single task.
     val llvmLinkTask = project.tasks.create(
-            "${testTaskName}LlvmLink",
+            "${testName}LlvmLink",
             LlvmLinkNativeTest::class.java,
-            testTaskName, target, testSupportTask.outFile
+            testName, target, testSupportTask.outFile
     ).apply {
         val tasksToLink = (compileToBitcodeTasks + testedTasks + testFrameworkTasks)
         inputFiles = project.files(tasksToLink.map { it.outFile })
@@ -222,10 +238,11 @@ fun createTestTask(
 
     val clangFlags = platformManager.platform(konanTarget).configurables as ClangFlags
     val compileTask = project.tasks.create(
-            "${testTaskName}Compile",
+            "${testName}Compile",
             CompileNativeTest::class.java,
             llvmLinkTask.outputFile,
             konanTarget,
+            sanitizer,
     ).apply {
         dependsOn(llvmLinkTask)
         clangArgs.addAll(clangFlags.clangFlags)
@@ -236,19 +253,20 @@ fun createTestTask(
     val linkTask = LinkNativeTest.create(
             project,
             platformManager,
-            "${testTaskName}Link",
+            "${testName}Link${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}",
             listOf(compileTask.outputFile),
             target,
-            testTaskName,
-            mimallocEnabled
+            testName,
+            mimallocEnabled,
+            sanitizer,
     ).apply {
         dependsOn(compileTask)
     }
 
-    return project.tasks.create(testTaskName, Exec::class.java).apply {
+    return project.tasks.create(testName, Exec::class.java).apply {
         dependsOn(linkTask)
 
-        workingDir = project.buildDir.resolve("testReports/$testTaskName")
+        workingDir = project.buildDir.resolve("testReports/$testName")
         val xmlReport = workingDir.resolve("report.xml")
         executable(linkTask.outputFile)
         args("--gtest_output=xml:${xmlReport.absoluteFile}")
@@ -265,5 +283,26 @@ fun createTestTask(
             val rewrittenReport = workingDir.resolve("report-with-prefixes.xml")
             rewrittenReport.writeText(contents)
         }
+    }
+}
+
+// TODO: These tests should be created by `CompileToBitcodeExtension`
+fun createTestTasks(
+        project: Project,
+        targetName: String,
+        testTaskName: String,
+        testedTaskNames: List<String>,
+        configureCompileToBitcode: CompileToBitcode.() -> Unit = {},
+) {
+    val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
+    val target = platformManager.targetByName(targetName)
+    val sanitizers = target.supportedSanitizers()
+    sanitizers.forEach { sanitizer ->
+        val suffix = CompileToBitcodeExtension.suffixForSanitizer(sanitizer)
+        val name = testTaskName + suffix
+        val testedNames = testedTaskNames.map {
+            it + suffix
+        }
+        createTestTask(project, name, testedNames, sanitizer, configureCompileToBitcode)
     }
 }

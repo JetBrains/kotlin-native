@@ -14,9 +14,23 @@
 
 using namespace kotlin;
 
+namespace {
+
+// TODO: Check that this function gets inlined with TSAN turned off.
+NO_TSAN TypeInfo* GetTypeInfoOrMetaUnsafe(ObjHeader* object) noexcept {
+    return object->typeInfoOrMeta_;
+}
+
+}  // namespace
+
 // static
 mm::ExtraObjectData& mm::ExtraObjectData::Install(ObjHeader* object) noexcept {
-    TypeInfo* typeInfo = object->typeInfoOrMeta_;
+    // This read is safe, because meta object can only be installed once.
+    // If we read meta object, we return it.
+    // If we read type info, but should've read meta object, we will fail
+    // at atomic CAS, and return the proper meta object.
+    // TODO: Consider extracting this initialization scheme.
+    TypeInfo* typeInfo = GetTypeInfoOrMetaUnsafe(object);
     if (auto* metaObject = ObjHeader::AsMetaObject(typeInfo)) {
         return mm::ExtraObjectData::FromMetaObjHeader(metaObject);
     }

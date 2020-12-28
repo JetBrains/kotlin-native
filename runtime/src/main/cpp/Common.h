@@ -39,4 +39,6 @@
 #define KONAN_TYPE_INFO_HAS_WRITABLE_PART 1
 #endif
 
+#define NO_TSAN __attribute__((no_sanitize_thread))
+
 #endif // RUNTIME_COMMON_H

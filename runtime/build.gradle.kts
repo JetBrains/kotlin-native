@@ -5,6 +5,8 @@
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.testing.native.*
 import org.jetbrains.kotlin.bitcode.CompileToBitcode
+import org.jetbrains.kotlin.bitcode.CompileToBitcodeExtension
+import org.jetbrains.kotlin.konan.target.*
 
 plugins {
     id("compile-to-bitcode")
@@ -42,6 +44,7 @@ bitcode {
             "${target}ExperimentalMemoryManager"
         )
         includeRuntime()
+        // TODO: Should depend on the sanitizer.
         linkerArgs.add(project.file("../common/build/bitcode/main/$target/hash.bc").path)
     }
 
@@ -107,9 +110,9 @@ bitcode {
 }
 
 targetList.forEach { targetName ->
-    createTestTask(
+    createTestTasks(
             project,
-            "StdAlloc",
+            targetName,
             "${targetName}StdAllocRuntimeTests",
             listOf(
                 "${targetName}Runtime",
@@ -122,9 +125,9 @@ targetList.forEach { targetName ->
         includeRuntime()
     }
 
-    createTestTask(
+    createTestTasks(
             project,
-            "Mimalloc",
+            targetName,
             "${targetName}MimallocRuntimeTests",
             listOf(
                 "${targetName}Runtime",
@@ -138,9 +141,9 @@ targetList.forEach { targetName ->
         includeRuntime()
     }
 
-    createTestTask(
+    createTestTasks(
             project,
-            "ExperimentalMMMimalloc",
+            targetName,
             "${targetName}ExperimentalMMMimallocRuntimeTests",
             listOf(
                 "${targetName}Runtime",
@@ -153,9 +156,9 @@ targetList.forEach { targetName ->
         includeRuntime()
     }
 
-    createTestTask(
+    createTestTasks(
             project,
-            "ExperimentalMMStdAlloc",
+            targetName,
             "${targetName}ExperimentalMMStdAllocRuntimeTests",
             listOf(
                 "${targetName}Runtime",
@@ -167,11 +170,16 @@ targetList.forEach { targetName ->
         includeRuntime()
     }
 
+    // TODO: This "all tests" tasks should be provided by `CompileToBitcodeExtension`
     tasks.register("${targetName}RuntimeTests") {
-        dependsOn("${targetName}StdAllocRuntimeTests")
-        dependsOn("${targetName}MimallocRuntimeTests")
-        dependsOn("${targetName}ExperimentalMMStdAllocRuntimeTests")
-        dependsOn("${targetName}ExperimentalMMMimallocRuntimeTests")
+        val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
+        val target = platformManager.targetByName(targetName)
+        target.supportedSanitizers().forEach { sanitizer ->
+            dependsOn("${targetName}StdAllocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
+            dependsOn("${targetName}MimallocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
+            dependsOn("${targetName}ExperimentalMMStdAllocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
+            dependsOn("${targetName}ExperimentalMMMimallocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
+        }
     }
 }
 

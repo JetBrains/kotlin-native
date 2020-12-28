@@ -155,7 +155,8 @@ internal class Linker(val context: Context) {
                     kind = linkerOutput,
                     outputDsymBundle = context.config.outputFiles.symbolicInfoFile,
                     needsProfileLibrary = needsProfileLibrary,
-                    mimallocEnabled = mimallocEnabled)
+                    mimallocEnabled = mimallocEnabled,
+                    sanitizer = SanitizerKind.NONE)
             (linkerInput.preLinkCommands + finalOutputCommands).forEach {
                 it.logWith(context::log)
                 it.execute()
