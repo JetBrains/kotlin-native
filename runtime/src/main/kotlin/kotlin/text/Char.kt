@@ -65,6 +65,12 @@ external public fun Char.isLowerCase(): Boolean
 
 /**
  * Converts this character to upper case using Unicode mapping rules of the invariant locale.
+ */
+@SymbolName("Kotlin_Char_toUpperCase")
+external public actual fun Char.toUpperCase(): Char
+
+/**
+ * Converts this character to upper case using Unicode mapping rules of the invariant locale.
  *
  * This function performs one-to-one character mapping.
  * To support one-to-many character mapping use the [uppercase] function.
@@ -74,8 +80,7 @@ external public fun Char.isLowerCase(): Boolean
  */
 @SinceKotlin("1.4")
 @ExperimentalStdlibApi
-@SymbolName("Kotlin_Char_toUpperCase")
-external public actual fun Char.uppercaseChar(): Char
+public actual fun Char.uppercaseChar(): Char = toUpperCase()
 
 /**
  * Converts this character to upper case using Unicode mapping rules of the invariant locale.
@@ -95,6 +100,12 @@ public actual fun Char.uppercase(): String {
 
 /**
  * Converts this character to lower case using Unicode mapping rules of the invariant locale.
+ */
+@SymbolName("Kotlin_Char_toLowerCase")
+external public actual fun Char.toLowerCase(): Char
+
+/**
+ * Converts this character to lower case using Unicode mapping rules of the invariant locale.
  *
  * This function performs one-to-one character mapping.
  * To support one-to-many character mapping use the [lowercase] function.
@@ -104,8 +115,7 @@ public actual fun Char.uppercase(): String {
  */
 @SinceKotlin("1.4")
 @ExperimentalStdlibApi
-@SymbolName("Kotlin_Char_toLowerCase")
-external public actual fun Char.lowercaseChar(): Char
+public actual fun Char.lowercaseChar(): Char = toLowerCase()
 
 /**
  * Converts this character to lower case using Unicode mapping rules of the invariant locale.
