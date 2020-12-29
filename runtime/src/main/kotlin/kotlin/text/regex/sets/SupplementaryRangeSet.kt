@@ -120,10 +120,9 @@ open internal class SupplementaryRangeSet(charClass: AbstractCharClass, val igno
         return -1
     }
 
-    @OptIn(ExperimentalStdlibApi::class)
     fun contains(char: Char): Boolean {
         if (ignoreCase) {
-            return chars.contains(char.uppercaseChar()) || chars.contains(char.lowercaseChar())
+            return chars.contains(char.toUpperCase()) || chars.contains(char.toLowerCase())
         } else {
             return chars.contains(char)
         }
