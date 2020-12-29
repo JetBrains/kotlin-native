@@ -155,8 +155,8 @@ public external fun String.regionMatches(
 /**
  * Returns a copy of this string converted to upper case using the rules of the default locale.
  */
-@OptIn(ExperimentalStdlibApi::class)
-public actual fun String.toUpperCase(): String = uppercase()
+@SymbolName("Kotlin_String_toUpperCase")
+public actual external fun String.toUpperCase(): String
 
 /**
  * Returns a copy of this string converted to upper case using Unicode mapping rules of the invariant locale.
@@ -168,14 +168,13 @@ public actual fun String.toUpperCase(): String = uppercase()
  */
 @SinceKotlin("1.4")
 @ExperimentalStdlibApi
-@SymbolName("Kotlin_String_uppercase")
-public actual external fun String.uppercase(): String
+public actual fun String.uppercase(): String = toUpperCase()
 
 /**
  * Returns a copy of this string converted to lower case using the rules of the default locale.
  */
-@OptIn(ExperimentalStdlibApi::class)
-public actual fun String.toLowerCase(): String = lowercase()
+@SymbolName("Kotlin_String_toLowerCase")
+public actual external fun String.toLowerCase(): String
 
 /**
  * Returns a copy of this string converted to lower case using Unicode mapping rules of the invariant locale.
@@ -187,8 +186,7 @@ public actual fun String.toLowerCase(): String = lowercase()
  */
 @SinceKotlin("1.4")
 @ExperimentalStdlibApi
-@SymbolName("Kotlin_String_lowercase")
-public actual external fun String.lowercase(): String
+public actual fun String.lowercase(): String = toLowerCase()
 
 /**
  * Returns a [CharArray] containing characters of this string.

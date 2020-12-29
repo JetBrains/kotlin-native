@@ -74,7 +74,7 @@ external public fun Char.isLowerCase(): Boolean
  */
 @SinceKotlin("1.4")
 @ExperimentalStdlibApi
-@SymbolName("Kotlin_Char_uppercase")
+@SymbolName("Kotlin_Char_toUpperCase")
 external public actual fun Char.uppercaseChar(): Char
 
 /**
@@ -104,7 +104,7 @@ public actual fun Char.uppercase(): String {
  */
 @SinceKotlin("1.4")
 @ExperimentalStdlibApi
-@SymbolName("Kotlin_Char_lowercase")
+@SymbolName("Kotlin_Char_toLowerCase")
 external public actual fun Char.lowercaseChar(): Char
 
 /**
