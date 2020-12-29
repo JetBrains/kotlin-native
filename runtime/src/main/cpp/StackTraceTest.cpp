@@ -126,6 +126,14 @@ TEST(StackTraceDeathTest, PrintStackTraceInSignalHandler) {
 }
 
 TEST(StackTraceTest, PrettyPrintSymbol) {
+#if KONAN_WINDOWS
+    EXPECT_THAT(PrettyPrintSymbol(0xa, "SymbolName", "SomeFile", 42, 13, 1024), "SymbolName 000000000000000a (SomeFile:42:13)");
+    EXPECT_THAT(PrettyPrintSymbol(0xa, "SymbolName", "SomeFile", 42, 13, 23), "SymbolName 00000000000");
+    EXPECT_THAT(PrettyPrintSymbol(0xa, "SymbolName", "SomeFile", -1, 13, 1024), "SymbolName 000000000000000a (SomeFile:<unknown>)");
+    EXPECT_THAT(PrettyPrintSymbol(0xa, "SymbolName", nullptr, 42, 13, 1024), "SymbolName 000000000000000a ");
+    EXPECT_THAT(PrettyPrintSymbol(0xa, nullptr, "SomeFile", 42, 13, 1024), "000000000000000a (SomeFile:42:13)");
+    EXPECT_THAT(PrettyPrintSymbol(0xa, nullptr, nullptr, 42, 13, 1024), "000000000000000a ");
+#else
 #if USE_LIBC_UNWIND
     const char* kSymbolName = "SymbolName 0xa";
 #else
@@ -137,4 +145,5 @@ TEST(StackTraceTest, PrettyPrintSymbol) {
     EXPECT_THAT(PrettyPrintSymbol(0xa, kSymbolName, nullptr, 42, 13, 1024), "SymbolName 0xa ");
     EXPECT_THAT(PrettyPrintSymbol(0xa, nullptr, "SomeFile", 42, 13, 1024), "0xa (SomeFile:42:13)");
     EXPECT_THAT(PrettyPrintSymbol(0xa, nullptr, nullptr, 42, 13, 1024), "0xa ");
+#endif
 }
