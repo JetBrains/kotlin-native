@@ -165,19 +165,17 @@ internal actual fun checkRadix(radix: Int): Int {
 
 // TODO: Make public when supplementary codepoints are supported.
 /** Converts a unicode code point to lower case. */
-@OptIn(ExperimentalStdlibApi::class)
 internal fun Char.Companion.toLowerCase(codePoint: Int): Int =
     if (codePoint < MIN_SUPPLEMENTARY_CODE_POINT) {
-        codePoint.toChar().lowercase().toInt()
+        codePoint.toChar().toLowerCase().toInt()
     } else {
         codePoint // TODO: Implement this transformation for supplementary codepoints.
     }
 
 /** Converts a unicode code point to upper case. */
-@OptIn(ExperimentalStdlibApi::class)
 internal fun Char.Companion.toUpperCase(codePoint: Int): Int =
     if (codePoint < MIN_SUPPLEMENTARY_CODE_POINT) {
-        codePoint.toChar().uppercase().toInt()
+        codePoint.toChar().toUpperCase().toInt()
     } else {
         codePoint // TODO: Implement this transformation for supplementary codepoints.
     }
