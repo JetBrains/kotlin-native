@@ -195,6 +195,11 @@ public:
         std::unique_lock<SpinLock> guard_;
     };
 
+    ~ObjectFactoryStorage() {
+        // Make sure not to blow up the stack by nested `~Node` calls.
+        for (auto node = std::move(root_); node != nullptr; node = std::move(node->next_)) {}
+    }
+
     // Lock `ObjectFactoryStorage` for safe iteration.
     Iterable Iter() noexcept { return Iterable(*this); }
 
