@@ -125,28 +125,19 @@ public:
     void operator()(T* instance) noexcept { konanDestructInstance(instance); }
 };
 
-struct KonanAllocTag {};
-constexpr KonanAllocTag KonanAlloc;
-
 // Force a class to be heap-allocated using `konanAllocMemory`. Does not prevent stack allocation, or
 // allocation as part of another object.
 // Usage:
 // class A : public KonanAllocatorAware {
 //     ...
 // };
-// To construct `A` on the heap:
-// new (KonanAlloc) A(...);
-// Using explicit `Alloc` method helps to indicate (at the usage site) that the `new` expression uses our allocator.
 class KonanAllocatorAware {
 public:
-    static void* operator new(size_t count) = delete;
-    static void* operator new[](size_t count) = delete;
+    static void* operator new(size_t count) noexcept { return konanAllocMemory(count); }
+    static void* operator new[](size_t count) noexcept { return konanAllocMemory(count); }
 
     static void* operator new(size_t count, void* ptr) noexcept { return ptr; }
     static void* operator new[](size_t count, void* ptr) noexcept { return ptr; }
-
-    static void* operator new(size_t count, KonanAllocTag) noexcept { return konanAllocMemory(count); }
-    static void* operator new[](size_t count, KonanAllocTag) noexcept { return konanAllocMemory(count); }
 
     static void operator delete(void* ptr) noexcept { konanFreeMemory(ptr); }
     static void operator delete[](void* ptr) noexcept { konanFreeMemory(ptr); }

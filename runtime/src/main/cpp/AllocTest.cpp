@@ -77,7 +77,7 @@ TEST_F(KonanAllocatorAwareTest, AllocatedInAnotherObject) {
 }
 
 TEST_F(KonanAllocatorAwareTest, AllocatedByItself) {
-    A* a = new (KonanAlloc) A(42);
+    A* a = new A(42);
     EXPECT_THAT(a->value(), 42);
     EXPECT_CALL(*destructorHook, Call(42));
     delete a;
@@ -85,7 +85,7 @@ TEST_F(KonanAllocatorAwareTest, AllocatedByItself) {
 
 TEST_F(KonanAllocatorAwareTest, AllocateArray) {
     constexpr size_t kCount = 5;
-    A* as = new (KonanAlloc) A[kCount];
+    A* as = new A[kCount];
 
     std::vector<int> actual;
     for (A* a = as; a != as + kCount; ++a) {

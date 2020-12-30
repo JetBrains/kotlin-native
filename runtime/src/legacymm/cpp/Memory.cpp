@@ -212,7 +212,7 @@ class CycleDetector : private kotlin::Pinned, public KonanAllocatorAware {
 
   static CycleDetector& instance() {
     // Only store a pointer to CycleDetector in .bss
-    static CycleDetector* result = new (KonanAlloc) CycleDetector();
+    static CycleDetector* result = new CycleDetector();
     return *result;
   }
 

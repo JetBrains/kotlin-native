@@ -70,7 +70,7 @@ public:
 
     template <typename... Args>
     Node* Emplace(Args&&... args) noexcept {
-        auto* nodePtr = new (KonanAlloc) Node(std::forward<Args>(args)...);
+        auto* nodePtr = new Node(std::forward<Args>(args)...);
         KStdUniquePtr<Node> node(nodePtr);
         std::lock_guard<Mutex> guard(mutex_);
         if (root_) {
