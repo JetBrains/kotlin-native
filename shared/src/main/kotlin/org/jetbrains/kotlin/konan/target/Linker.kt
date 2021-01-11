@@ -356,7 +356,6 @@ class GccBasedLinker(targetProperties: GccConfigurables)
             if (!dynamic) +"$absoluteTargetSysRoot/$crtPrefix/crt1.o"
             +"$absoluteTargetSysRoot/$crtPrefix/crti.o"
             +if (dynamic) "$libGcc/crtbeginS.o" else "$libGcc/crtbegin.o"
-            +"-L$llvmLib"
             +"-L$libGcc"
             if (!isMips) +"--hash-style=gnu" // MIPS doesn't support hash-style=gnu
             +specificLibs
