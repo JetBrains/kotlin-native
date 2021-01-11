@@ -50,6 +50,17 @@ class ExecClang(private val project: Project) {
         }
     }
 
+    fun resolveToolchainExecutable(target: KonanTarget, executableOrNull: String?): String {
+        val executable = executableOrNull ?: "clang"
+
+        if (listOf("clang", "clang++").contains(executable)) {
+            val platform = platformManager.platform(target)
+            return "${platform.absoluteTargetToolchain}/usr/bin/$executable"
+        } else {
+            throw GradleException("unsupported clang executable: $executable")
+        }
+    }
+
     // The bare ones invoke clang with system default sysroot.
 
     fun execBareClang(action: Action<in ExecSpec>): ExecResult {
@@ -79,6 +90,30 @@ class ExecClang(private val project: Project) {
 
     fun execKonanClang(target: KonanTarget, closure: Closure<in ExecSpec>): ExecResult {
         return this.execClang(konanArgs(target), closure)
+    }
+
+    // The toolchain ones execute clang from the toolchain.
+
+    fun execToolchainClang(target: String?, action: Action<in ExecSpec>): ExecResult {
+        return this.execToolchainClang(platformManager.targetManager(target).target, action)
+    }
+
+    fun execToolchainClang(target: String?, closure: Closure<in ExecSpec>): ExecResult {
+        return this.execToolchainClang(platformManager.targetManager(target).target, ConfigureUtil.configureUsing(closure))
+    }
+
+    fun execToolchainClang(target: KonanTarget, action: Action<in ExecSpec>): ExecResult {
+        val extendedAction = Action<ExecSpec> { execSpec ->
+            action.execute(execSpec)
+            execSpec.apply {
+                executable = resolveToolchainExecutable(target, executable)
+            }
+        }
+        return project.exec(extendedAction)
+    }
+
+    fun execToolchainClang(target: KonanTarget, closure: Closure<in ExecSpec>): ExecResult {
+        return this.execToolchainClang(target, ConfigureUtil.configureUsing(closure))
     }
 
     // These ones are private, so one has to choose either Bare or Konan.
