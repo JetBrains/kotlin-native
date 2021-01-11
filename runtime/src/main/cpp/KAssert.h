@@ -67,10 +67,11 @@ extern "C" const int KonanNeedDebugInfo;
 
 // Use RuntimeCheck() in runtime checks that could fail due to external condition and shall lead
 // to program termination. Never compiled out.
+// TODO: Consider using `CURRENT_SOURCE_LOCATION` when `KonanNeedDebugInfo` is `true`.
 #define RuntimeCheck(condition, format, ...) \
     do { \
         if (!(condition)) { \
-            RuntimeAssertFailed(CURRENT_SOURCE_LOCATION, format, ##__VA_ARGS__); \
+            RuntimeAssertFailed(nullptr, format, ##__VA_ARGS__); \
         } \
     } while (false)
 
