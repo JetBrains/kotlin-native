@@ -21,6 +21,17 @@ namespace kotlin {
 template <typename Value, typename Mutex = SpinLock>
 class SingleLockList : private Pinned {
 public:
+    class Node;
+
+private:
+    class NodeDeleter {
+    public:
+        void operator()(Node* node) const { delete node; }
+    };
+
+    using NodeOwner = std::unique_ptr<Node, NodeDeleter>;
+
+public:
     class Node : private Pinned, public KonanAllocatorAware {
     public:
         Value* Get() noexcept { return &value_; }
@@ -31,8 +42,11 @@ public:
         template <typename... Args>
         Node(Args&&... args) noexcept : value_(std::forward<Args>(args)...) {}
 
+        // Make sure `Node` can only be deleted by `SingleLockList` itself.
+        ~Node() = default;
+
         Value value_;
-        KStdUniquePtr<Node> next_;
+        NodeOwner next_;
         Node* previous_ = nullptr; // weak
     };
 
@@ -81,7 +95,7 @@ public:
     template <typename... Args>
     Node* Emplace(Args&&... args) noexcept {
         auto* nodePtr = new Node(std::forward<Args>(args)...);
-        KStdUniquePtr<Node> node(nodePtr);
+        NodeOwner node(nodePtr);
         std::lock_guard<Mutex> guard(mutex_);
         AssertCorrectUnsafe();
         if (root_) {
@@ -141,7 +155,7 @@ private:
         }
     }
 
-    KStdUniquePtr<Node> root_;
+    NodeOwner root_;
     Node* last_ = nullptr;
     Mutex mutex_;
 };
