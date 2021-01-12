@@ -54,8 +54,13 @@ class ExecClang(private val project: Project) {
         val executable = executableOrNull ?: "clang"
 
         if (listOf("clang", "clang++").contains(executable)) {
+            // TODO: This is copied from `BitcodeCompiler`. Consider sharing the code instead.
             val platform = platformManager.platform(target)
-            return "${platform.absoluteTargetToolchain}/usr/bin/$executable"
+            return if (target.family.isAppleFamily) {
+                "${platform.absoluteTargetToolchain}/usr/bin/$executable"
+            } else {
+                "${platform.absoluteTargetToolchain}/bin/$executable"
+            }
         } else {
             throw GradleException("unsupported clang executable: $executable")
         }
