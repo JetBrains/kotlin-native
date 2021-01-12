@@ -50,7 +50,7 @@ public:
     void SetUp() override {
         Test::SetUp();
 
-        destructorHook = MakeUnique<A::DestructorHook>();
+        destructorHook = make_unique<A::DestructorHook>();
         A::destructorHook = destructorHook.get();
     }
 

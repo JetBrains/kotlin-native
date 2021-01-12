@@ -451,14 +451,14 @@ using mm::ObjectFactory;
 namespace {
 
 KStdUniquePtr<TypeInfo> MakeObjectTypeInfo(int32_t size) {
-    auto typeInfo = MakeUnique<TypeInfo>();
+    auto typeInfo = make_unique<TypeInfo>();
     typeInfo->typeInfo_ = typeInfo.get();
     typeInfo->instanceSize_ = size;
     return typeInfo;
 }
 
 KStdUniquePtr<TypeInfo> MakeArrayTypeInfo(int32_t elementSize) {
-    auto typeInfo = MakeUnique<TypeInfo>();
+    auto typeInfo = make_unique<TypeInfo>();
     typeInfo->typeInfo_ = typeInfo.get();
     typeInfo->instanceSize_ = -elementSize;
     return typeInfo;

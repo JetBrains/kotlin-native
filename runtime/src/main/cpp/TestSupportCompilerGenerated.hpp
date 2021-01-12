@@ -20,7 +20,7 @@ public:
     explicit ScopedStrictMockFunction(Mock** globalMockLocation) : globalMockLocation_(globalMockLocation) {
         RuntimeCheck(globalMockLocation != nullptr, "ScopedStrictMockFunction needs non-null global mock location");
         RuntimeCheck(*globalMockLocation == nullptr, "ScopedStrictMockFunction needs null global mock");
-        mock_ = MakeUnique<Mock>();
+        mock_ = make_unique<Mock>();
         *globalMockLocation_ = mock_.get();
     }
 

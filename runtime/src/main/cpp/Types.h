@@ -61,6 +61,8 @@ typedef ObjHeader* KRef;
 typedef const ObjHeader* KConstRef;
 typedef const ArrayHeader* KString;
 
+// TODO: Consider moving these into `kotlin::std_support` namespace keeping STL names.
+
 // Definitions of STL classes used inside Konan runtime.
 typedef std::basic_string<char, std::char_traits<char>,
                           KonanAllocator<char>> KStdString;
@@ -86,7 +88,7 @@ template <class Value>
 using KStdUniquePtr = std::unique_ptr<Value, KonanDeleter<Value>>;
 
 template <typename T, typename... Args>
-KStdUniquePtr<T> MakeUnique(Args&&... args) noexcept {
+KStdUniquePtr<T> make_unique(Args&&... args) noexcept {
     return KStdUniquePtr<T>(konanConstructInstance<T>(std::forward<Args>(args)...));
 }
 
