@@ -6,6 +6,7 @@
 #include "SingleLockList.hpp"
 
 #include <atomic>
+#include <functional>
 #include <thread>
 
 #include "gmock/gmock.h"
@@ -304,4 +305,42 @@ TEST(SingleLockListTest, PinnedType) {
     }
 
     EXPECT_THAT(actualAfter, testing::IsEmpty());
+}
+
+namespace {
+
+class WithDestructorHook;
+
+using DestructorHook = void(WithDestructorHook*);
+
+class WithDestructorHook : private Pinned {
+public:
+    explicit WithDestructorHook(std::function<DestructorHook> hook) : hook_(std::move(hook)) {}
+
+    ~WithDestructorHook() { hook_(this); }
+
+private:
+    std::function<DestructorHook> hook_;
+};
+
+} // namespace
+
+TEST(SingleLockListTest, Destructor) {
+    testing::StrictMock<testing::MockFunction<DestructorHook>> hook;
+    {
+        SingleLockList<WithDestructorHook> list;
+        auto* first = list.Emplace(hook.AsStdFunction())->Get();
+        auto* second = list.Emplace(hook.AsStdFunction())->Get();
+        auto* third = list.Emplace(hook.AsStdFunction())->Get();
+        {
+            testing::InSequence seq;
+            // `list` is `third`->`second`->`first`. If destruction
+            // were to cause recursion, the order of destructors
+            // would've been backwards.
+            EXPECT_CALL(hook, Call(third));
+            EXPECT_CALL(hook, Call(second));
+            EXPECT_CALL(hook, Call(first));
+        }
+    }
+    testing::Mock::VerifyAndClear(&hook);
 }
