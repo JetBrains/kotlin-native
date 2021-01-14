@@ -126,6 +126,7 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
 internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMValueRef,
                                         startLocation: LocationInfo? = null, endLocation: LocationInfo? = null,
                                         code:FunctionGenerationContext.(FunctionGenerationContext) -> R) {
+    // TODO: safepoints?
     val functionGenerationContext = FunctionGenerationContext(function, codegen, startLocation, endLocation)
     try {
         generateFunctionBody(functionGenerationContext, code)
