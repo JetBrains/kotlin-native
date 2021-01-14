@@ -1241,8 +1241,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
+            call(context.llvm.Kotlin_mm_safePointWhileLoopBody, emptyList())
 
-            // TODO: safepoint
             functionGenerationContext.br(loopScope.loopCheck)
             functionGenerationContext.positionAtEnd(loopScope.loopExit)
 
@@ -1262,7 +1262,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
-            // TODO: safepoint
+            call(context.llvm.Kotlin_mm_safePointWhileLoopBody, emptyList())
             functionGenerationContext.br(loopScope.loopCheck)
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
