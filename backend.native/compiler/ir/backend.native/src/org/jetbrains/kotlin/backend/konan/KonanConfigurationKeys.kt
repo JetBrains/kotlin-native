@@ -148,8 +148,6 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("override konan.properties values")
         val DESTROY_RUNTIME_MODE: CompilerConfigurationKey<DestroyRuntimeMode>
                 = CompilerConfigurationKey.create("when to destroy runtime")
-        val GC_LOG_COMPONENTS: CompilerConfigurationKey<List<GCComponentLog>>
-                = CompilerConfigurationKey.create("GC components to enable logging for")
     }
 }
 

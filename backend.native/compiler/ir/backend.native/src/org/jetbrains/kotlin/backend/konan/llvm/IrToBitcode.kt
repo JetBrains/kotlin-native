@@ -2425,7 +2425,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             return
 
         overrideRuntimeGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value))
-        overrideRuntimeGlobal("Kotlin_gcComponentLog", Int32(context.config.gcLogComponents.value))
     }
 
     //-------------------------------------------------------------------------//

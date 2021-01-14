@@ -38,13 +38,6 @@ DestroyRuntimeMode Kotlin_getDestroyRuntimeMode() {
     return Kotlin_destroyRuntimeMode;
 }
 
-// This global is overriden by the compiler.
-extern"C" RUNTIME_WEAK const GCComponentLog Kotlin_gcComponentLog = GC_COMPONENT_LOG_NONE;
-
-extern "C" GCComponentLog Kotlin_getEnabledGCLogs() {
-    return Kotlin_gcComponentLog;
-}
-
 namespace {
 
 InitNode* initHeadNode = nullptr;
