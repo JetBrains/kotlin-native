@@ -126,7 +126,6 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
 internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMValueRef,
                                         startLocation: LocationInfo? = null, endLocation: LocationInfo? = null,
                                         code:FunctionGenerationContext.(FunctionGenerationContext) -> R) {
-    // TODO: safepoints?
     val functionGenerationContext = FunctionGenerationContext(function, codegen, startLocation, endLocation)
     try {
         generateFunctionBody(functionGenerationContext, code)
@@ -1252,6 +1251,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 returnType == voidType -> {
                     releaseVars()
                     assert(returnSlot == null)
+                    // TODO: safepoint
                     LLVMBuildRetVoid(builder)
                 }
                 returns.isNotEmpty() -> {
@@ -1261,6 +1261,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                         updateReturnRef(returnPhi, returnSlot!!)
                     }
                     releaseVars()
+                    // TODO: safepoint
                     LLVMBuildRet(builder, returnPhi)
                 }
                 // Do nothing, all paths throw.

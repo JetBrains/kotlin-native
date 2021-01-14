@@ -713,7 +713,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     override fun visitFunction(declaration: IrFunction) {
-        // TODO: safepoints?
         context.log{"visitFunction                  : ${ir2string(declaration)}"}
 
         val body = declaration.body
@@ -960,7 +959,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
      * Jumps to [target] passing [value].
      */
     private fun jump(target: ContinuationBlock, value: LLVMValueRef?) {
-        // TODO: safepoints?
         val entry = target.block
         functionGenerationContext.br(entry)
         if (target.valuePhi != null) {
@@ -975,7 +973,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun continuationBlock(
             type: IrType, locationInfo: LocationInfo?, code: (ContinuationBlock) -> Unit = {}): ContinuationBlock {
 
-        // TODO: safepoints?
         val entry = functionGenerationContext.basicBlock("continuation_block", locationInfo)
 
         functionGenerationContext.appendingTo(entry) {
@@ -1233,7 +1230,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     private fun evaluateWhileLoop(loop: IrWhileLoop): LLVMValueRef {
-        // TODO: safepoints?
         val loopScope = LoopScope(loop)
         using(loopScope) {
             val loopBody = functionGenerationContext.basicBlock("while_loop", loop.startLocation)
@@ -1246,6 +1242,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
 
+            // TODO: safepoint
             functionGenerationContext.br(loopScope.loopCheck)
             functionGenerationContext.positionAtEnd(loopScope.loopExit)
 
@@ -1258,7 +1255,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     private fun evaluateDoWhileLoop(loop: IrDoWhileLoop): LLVMValueRef {
-        // TODO: safepoints?
         val loopScope = LoopScope(loop)
         using(loopScope) {
             val loopBody = functionGenerationContext.basicBlock("do_while_loop", loop.body?.startLocation ?: loop.startLocation)
@@ -1266,6 +1262,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
+            // TODO: safepoint
             functionGenerationContext.br(loopScope.loopCheck)
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
@@ -1822,7 +1819,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     private fun evaluateReturnableBlock(value: IrReturnableBlock): LLVMValueRef {
-        // TODO: safepoints?
         context.log{"evaluateReturnableBlock         : ${value.statements.forEach { ir2string(it) }}"}
 
         val returnableBlockScope = ReturnableBlockScope(value)
@@ -2090,7 +2086,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun evaluateSuspendableExpression(expression: IrSuspendableExpression): LLVMValueRef {
-        // TODO: safepoints?
         val suspensionPointId = evaluateExpression(expression.suspensionPointId)
         val bbStart = functionGenerationContext.basicBlock("start", expression.result.startLocation)
         val bbDispatch = functionGenerationContext.basicBlock("dispatch", expression.suspensionPointId.startLocation)
@@ -2133,7 +2128,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun evaluateSuspensionPoint(expression: IrSuspensionPoint): LLVMValueRef {
-        // TODO: safepoints?
         val bbResume = functionGenerationContext.basicBlock("resume", expression.resumeResult.startLocation)
         val id = currentCodeContext.addResumePoint(bbResume)
 
