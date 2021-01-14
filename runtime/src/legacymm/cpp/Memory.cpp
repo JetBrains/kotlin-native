@@ -3685,10 +3685,18 @@ ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_switchThreadStateRunnable() {
 }
 
 ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointFunctionEpilogue() {
+    // TODO: Move this into new MM, and remove from here.
+    if ((Kotlin_getEnabledGCLogs() & GC_COMPONENT_LOG_SAFE_POINT) != 0) {
+        konan::consolePrintf("Safe Point: function epilogue\n");
+    }
     // no-op, used by the new MM only.
 }
 
 ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointWhileLoopBody() {
+    // TODO: Move this into new MM, and remove from here.
+    if ((Kotlin_getEnabledGCLogs() & GC_COMPONENT_LOG_SAFE_POINT) != 0) {
+        konan::consolePrintf("Safe Point: loop\n");
+    }
     // no-op, used by the new MM only.
 }
 

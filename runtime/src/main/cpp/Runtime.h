@@ -33,6 +33,14 @@ enum DestroyRuntimeMode {
 
 DestroyRuntimeMode Kotlin_getDestroyRuntimeMode();
 
+// Must match GCComponentLog in GCComponentLog.kt
+enum GCComponentLog {
+    GC_COMPONENT_LOG_NONE = 0,
+    GC_COMPONENT_LOG_SAFE_POINT = 1 << 0,
+};
+
+GCComponentLog Kotlin_getEnabledGCLogs();
+
 void Kotlin_initRuntimeIfNeeded();
 void Kotlin_deinitRuntimeIfNeeded();
 

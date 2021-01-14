@@ -50,6 +50,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value="-memory-model", valueDescription = "<model>", description = "Memory model to use, 'strict', 'relaxed' and 'experimental' are currently supported")
     var memoryModel: String? = "strict"
 
+    @Argument(value="-Xgc-log", valueDescription = "<component>", description = "GC components to enable logging for")
+    var gcLogComponents: Array<String>? = null
+
     @Argument(value="-module-name", deprecatedName = "-module_name", valueDescription = "<name>", description = "Specify a name for the compilation module")
     var moduleName: String? = null
 

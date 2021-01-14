@@ -259,6 +259,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                         DestroyRuntimeMode.ON_SHUTDOWN
                     }
                 })
+                put(GC_LOG_COMPONENTS, parseGCLogComponents(arguments, configuration))
             }
         }
     }
@@ -479,6 +480,19 @@ private fun parseOverrideKonanProperties(
             }
         }?.toMap()
 
+private fun parseGCLogComponents(
+        arguments: K2NativeCompilerArguments,
+        configuration: CompilerConfiguration
+): List<GCComponentLog> =
+        arguments.gcLogComponents?.mapNotNull {
+            when (it) {
+                "safepoint" -> GCComponentLog.SAFE_POINT
+                else -> {
+                    configuration.report(ERROR, "unknown GC component $it")
+                    null
+                }
+            }
+        } ?: emptyList()
 
 
 fun main(args: Array<String>) = K2Native.main(args)

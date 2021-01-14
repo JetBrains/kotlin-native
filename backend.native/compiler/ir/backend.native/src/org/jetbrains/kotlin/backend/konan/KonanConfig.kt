@@ -46,6 +46,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     val memoryModel: MemoryModel get() = configuration.get(KonanConfigKeys.MEMORY_MODEL)!!
     val destroyRuntimeMode: DestroyRuntimeMode get() = configuration.get(KonanConfigKeys.DESTROY_RUNTIME_MODE)!!
+    val gcLogComponents: List<GCComponentLog> get() = configuration.get(KonanConfigKeys.GC_LOG_COMPONENTS)!!
 
     val needVerifyIr: Boolean
         get() = configuration.get(KonanConfigKeys.VERIFY_IR) == true
