@@ -293,11 +293,11 @@ fun createTestTasks(
         testTaskName: String,
         testedTaskNames: List<String>,
         configureCompileToBitcode: CompileToBitcode.() -> Unit = {},
-) {
+): List<Task> {
     val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
     val target = platformManager.targetByName(targetName)
     val sanitizers = target.supportedSanitizers()
-    sanitizers.forEach { sanitizer ->
+    return sanitizers.map { sanitizer ->
         val suffix = CompileToBitcodeExtension.suffixForSanitizer(sanitizer)
         val name = testTaskName + suffix
         val testedNames = testedTaskNames.map {

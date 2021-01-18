@@ -110,7 +110,9 @@ bitcode {
 }
 
 targetList.forEach { targetName ->
-    createTestTasks(
+    val allTests = mutableListOf<Task>()
+
+    allTests.addAll(createTestTasks(
             project,
             targetName,
             "${targetName}StdAllocRuntimeTests",
@@ -123,9 +125,9 @@ targetList.forEach { targetName ->
             )
     ) {
         includeRuntime()
-    }
+    })
 
-    createTestTasks(
+    allTests.addAll(createTestTasks(
             project,
             targetName,
             "${targetName}MimallocRuntimeTests",
@@ -139,9 +141,9 @@ targetList.forEach { targetName ->
             )
     ) {
         includeRuntime()
-    }
+    })
 
-    createTestTasks(
+    allTests.addAll(createTestTasks(
             project,
             targetName,
             "${targetName}ExperimentalMMMimallocRuntimeTests",
@@ -154,9 +156,9 @@ targetList.forEach { targetName ->
             )
     ) {
         includeRuntime()
-    }
+    })
 
-    createTestTasks(
+    allTests.addAll(createTestTasks(
             project,
             targetName,
             "${targetName}ExperimentalMMStdAllocRuntimeTests",
@@ -168,18 +170,11 @@ targetList.forEach { targetName ->
             )
     ) {
         includeRuntime()
-    }
+    })
 
     // TODO: This "all tests" tasks should be provided by `CompileToBitcodeExtension`
     tasks.register("${targetName}RuntimeTests") {
-        val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
-        val target = platformManager.targetByName(targetName)
-        target.supportedSanitizers().forEach { sanitizer ->
-            dependsOn("${targetName}StdAllocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
-            dependsOn("${targetName}MimallocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
-            dependsOn("${targetName}ExperimentalMMStdAllocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
-            dependsOn("${targetName}ExperimentalMMMimallocRuntimeTests${CompileToBitcodeExtension.suffixForSanitizer(sanitizer)}")
-        }
+        dependsOn(allTests)
     }
 }
 
