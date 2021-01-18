@@ -509,19 +509,21 @@ class HTMLRender: Render() {
                             val regressionsGeometricMean = report.regressionsGeometricMean
                             val maximumImprovement = report.maximumImprovement
                             val improvementsGeometricMean = report.improvementsGeometricMean
+                            val maximumChange = maxOf(maximumRegression, abs(maximumImprovement))
+                            val maximumChangeGeoMean = maxOf(regressionsGeometricMean,
+                                    abs(improvementsGeometricMean))
                             if (!report.regressions.isEmpty()) {
                                 td { +"${report.regressions.size}" }
                                 td {
                                     attributes["bgcolor"] = ColoredCell(
-                                            maximumRegression / maxOf(maximumRegression, abs(maximumImprovement)))
-                                            .backgroundStyle
+                                                (maximumRegression/maximumChange).takeIf{ maximumChange > 0.0 }
+                                            ).backgroundStyle
                                     +formatValue(maximumRegression, true)
                                 }
                                 td {
                                     attributes["bgcolor"] = ColoredCell(
-                                            regressionsGeometricMean / maxOf(regressionsGeometricMean,
-                                                    abs(improvementsGeometricMean)))
-                                            .backgroundStyle
+                                            (regressionsGeometricMean/maximumChangeGeoMean).takeIf{ maximumChangeGeoMean > 0.0 }
+                                    ).backgroundStyle
                                     +formatValue(report.regressionsGeometricMean, true)
                                 }
                             } else {
@@ -536,19 +538,22 @@ class HTMLRender: Render() {
                                 val regressionsGeometricMean = report.regressionsGeometricMean
                                 val maximumImprovement = report.maximumImprovement
                                 val improvementsGeometricMean = report.improvementsGeometricMean
+                                val maximumChange = maxOf(maximumRegression, abs(maximumImprovement))
+                                val maximumChangeGeoMean = maxOf(regressionsGeometricMean,
+                                        abs(improvementsGeometricMean))
                                 if (!report.improvements.isEmpty()) {
                                     td { +"${report.improvements.size}" }
                                     td {
                                         attributes["bgcolor"] = ColoredCell(
-                                                maximumImprovement / maxOf(maximumRegression, abs(maximumImprovement)))
-                                                .backgroundStyle
+                                                (maximumImprovement / maximumChange).takeIf{ maximumChange > 0.0 }
+                                        ).backgroundStyle
                                         +formatValue(report.maximumImprovement, true)
                                     }
                                     td {
                                         attributes["bgcolor"] = ColoredCell(
-                                                improvementsGeometricMean / maxOf(regressionsGeometricMean,
-                                                        abs(improvementsGeometricMean)))
-                                                .backgroundStyle
+                                                (improvementsGeometricMean / maximumChangeGeoMean)
+                                                        .takeIf{ maximumChangeGeoMean > 0.0 }
+                                        ).backgroundStyle
                                         +formatValue(report.improvementsGeometricMean, true)
                                     }
                                 } else {
