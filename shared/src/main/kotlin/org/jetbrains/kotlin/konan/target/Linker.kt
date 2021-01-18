@@ -126,7 +126,9 @@ class AndroidLinker(targetProperties: AndroidConfigurables)
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
                                    sanitizer: SanitizerKind): List<Command> {
-        if (sanitizer != SanitizerKind.NONE) throw Error("Sanitizers are unsupported")
+        require(sanitizer == SanitizerKind.NONE) {
+            "Sanitizers are unsupported"
+        }
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
             return staticGnuArCommands(ar, executable, objectFiles, libraries)
 
@@ -222,7 +224,9 @@ class MacOSBasedLinker(targetProperties: AppleConfigurables)
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
                                    sanitizer: SanitizerKind): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY) {
-            if (sanitizer != SanitizerKind.NONE) throw Error("Sanitizers are unsupported")
+            require(sanitizer == SanitizerKind.NONE) {
+                "Sanitizers are unsupported"
+            }
             return listOf(Command(libtool).apply {
                 +"-static"
                 +listOf("-o", executable)
@@ -338,13 +342,15 @@ class GccBasedLinker(targetProperties: GccConfigurables)
     private val specificLibs = abiSpecificLibraries.map { "-L${absoluteTargetSysRoot}/$it" }
 
     override fun provideCompilerRtLibrary(libraryName: String, isDynamic: Boolean): String? {
+        require(!isDynamic) {
+            "Dynamic compiler rt librares are unsupported"
+        }
         val targetSuffix = when (target) {
             KonanTarget.LINUX_X64 -> "x86_64"
             else -> error("$target is not supported.")
         }
         val dir = File("$absoluteLlvmHome/lib/clang/").listFiles.firstOrNull()?.absolutePath
-        val extension = if (isDynamic) ".so" else ".a"
-        return if (dir != null) "$dir/lib/linux/libclang_rt.$libraryName-$targetSuffix$extension" else null
+        return if (dir != null) "$dir/lib/linux/libclang_rt.$libraryName-$targetSuffix.a" else null
     }
 
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isUnixStaticLib }
@@ -356,7 +362,9 @@ class GccBasedLinker(targetProperties: GccConfigurables)
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
                                    sanitizer: SanitizerKind): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY) {
-            if (sanitizer != SanitizerKind.NONE) throw Error("Sanitizers are unsupported")
+            require(sanitizer == SanitizerKind.NONE) {
+                "Sanitizers are unsupported"
+            }
             return staticGnuArCommands(ar, executable, objectFiles, libraries)
         }
         val isMips = target == KonanTarget.LINUX_MIPS32 || target == KonanTarget.LINUX_MIPSEL32
@@ -423,13 +431,15 @@ class MingwLinker(targetProperties: MingwConfigurables)
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isWindowsStaticLib || it.isUnixStaticLib }
 
     override fun provideCompilerRtLibrary(libraryName: String, isDynamic: Boolean): String? {
+        require(!isDynamic) {
+            "Dynamic compiler rt librares are unsupported"
+        }
         val targetSuffix = when (target) {
             KonanTarget.MINGW_X64 -> "x86_64"
             else -> error("$target is not supported.")
         }
         val dir = File("$absoluteLlvmHome/lib/clang/").listFiles.firstOrNull()?.absolutePath
-        val extension = if (isDynamic) "so" else "a"
-        return if (dir != null) "$dir/lib/windows/libclang_rt.$libraryName-$targetSuffix.$extension" else null
+        return if (dir != null) "$dir/lib/windows/libclang_rt.$libraryName-$targetSuffix.a" else null
     }
 
     override fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
@@ -438,7 +448,9 @@ class MingwLinker(targetProperties: MingwConfigurables)
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
                                    sanitizer: SanitizerKind): List<Command> {
-        if (sanitizer != SanitizerKind.NONE) throw Error("Sanitizers are unsupported")
+        require(sanitizer == SanitizerKind.NONE) {
+            "Sanitizers are unsupported"
+        }
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
             return staticGnuArCommands(ar, executable, objectFiles, libraries)
 
@@ -478,7 +490,9 @@ class WasmLinker(targetProperties: WasmConfigurables)
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
                                    sanitizer: SanitizerKind): List<Command> {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind")
-        if (sanitizer != SanitizerKind.NONE) throw Error("Sanitizers are unsupported")
+        require(sanitizer == SanitizerKind.NONE) {
+            "Sanitizers are unsupported"
+        }
 
         val linkage = Command("$llvmBin/wasm-ld").apply {
             +objectFiles
@@ -532,7 +546,9 @@ open class ZephyrLinker(targetProperties: ZephyrConfigurables)
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
                                    sanitizer: SanitizerKind): List<Command> {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind: $kind")
-        if (sanitizer != SanitizerKind.NONE) throw Error("Sanitizers are unsupported")
+        require(sanitizer == SanitizerKind.NONE) {
+            "Sanitizers are unsupported"
+        }
         return listOf(Command(linker).apply {
             +listOf("-r", "--gc-sections", "--entry", "main")
             +listOf("-o", executable)
