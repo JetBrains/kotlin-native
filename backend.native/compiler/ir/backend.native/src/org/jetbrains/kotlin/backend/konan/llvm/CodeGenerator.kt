@@ -1302,7 +1302,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
             releaseVars()
-            // TODO: Also a safe point?
+            call(context.llvm.Kotlin_mm_safePointExceptionUnwind, emptyList())
             LLVMBuildResume(builder, landingpad)
         }
 
