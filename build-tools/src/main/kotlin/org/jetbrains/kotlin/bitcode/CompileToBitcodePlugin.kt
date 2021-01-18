@@ -50,15 +50,17 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) {
         targetList.get().forEach { targetName ->
             val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
             val target = platformManager.targetByName(targetName)
-            target.supportedSanitizers().forEach { sanitizer ->
+            val sanitizers: List<SanitizerKind?> = target.supportedSanitizers() + listOf(null)
+            sanitizers.forEach { sanitizer ->
                 project.tasks.register(
                         "${targetName}${name.snakeCaseToCamelCase().capitalize()}${suffixForSanitizer(sanitizer)}",
                         CompileToBitcode::class.java,
-                        srcDir, name, targetName, outputGroup, sanitizer
+                        srcDir, name, targetName, outputGroup
                 ).configure {
+                    it.sanitizer = sanitizer
                     it.group = BasePlugin.BUILD_GROUP
                     val sanitizerDescription = when (sanitizer) {
-                        SanitizerKind.NONE -> ""
+                        null -> ""
                         SanitizerKind.ADDRESS -> " with ASAN"
                         SanitizerKind.THREAD -> " with TSAN"
                     }
@@ -74,9 +76,9 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) {
         private fun String.snakeCaseToCamelCase() =
                 split('_').joinToString(separator = "") { it.capitalize() }
 
-        fun suffixForSanitizer(sanitizer: SanitizerKind) =
+        fun suffixForSanitizer(sanitizer: SanitizerKind?) =
             when (sanitizer) {
-                SanitizerKind.NONE -> ""
+                null -> ""
                 SanitizerKind.ADDRESS -> "_ASAN"
                 SanitizerKind.THREAD -> "_TSAN"
             }

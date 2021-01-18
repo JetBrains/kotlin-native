@@ -19,7 +19,6 @@ import org.jetbrains.kotlin.konan.target.*
 open class CompileNativeTest @Inject constructor(
         @InputFile val inputFile: File,
         @Input val target: KonanTarget,
-        sanitizer: SanitizerKind,
 ) : DefaultTask() {
     @OutputFile
     var outputFile = project.buildDir.resolve("bin/test/${target.name}/${inputFile.nameWithoutExtension}.o")
@@ -27,9 +26,12 @@ open class CompileNativeTest @Inject constructor(
     @Input
     val clangArgs = mutableListOf<String>()
 
+    @Input @Optional
+    var sanitizer: SanitizerKind? = null
+
     @Input
     private val sanitizerFlags = when (sanitizer) {
-        SanitizerKind.NONE -> listOf()
+        null -> listOf()
         SanitizerKind.ADDRESS -> listOf("-fsanitize=address")
         SanitizerKind.THREAD -> listOf("-fsanitize=thread")
     }
@@ -103,7 +105,6 @@ open class LinkNativeTest @Inject constructor(
         @Internal val linkerArgs: List<String>,
         private val  platformManager: PlatformManager,
         private val mimallocEnabled: Boolean,
-        private val sanitizer: SanitizerKind,
 ) : DefaultTask () {
     companion object {
         fun create(
@@ -115,7 +116,6 @@ open class LinkNativeTest @Inject constructor(
                 outputFile: File,
                 linkerArgs: List<String>,
                 mimallocEnabled: Boolean,
-                sanitizer: SanitizerKind,
         ): LinkNativeTest = project.tasks.create(
                 taskName,
                 LinkNativeTest::class.java,
@@ -124,8 +124,7 @@ open class LinkNativeTest @Inject constructor(
                 target,
                 linkerArgs,
                 platformManager,
-                mimallocEnabled,
-                sanitizer)
+                mimallocEnabled)
 
         fun create(
                 project: Project,
@@ -135,7 +134,6 @@ open class LinkNativeTest @Inject constructor(
                 target: String,
                 executableName: String,
                 mimallocEnabled: Boolean,
-                sanitizer: SanitizerKind,
                 linkerArgs: List<String> = listOf()
         ): LinkNativeTest = create(
                 project,
@@ -144,8 +142,11 @@ open class LinkNativeTest @Inject constructor(
                 inputFiles,
                 target,
                 project.buildDir.resolve("bin/test/$target/$executableName"),
-                linkerArgs, mimallocEnabled, sanitizer)
+                linkerArgs, mimallocEnabled)
     }
+
+    @Input @Optional
+    var sanitizer: SanitizerKind? = null
 
     @get:Input
     val commands: List<List<String>>
@@ -182,7 +183,7 @@ private fun createTestTask(
         project: Project,
         testName: String,
         testedTaskNames: List<String>,
-        sanitizer: SanitizerKind,
+        sanitizer: SanitizerKind?,
         configureCompileToBitcode: CompileToBitcode.() -> Unit = {},
 ): Task {
     val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
@@ -201,8 +202,9 @@ private fun createTestTask(
                     CompileToBitcode::class.java,
                     it.srcRoot,
                     "${it.folderName}Tests",
-                    target, "test", sanitizer
+                    target, "test"
                     ).apply {
+                this.sanitizer = sanitizer
                 excludeFiles = emptyList()
                 includeFiles = listOf("**/*Test.cpp", "**/*Test.mm")
                 dependsOn(it)
@@ -242,8 +244,8 @@ private fun createTestTask(
             CompileNativeTest::class.java,
             llvmLinkTask.outputFile,
             konanTarget,
-            sanitizer,
     ).apply {
+        this.sanitizer = sanitizer
         dependsOn(llvmLinkTask)
         clangArgs.addAll(clangFlags.clangFlags)
         clangArgs.addAll(clangFlags.clangNooptFlags)
@@ -258,8 +260,8 @@ private fun createTestTask(
             target,
             testName,
             mimallocEnabled,
-            sanitizer,
     ).apply {
+        this.sanitizer = sanitizer
         dependsOn(compileTask)
     }
 
@@ -296,7 +298,7 @@ fun createTestTasks(
 ): List<Task> {
     val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
     val target = platformManager.targetByName(targetName)
-    val sanitizers = target.supportedSanitizers()
+    val sanitizers: List<SanitizerKind?> = target.supportedSanitizers() + listOf(null)
     return sanitizers.map { sanitizer ->
         val suffix = CompileToBitcodeExtension.suffixForSanitizer(sanitizer)
         val name = testTaskName + suffix

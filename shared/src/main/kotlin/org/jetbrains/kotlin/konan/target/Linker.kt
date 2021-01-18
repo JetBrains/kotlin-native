@@ -77,7 +77,7 @@ abstract class LinkerFlags(val configurables: Configurables) {
                                    optimize: Boolean, debug: Boolean,
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
-                                   sanitizer: SanitizerKind): List<Command>
+                                   sanitizer: SanitizerKind? = null): List<Command>
 
     /**
      * Returns list of commands that link object files into a single one.
@@ -125,8 +125,8 @@ class AndroidLinker(targetProperties: AndroidConfigurables)
                                    optimize: Boolean, debug: Boolean,
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
-                                   sanitizer: SanitizerKind): List<Command> {
-        require(sanitizer == SanitizerKind.NONE) {
+                                   sanitizer: SanitizerKind?): List<Command> {
+        require(sanitizer == null) {
             "Sanitizers are unsupported"
         }
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
@@ -222,9 +222,9 @@ class MacOSBasedLinker(targetProperties: AppleConfigurables)
                                    optimize: Boolean, debug: Boolean, kind: LinkerOutputKind,
                                    outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
-                                   sanitizer: SanitizerKind): List<Command> {
+                                   sanitizer: SanitizerKind?): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY) {
-            require(sanitizer == SanitizerKind.NONE) {
+            require(sanitizer == null) {
                 "Sanitizers are unsupported"
             }
             return listOf(Command(libtool).apply {
@@ -255,7 +255,7 @@ class MacOSBasedLinker(targetProperties: AppleConfigurables)
             +linkerArgs
             +rpath(dynamic, sanitizer)
             when (sanitizer) {
-                SanitizerKind.NONE -> {}
+                null -> {}
                 SanitizerKind.ADDRESS -> +provideCompilerRtLibrary("asan", isDynamic=true)!!
                 SanitizerKind.THREAD -> +provideCompilerRtLibrary("tsan", isDynamic=true)!!
             }
@@ -276,7 +276,7 @@ class MacOSBasedLinker(targetProperties: AppleConfigurables)
         provideCompilerRtLibrary("")
     }
 
-    private fun rpath(dynamic: Boolean, sanitizer: SanitizerKind): List<String> = listOfNotNull(
+    private fun rpath(dynamic: Boolean, sanitizer: SanitizerKind?): List<String> = listOfNotNull(
             when (target.family) {
                 Family.OSX -> "@executable_path/../Frameworks"
                 Family.IOS,
@@ -285,7 +285,7 @@ class MacOSBasedLinker(targetProperties: AppleConfigurables)
                 else -> error(target)
             },
             "@loader_path/Frameworks".takeIf { dynamic },
-            compilerRtDir.takeIf { sanitizer != SanitizerKind.NONE },
+            compilerRtDir.takeIf { sanitizer != null },
     ).flatMap { listOf("-rpath", it) }
 
     fun dsymUtilCommand(executable: ExecutableFile, outputDsymBundle: String) =
@@ -360,9 +360,9 @@ class GccBasedLinker(targetProperties: GccConfigurables)
                                    optimize: Boolean, debug: Boolean,
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
-                                   sanitizer: SanitizerKind): List<Command> {
+                                   sanitizer: SanitizerKind?): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY) {
-            require(sanitizer == SanitizerKind.NONE) {
+            require(sanitizer == null) {
                 "Sanitizers are unsupported"
             }
             return staticGnuArCommands(ar, executable, objectFiles, libraries)
@@ -404,7 +404,7 @@ class GccBasedLinker(targetProperties: GccConfigurables)
             +if (dynamic) "$libGcc/crtendS.o" else "$libGcc/crtend.o"
             +"$crtPrefix/crtn.o"
             when (sanitizer) {
-                SanitizerKind.NONE -> {}
+                null -> {}
                 SanitizerKind.ADDRESS -> {
                     +"-lrt"
                     +provideCompilerRtLibrary("asan")!!
@@ -447,8 +447,8 @@ class MingwLinker(targetProperties: MingwConfigurables)
                                    optimize: Boolean, debug: Boolean,
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
-                                   sanitizer: SanitizerKind): List<Command> {
-        require(sanitizer == SanitizerKind.NONE) {
+                                   sanitizer: SanitizerKind?): List<Command> {
+        require(sanitizer == null) {
             "Sanitizers are unsupported"
         }
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
@@ -488,9 +488,9 @@ class WasmLinker(targetProperties: WasmConfigurables)
                                    optimize: Boolean, debug: Boolean,
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
-                                   sanitizer: SanitizerKind): List<Command> {
+                                   sanitizer: SanitizerKind?): List<Command> {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind")
-        require(sanitizer == SanitizerKind.NONE) {
+        require(sanitizer == null) {
             "Sanitizers are unsupported"
         }
 
@@ -544,9 +544,9 @@ open class ZephyrLinker(targetProperties: ZephyrConfigurables)
                                    optimize: Boolean, debug: Boolean,
                                    kind: LinkerOutputKind, outputDsymBundle: String,
                                    needsProfileLibrary: Boolean, mimallocEnabled: Boolean,
-                                   sanitizer: SanitizerKind): List<Command> {
+                                   sanitizer: SanitizerKind?): List<Command> {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind: $kind")
-        require(sanitizer == SanitizerKind.NONE) {
+        require(sanitizer == null) {
             "Sanitizers are unsupported"
         }
         return listOf(Command(linker).apply {

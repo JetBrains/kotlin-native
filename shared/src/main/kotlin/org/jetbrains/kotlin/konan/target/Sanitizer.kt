@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.konan.target
 
 enum class SanitizerKind {
-    NONE,
     ADDRESS,
     THREAD,
 }

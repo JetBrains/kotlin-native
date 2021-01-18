@@ -23,7 +23,6 @@ import java.util.regex.Pattern
 
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.LinkerOutputKind
-import org.jetbrains.kotlin.konan.target.SanitizerKind
 
 abstract class KonanTest : DefaultTask(), KonanTestExecutable {
     enum class Logger {
@@ -491,8 +490,7 @@ open class KonanDynamicTest : KonanStandaloneTest() {
                 kind = LinkerOutputKind.EXECUTABLE,
                 outputDsymBundle = "",
                 needsProfileLibrary = false,
-                mimallocEnabled = false,
-                sanitizer = SanitizerKind.NONE,
+                mimallocEnabled = false
         )
         commands.map { cmd ->
             // Filter out linker option that defines __cxa_demangle because Konan_cxa_demangle is not defined in tests.

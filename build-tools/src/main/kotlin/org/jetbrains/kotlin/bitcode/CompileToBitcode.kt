@@ -21,7 +21,6 @@ open class CompileToBitcode @Inject constructor(
         val folderName: String,
         val target: String,
         val outputGroup: String,
-        @Input val sanitizer: SanitizerKind,
 ) : DefaultTask() {
 
     enum class Language {
@@ -48,16 +47,22 @@ open class CompileToBitcode @Inject constructor(
     @Input
     var language = Language.CPP
 
-    private val targetDir by lazy {
-        val sanitizerSuffix = when (sanitizer) {
-            SanitizerKind.NONE -> ""
-            SanitizerKind.ADDRESS -> "-asan"
-            SanitizerKind.THREAD -> "-tsan"
-        }
-        project.buildDir.resolve("bitcode/$outputGroup/$target$sanitizerSuffix")
-    }
+    @Input @Optional
+    var sanitizer: SanitizerKind? = null
 
-    val objDir by lazy { File(targetDir, folderName) }
+    private val targetDir: File
+        get() {
+            val sanitizerSuffix = when (sanitizer) {
+                null -> ""
+                SanitizerKind.ADDRESS -> "-asan"
+                SanitizerKind.THREAD -> "-tsan"
+            }
+            return project.buildDir.resolve("bitcode/$outputGroup/$target$sanitizerSuffix")
+        }
+
+    @get:Input
+    val objDir
+        get() = File(targetDir, folderName)
 
     private val KonanTarget.isMINGW
         get() = this.family == Family.MINGW
@@ -73,7 +78,7 @@ open class CompileToBitcode @Inject constructor(
         get() {
             val commonFlags = listOf("-c", "-emit-llvm") + headersDirs.map { "-I$it" }
             val sanitizerFlags = when (sanitizer) {
-                SanitizerKind.NONE -> listOf()
+                null -> listOf()
                 SanitizerKind.ADDRESS -> listOf("-fsanitize=address")
                 SanitizerKind.THREAD -> listOf("-fsanitize=thread")
             }
@@ -141,8 +146,9 @@ open class CompileToBitcode @Inject constructor(
             }
         }
 
-    @OutputFile
-    val outFile = File(targetDir, "${folderName}.bc")
+    @get:OutputFile
+    val outFile: File
+        get() = File(targetDir, "${folderName}.bc")
 
     @TaskAction
     fun compile() {

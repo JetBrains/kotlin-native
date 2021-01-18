@@ -32,7 +32,7 @@ fun KonanTarget.supportsThreads(): Boolean =
      }
 
 fun KonanTarget.supportedSanitizers(): List<SanitizerKind> =
-    listOf(SanitizerKind.NONE) + when(this) {
+    when(this) {
         is KonanTarget.LINUX_X64 -> listOf(SanitizerKind.ADDRESS)
         is KonanTarget.MACOS_X64 -> listOf(SanitizerKind.THREAD)
         // TODO: Enable ASAN on macOS. Currently there's an incompatibility between clang and its runtime versions.
