@@ -1302,6 +1302,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
             releaseVars()
+            // TODO: Also a safe point?
             LLVMBuildResume(builder, landingpad)
         }
 
