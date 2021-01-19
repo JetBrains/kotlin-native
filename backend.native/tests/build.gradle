@@ -2956,6 +2956,13 @@ standaloneTest("leakMemory") {
     outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
 }
 
+standaloneTest("leakMemoryWithTestRunner") {
+    source = "runtime/memory/leak_memory_test_runner.kt"
+    flags = ['-tr']
+    expectedExitStatusChecker = { it != 0 }
+    outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
+}
+
 standaloneTest("mpp1") {
     source = "codegen/mpp/mpp1.kt"
     flags = ['-tr', '-Xmulti-platform']
