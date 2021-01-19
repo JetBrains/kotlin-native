@@ -8,10 +8,8 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithSource
-import org.jetbrains.kotlin.psi.KtDeclaration
-import org.jetbrains.kotlin.psi.KtPrimaryConstructor
-import org.jetbrains.kotlin.resolve.source.getPsi
 import org.jetbrains.kotlin.backend.common.serialization.extractSerializedKdocString
+import org.jetbrains.kotlin.backend.common.serialization.metadata.findKDocString
 
 object StubRenderer {
     fun render(stub: Stub<*>): List<String> = collect {
@@ -217,18 +215,7 @@ internal fun formatGenerics(buffer: Appendable, generics:List<String>) {
 }
 
 private fun DeclarationDescriptor.extractKDocString(): String? {
-    if (this is DeclarationDescriptorWithSource) {
-        val psi = source.getPsi()
-        if (psi is KtDeclaration) {
-            if (psi is KtPrimaryConstructor)
-                return null  // to be rendered with class itself
-            val kdoc = psi.docComment
-            if (kdoc != null) {
-                return kdoc.getDefaultSection().parent.text
-            }
-        }
-    }
-    // Or ir may be some kind of DeserializedDescriptor
-    return extractSerializedKdocString()
+    return (this as? DeclarationDescriptorWithSource)?.findKDocString()
+            ?: extractSerializedKdocString()
 }
 
