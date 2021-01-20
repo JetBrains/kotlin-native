@@ -35,7 +35,7 @@ fun KonanTarget.supportedSanitizers(): List<SanitizerKind> =
     when(this) {
         is KonanTarget.LINUX_X64 -> listOf(SanitizerKind.ADDRESS)
         is KonanTarget.MACOS_X64 -> listOf(SanitizerKind.THREAD)
-        // TODO: Enable ASAN on macOS. Currently there's an incompatibility between clang and its runtime versions.
+        // TODO: Enable ASAN on macOS. Currently there's an incompatibility between clang frontend version and clang_rt.asan version.
         // TODO: Enable TSAN on linux. Currently there's a link error between clang_rt.tsan and libstdc++.
         // TODO: Consider supporting mingw.
         // TODO: Support macOS arm64
