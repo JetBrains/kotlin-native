@@ -534,9 +534,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         override fun genContinue(destination: IrContinue) {
-            if (destination.loop == loop)
+            if (destination.loop == loop) {
+                call(context.llvm.Kotlin_mm_safePointWhileLoopContinue, emptyList())
                 functionGenerationContext.br(loopCheck)
-            else
+            } else
                 super.genContinue(destination)
         }
 

@@ -286,6 +286,7 @@ ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_switchThreadStateRunnable();
 // Safe point callbacks from Kotlin code generator.
 void Kotlin_mm_safePointFunctionEpilogue() RUNTIME_NOTHROW;
 void Kotlin_mm_safePointWhileLoopBody() RUNTIME_NOTHROW;
+void Kotlin_mm_safePointWhileLoopContinue() RUNTIME_NOTHROW;
 void Kotlin_mm_safePointExceptionUnwind() RUNTIME_NOTHROW;
 
 #ifdef __cplusplus

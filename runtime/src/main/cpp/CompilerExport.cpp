@@ -46,5 +46,6 @@ void EnsureDeclarationsEmitted() {
     ensureUsed(Kotlin_mm_switchThreadStateRunnable);
     ensureUsed(Kotlin_mm_safePointFunctionEpilogue);
     ensureUsed(Kotlin_mm_safePointWhileLoopBody);
+    ensureUsed(Kotlin_mm_safePointWhileLoopContinue);
     ensureUsed(Kotlin_mm_safePointExceptionUnwind);
 }
