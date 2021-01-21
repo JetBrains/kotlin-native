@@ -95,7 +95,7 @@ abstract class KonanTest : DefaultTask(), KonanTestExecutable {
             arguments.add("--ktest_logger=$testLogger")
         }
         if (useFilter && ::source.isInitialized) {
-            arguments.add("--ktest_filter=${source.convertToPattern()}")
+            arguments.add("--ktest_filter=\"${source.convertToPattern()}\"")
         }
         this.dependsOnDist()
         return this

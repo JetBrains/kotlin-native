@@ -3448,10 +3448,10 @@ class Filter {
     List<String> args() {
         List<String> result = []
         if (positive != null && !positive.isEmpty()) {
-            result += "--ktest_gradle_filter=${asListOfPatterns(positive)}"
+            result += "--ktest_gradle_filter=\"${asListOfPatterns(positive)}\""
         }
         if (negative != null && !negative.isEmpty()) {
-            result += "--ktest_negative_gradle_filter=${asListOfPatterns(negative)}"
+            result += "--ktest_negative_gradle_filter=\"${asListOfPatterns(negative)}\""
         }
         return result
     }
@@ -4760,7 +4760,7 @@ KotlinNativeTestKt.createTest(project, 'harmonyRegexTest', KonanGTest) { task ->
             "test.text.harmony_regex.PatternTest.testAlternationsWithSurrogatesSupplementary",
             "test.text.harmony_regex.PatternTest.testGroupsWithSurrogatesSupplementary"
         ]
-        task.arguments += "--ktest_filter=*-${excludedTests.join(":")}"
+        task.arguments += "--ktest_filter=\"*-${excludedTests.join(":")}\""
     }
 
     def sources = UtilsKt.getFilesToCompile(project, ["harmony_regex"], [])
