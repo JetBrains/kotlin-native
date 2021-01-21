@@ -14,21 +14,17 @@ import org.jetbrains.kotlin.backend.common.serialization.metadata.findKDocString
 object StubRenderer {
     fun render(stub: Stub<*>): List<String> = collect {
         stub.run {
-            val kDocString = this.descriptor?.extractKDocString()
             this.comment?.let { comment ->
                 +"" // Probably makes the output more readable.
                 +"/**"
-                kDocString?.let {
-                    + it.removeSurrounding("/**", "*/")
-                    +"" // Probably makes the following comment more readable.
-                }
                 comment.contentLines.forEach {
                     +" $it"
                 }
                 +"*/"
             }
-                    // Let's try to keep non-trivial kdoc formatting intact, when there is no other comments here
-                    ?: kDocString?.let { +it }
+
+            // Let's try to keep non-trivial kdoc formatting intact
+            this.descriptor?.extractKDocString()?.let { +it }
 
             when (this) {
                 is ObjCProtocol -> {
