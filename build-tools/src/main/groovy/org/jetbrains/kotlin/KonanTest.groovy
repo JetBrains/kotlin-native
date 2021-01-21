@@ -561,7 +561,7 @@ fun runTest() {
             ktFiles.each { file ->
                 def src = project.buildDir.relativePath(file)
                 def savedArgs = arguments
-                arguments += "--ktest_filter=_${normalize(file.name)}.*"
+                arguments += "--ktest_filter=\"_${normalize(file.name)}.*\""
                 use(KonanTestSuiteReportKt) {
                     project.logger.quiet("TEST: $file.name " +
                             "(done: $testGroupReporter.statistics.total/${ktFiles.size()}, " +
