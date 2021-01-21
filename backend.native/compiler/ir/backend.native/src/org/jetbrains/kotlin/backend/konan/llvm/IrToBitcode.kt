@@ -535,7 +535,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         override fun genContinue(destination: IrContinue) {
             if (destination.loop == loop) {
-                call(context.llvm.Kotlin_mm_safePointWhileLoopContinue, emptyList())
+                if (context.memoryModel == MemoryModel.EXPERIMENTAL)
+                    call(context.llvm.Kotlin_mm_safePointWhileLoopContinue, emptyList())
                 functionGenerationContext.br(loopCheck)
             } else
                 super.genContinue(destination)
@@ -1242,7 +1243,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
-            call(context.llvm.Kotlin_mm_safePointWhileLoopBody, emptyList())
+            if (context.memoryModel == MemoryModel.EXPERIMENTAL)
+                call(context.llvm.Kotlin_mm_safePointWhileLoopBody, emptyList())
 
             functionGenerationContext.br(loopScope.loopCheck)
             functionGenerationContext.positionAtEnd(loopScope.loopExit)
@@ -1263,7 +1265,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
-            call(context.llvm.Kotlin_mm_safePointWhileLoopBody, emptyList())
+            if (context.memoryModel == MemoryModel.EXPERIMENTAL)
+                call(context.llvm.Kotlin_mm_safePointWhileLoopBody, emptyList())
             functionGenerationContext.br(loopScope.loopCheck)
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
