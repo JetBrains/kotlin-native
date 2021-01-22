@@ -3692,10 +3692,6 @@ ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointWhileLoopBody() {
     // no-op, used by the new MM only.
 }
 
-ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointWhileLoopContinue() {
-    // no-op, used by the new MM only.
-}
-
 ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
     // no-op, used by the new MM only.
 }

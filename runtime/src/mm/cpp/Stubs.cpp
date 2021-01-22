@@ -118,10 +118,6 @@ RUNTIME_NOTHROW void Kotlin_mm_safePointWhileLoopBody() {
     TODO();
 }
 
-RUNTIME_NOTHROW void Kotlin_mm_safePointWhileLoopContinue() {
-    TODO();
-}
-
 RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
     TODO();
 }
