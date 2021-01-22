@@ -64,6 +64,8 @@ struct ObjHeader {
       return createMetaObject(this);
   }
 
+  MetaObjHeader* meta_object_or_null() const noexcept { return AsMetaObject(typeInfoOrMeta_); }
+
   ALWAYS_INLINE ObjHeader** GetWeakCounterLocation();
 
 #ifdef KONAN_OBJC_INTEROP
