@@ -15,7 +15,14 @@ struct ObjHeader;
 namespace kotlin {
 namespace mm {
 
-// Stack scanning must be performed by the mutator. Make sure it does as little as possible.
+// Accessing current stack as provided by K/N compiler. The compiler calls `EnterFrame` when
+// it has allocated and zeroed stack space in the function prologue. And it calls `LeaveFrame` in
+// the function epilogue (both for regular return and for exception unwinding).
+//
+// Stack scanning does not lock anything and so must either be done while the mutator is stopped (or is
+// running code outside Kotlin), or by the mutator itself. So, in concurrent collection case, make sure
+// to do as little as possible while scanning the stack to free the mutator as soon as possible.
+//
 // TODO: This is currently incompatible with stack-allocated objects. Fix it.
 class ShadowStack : private Pinned {
 public:
@@ -32,6 +39,7 @@ public:
     private:
         void Init() noexcept;
 
+        // TODO: This copies the approach in the old MM. Do we need to also traverse function parameters in the new MM?
         ObjHeader** begin() noexcept { return frame_ ? reinterpret_cast<ObjHeader**>(frame_ + 1) + frame_->parameters : nullptr; }
         ObjHeader** end() noexcept {
             constexpr int kFrameOverlaySlots = sizeof(FrameOverlay) / sizeof(ObjHeader**);
