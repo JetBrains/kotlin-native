@@ -9,7 +9,9 @@
 #include "ExtraObjectData.hpp"
 #include "GlobalsRegistry.hpp"
 #include "KAssert.h"
+#include "Natives.h"
 #include "Porting.h"
+#include "RefUpdates.hpp"
 #include "StableRefRegistry.hpp"
 #include "ThreadData.hpp"
 #include "ThreadRegistry.hpp"
@@ -125,22 +127,80 @@ extern "C" OBJ_GETTER(AllocArrayInstance, const TypeInfo* typeInfo, int32_t elem
     RETURN_OBJ(reinterpret_cast<ObjHeader*>(array));
 }
 
-extern "C" OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+extern "C" ALWAYS_INLINE OBJ_GETTER(InitThreadLocalSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
-    // TODO: This should only be called if singleton is actually created here. It's possible that the
-    // singleton will be created on a different thread and here we should check that, instead of creating
-    // another one (and registering `location` twice).
-    mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
-    TODO();
+
+    auto* object = mm::InitThreadLocalSingleton(threadData, location, typeInfo, ctor);
+    RETURN_OBJ(object);
+}
+
+extern "C" ALWAYS_INLINE OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+    auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
+
+    RETURN_RESULT_OF(mm::InitSingleton, threadData, location, typeInfo, ctor);
 }
 
 extern "C" RUNTIME_NOTHROW void InitAndRegisterGlobal(ObjHeader** location, const ObjHeader* initialValue) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
-    TODO();
+    mm::SetHeapRef(location, const_cast<ObjHeader*>(initialValue));
 }
 
 extern "C" const MemoryModel CurrentMemoryModel = MemoryModel::kExperimental;
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void SetStackRef(ObjHeader** location, const ObjHeader* object) {
+    mm::SetStackRef(location, const_cast<ObjHeader*>(object));
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void SetHeapRef(ObjHeader** location, const ObjHeader* object) {
+    mm::SetHeapRef(location, const_cast<ObjHeader*>(object));
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void ZeroHeapRef(ObjHeader** location) {
+    mm::SetHeapRef(location, nullptr);
+}
+
+extern "C" RUNTIME_NOTHROW void ZeroArrayRefs(ArrayHeader* array) {
+    for (uint32_t index = 0; index < array->count_; ++index) {
+        ObjHeader** location = ArrayAddressOfElementAt(array, index);
+        mm::SetHeapRef(location, nullptr);
+    }
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void ZeroStackRef(ObjHeader** location) {
+    mm::SetStackRef(location, nullptr);
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
+    mm::SetStackRef(location, const_cast<ObjHeader*>(object));
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
+    mm::SetHeapRef(location, const_cast<ObjHeader*>(object));
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
+    mm::CompareAndSwapHeapRef(location, nullptr, const_cast<ObjHeader*>(object));
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
+    mm::SetStackRef(returnSlot, const_cast<ObjHeader*>(object));
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW OBJ_GETTER(
+        SwapHeapRefLocked, ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
+    auto* oldValue = mm::CompareAndSwapHeapRef(location, expectedValue, newValue);
+    RETURN_OBJ(oldValue);
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void SetHeapRefLocked(
+        ObjHeader** location, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
+    mm::SetHeapRefLocked(location, newValue);
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* cookie) {
+    RETURN_OBJ(mm::ReadHeapRefLocked(location));
+}
 
 extern "C" OBJ_GETTER(ReadHeapRefNoLock, ObjHeader* object, int32_t index) {
     // TODO: Remove when legacy MM is gone.
@@ -250,17 +310,35 @@ extern "C" RUNTIME_NOTHROW OBJ_GETTER(AdoptStablePointer, void* pointer) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     auto* node = static_cast<mm::StableRefRegistry::Node*>(pointer);
     ObjHeader* object = **node;
-    UpdateReturnRef(OBJ_RESULT, object);
+    // Make sure `object` stays in the rootset: put it on the stack before removing it from `StableRefRegistry`.
+    mm::SetStackRef(OBJ_RESULT, object);
     mm::StableRefRegistry::Instance().UnregisterStableRef(threadData, node);
     return object;
 }
 
 extern "C" RUNTIME_NOTHROW void CheckLifetimesConstraint(ObjHeader* obj, ObjHeader* pointee) {
+    // TODO: Consider making it a `RuntimeCheck`. Probably all `RuntimeCheck`s and `RuntimeAssert`s should specify
+    //       that their firing is a compiler bug and should be reported.
     if (!obj->local() && pointee != nullptr && pointee->local()) {
         konan::consolePrintf("Attempt to store a stack object %p into a heap object %p\n", pointee, obj);
         konan::consolePrintf("This is a compiler bug, please report it to https://kotl.in/issue\n");
         konan::abort();
     }
+}
+
+extern "C" ALWAYS_INLINE bool TryAddHeapRef(const ObjHeader* object) {
+    // TODO: Remove when legacy MM is gone.
+    return true;
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void ReleaseHeapRef(const ObjHeader* object) {
+    // TODO: Remove when legacy MM is gone.
+    // Nothing to do.
+}
+
+extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void ReleaseHeapRefNoCollect(const ObjHeader* object) {
+    // TODO: Remove when legacy MM is gone.
+    // Nothing to do.
 }
 
 extern "C" ForeignRefContext InitForeignRef(ObjHeader* object) {
