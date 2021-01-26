@@ -18,8 +18,8 @@ class ThreadData;
 
 void SetStackRef(ObjHeader** location, ObjHeader* value) noexcept;
 void SetHeapRef(ObjHeader** location, ObjHeader* value) noexcept;
-void SetHeapRefLocked(ObjHeader** location, ObjHeader* value) noexcept;
-ObjHeader* ReadHeapRefLocked(ObjHeader** location) noexcept;
+void SetHeapRefAtomic(ObjHeader** location, ObjHeader* value) noexcept;
+ObjHeader* ReadHeapRefAtomic(ObjHeader** location) noexcept;
 ObjHeader* CompareAndSwapHeapRef(ObjHeader** location, ObjHeader* expected, ObjHeader* value) noexcept;
 
 // TODO: Maybe these belong to a different file.

@@ -26,11 +26,11 @@ ALWAYS_INLINE void mm::SetHeapRef(ObjHeader** location, ObjHeader* value) noexce
 // turn out to be more efficient on these platforms.
 #pragma clang diagnostic ignored "-Watomic-alignment"
 
-ALWAYS_INLINE void mm::SetHeapRefLocked(ObjHeader** location, ObjHeader* value) noexcept {
+ALWAYS_INLINE void mm::SetHeapRefAtomic(ObjHeader** location, ObjHeader* value) noexcept {
     __atomic_store_n(location, value, __ATOMIC_RELEASE);
 }
 
-ALWAYS_INLINE ObjHeader* mm::ReadHeapRefLocked(ObjHeader** location) noexcept {
+ALWAYS_INLINE ObjHeader* mm::ReadHeapRefAtomic(ObjHeader** location) noexcept {
     return __atomic_load_n(location, __ATOMIC_ACQUIRE);
 }
 
@@ -94,12 +94,12 @@ OBJ_GETTER(mm::InitSingleton, ThreadData* threadData, ObjHeader** location, cons
         ctor(object);
     } catch (...) {
         mm::SetStackRef(OBJ_RESULT, nullptr);
-        mm::SetHeapRef(location, nullptr);
+        mm::SetHeapRefAtomic(location, nullptr);
         initializingSingletons.pop_back();
         throw;
     }
 #endif
-    mm::SetHeapRef(location, object);
+    mm::SetHeapRefAtomic(location, object);
     mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
     initializingSingletons.pop_back();
     return object;

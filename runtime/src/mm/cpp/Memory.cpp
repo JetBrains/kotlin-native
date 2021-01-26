@@ -195,11 +195,11 @@ extern "C" ALWAYS_INLINE RUNTIME_NOTHROW OBJ_GETTER(
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void SetHeapRefLocked(
         ObjHeader** location, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
-    mm::SetHeapRefLocked(location, newValue);
+    mm::SetHeapRefAtomic(location, newValue);
 }
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* cookie) {
-    RETURN_OBJ(mm::ReadHeapRefLocked(location));
+    RETURN_OBJ(mm::ReadHeapRefAtomic(location));
 }
 
 extern "C" OBJ_GETTER(ReadHeapRefNoLock, ObjHeader* object, int32_t index) {
