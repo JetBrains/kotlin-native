@@ -152,13 +152,15 @@ TEST_F(InitSingletonTest, InitSingletonFail) {
 }
 
 TEST_F(InitSingletonTest, InitSingletonRecursive) {
+    // The first singleton. Its constructor depends on the second singleton.
     ObjHeader* location1 = nullptr;
     ObjHeader* stackLocation1 = nullptr;
+    // The second singleton. Its constructor depends on the first singleton.
     ObjHeader* location2 = nullptr;
     ObjHeader* stackLocation2 = nullptr;
 
     EXPECT_CALL(constructor(), Call(_))
-            .Times(2)
+            .Times(2) // called only once for each singleton.
             .WillRepeatedly([this, &location1, &stackLocation1, &location2, &stackLocation2](ObjHeader* value) {
                 if (value == stackLocation1) {
                     ObjHeader* result = InitSingleton(&location2, 0, &stackLocation2);
