@@ -64,9 +64,17 @@ struct MaxAlignedData {
     int value;
 };
 
+class ObjectFactoryStorageTest : public testing::Test {
+public:
+    mm::GC::ThreadData& gc() { return gc_; }
+
+private:
+    mm::GC::ThreadData gc_{mm::GC::Instance()};
+};
+
 } // namespace
 
-TEST(ObjectFactoryStorageTest, Empty) {
+TEST_F(ObjectFactoryStorageTest, Empty) {
     ObjectFactoryStorageRegular storage;
 
     auto actual = Collect(storage);
@@ -74,9 +82,9 @@ TEST(ObjectFactoryStorageTest, Empty) {
     EXPECT_THAT(actual, testing::IsEmpty());
 }
 
-TEST(ObjectFactoryStorageTest, DoNotPublish) {
+TEST_F(ObjectFactoryStorageTest, DoNotPublish) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
 
     producer.Insert<int>(1);
     producer.Insert<int>(2);
@@ -86,10 +94,10 @@ TEST(ObjectFactoryStorageTest, DoNotPublish) {
     EXPECT_THAT(actual, testing::IsEmpty());
 }
 
-TEST(ObjectFactoryStorageTest, Publish) {
+TEST_F(ObjectFactoryStorageTest, Publish) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer1(storage);
-    ObjectFactoryStorageRegular::Producer producer2(storage);
+    ObjectFactoryStorageRegular::Producer producer1(gc(), storage);
+    ObjectFactoryStorageRegular::Producer producer2(gc(), storage);
 
     producer1.Insert<int>(1);
     producer1.Insert<int>(2);
@@ -104,9 +112,9 @@ TEST(ObjectFactoryStorageTest, Publish) {
     EXPECT_THAT(actual, testing::ElementsAre(1, 2, 10, 20));
 }
 
-TEST(ObjectFactoryStorageTest, PublishDifferentTypes) {
+TEST_F(ObjectFactoryStorageTest, PublishDifferentTypes) {
     ObjectFactoryStorage<alignof(MaxAlignedData)> storage;
-    ObjectFactoryStorage<alignof(MaxAlignedData)>::Producer producer(storage);
+    ObjectFactoryStorage<alignof(MaxAlignedData)>::Producer producer(gc(), storage);
 
     producer.Insert<int>(1);
     producer.Insert<size_t>(2);
@@ -137,9 +145,9 @@ TEST(ObjectFactoryStorageTest, PublishDifferentTypes) {
     EXPECT_THAT(it, actual.end());
 }
 
-TEST(ObjectFactoryStorageTest, PublishSeveralTimes) {
+TEST_F(ObjectFactoryStorageTest, PublishSeveralTimes) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
 
     // Add 2 elements and publish.
     producer.Insert<int>(1);
@@ -163,11 +171,11 @@ TEST(ObjectFactoryStorageTest, PublishSeveralTimes) {
     EXPECT_THAT(actual, testing::ElementsAre(1, 2, 3, 4, 5));
 }
 
-TEST(ObjectFactoryStorageTest, PublishInDestructor) {
+TEST_F(ObjectFactoryStorageTest, PublishInDestructor) {
     ObjectFactoryStorageRegular storage;
 
     {
-        ObjectFactoryStorageRegular::Producer producer(storage);
+        ObjectFactoryStorageRegular::Producer producer(gc(), storage);
         producer.Insert<int>(1);
         producer.Insert<int>(2);
     }
@@ -177,9 +185,9 @@ TEST(ObjectFactoryStorageTest, PublishInDestructor) {
     EXPECT_THAT(actual, testing::ElementsAre(1, 2));
 }
 
-TEST(ObjectFactoryStorageTest, EraseFirst) {
+TEST_F(ObjectFactoryStorageTest, EraseFirst) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
 
     producer.Insert<int>(1);
     producer.Insert<int>(2);
@@ -203,9 +211,9 @@ TEST(ObjectFactoryStorageTest, EraseFirst) {
     EXPECT_THAT(actual, testing::ElementsAre(2, 3));
 }
 
-TEST(ObjectFactoryStorageTest, EraseMiddle) {
+TEST_F(ObjectFactoryStorageTest, EraseMiddle) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
 
     producer.Insert<int>(1);
     producer.Insert<int>(2);
@@ -229,9 +237,9 @@ TEST(ObjectFactoryStorageTest, EraseMiddle) {
     EXPECT_THAT(actual, testing::ElementsAre(1, 3));
 }
 
-TEST(ObjectFactoryStorageTest, EraseLast) {
+TEST_F(ObjectFactoryStorageTest, EraseLast) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
 
     producer.Insert<int>(1);
     producer.Insert<int>(2);
@@ -255,9 +263,9 @@ TEST(ObjectFactoryStorageTest, EraseLast) {
     EXPECT_THAT(actual, testing::ElementsAre(1, 2));
 }
 
-TEST(ObjectFactoryStorageTest, EraseAll) {
+TEST_F(ObjectFactoryStorageTest, EraseAll) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
 
     producer.Insert<int>(1);
     producer.Insert<int>(2);
@@ -277,9 +285,9 @@ TEST(ObjectFactoryStorageTest, EraseAll) {
     EXPECT_THAT(actual, testing::IsEmpty());
 }
 
-TEST(ObjectFactoryStorageTest, EraseTheOnlyElement) {
+TEST_F(ObjectFactoryStorageTest, EraseTheOnlyElement) {
     ObjectFactoryStorageRegular storage;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
 
     producer.Insert<int>(1);
 
@@ -296,7 +304,7 @@ TEST(ObjectFactoryStorageTest, EraseTheOnlyElement) {
     EXPECT_THAT(actual, testing::IsEmpty());
 }
 
-TEST(ObjectFactoryStorageTest, ConcurrentPublish) {
+TEST_F(ObjectFactoryStorageTest, ConcurrentPublish) {
     ObjectFactoryStorageRegular storage;
     constexpr int kThreadCount = kDefaultThreadCount;
     std::atomic<bool> canStart(false);
@@ -306,8 +314,8 @@ TEST(ObjectFactoryStorageTest, ConcurrentPublish) {
 
     for (int i = 0; i < kThreadCount; ++i) {
         expected.push_back(i);
-        threads.emplace_back([i, &storage, &canStart, &readyCount]() {
-            ObjectFactoryStorageRegular::Producer producer(storage);
+        threads.emplace_back([this, i, &storage, &canStart, &readyCount]() {
+            ObjectFactoryStorageRegular::Producer producer(gc(), storage);
             producer.Insert<int>(i);
             ++readyCount;
             while (!canStart) {
@@ -328,14 +336,14 @@ TEST(ObjectFactoryStorageTest, ConcurrentPublish) {
     EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected));
 }
 
-TEST(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
+TEST_F(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
     ObjectFactoryStorageRegular storage;
     constexpr int kStartCount = 50;
     constexpr int kThreadCount = kDefaultThreadCount;
 
     KStdVector<int> expectedBefore;
     KStdVector<int> expectedAfter;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
     for (int i = 0; i < kStartCount; ++i) {
         expectedBefore.push_back(i);
         expectedAfter.push_back(i);
@@ -350,8 +358,8 @@ TEST(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
     for (int i = 0; i < kThreadCount; ++i) {
         int j = i + kStartCount;
         expectedAfter.push_back(j);
-        threads.emplace_back([j, &storage, &canStart, &startedCount, &readyCount]() {
-            ObjectFactoryStorageRegular::Producer producer(storage);
+        threads.emplace_back([this, j, &storage, &canStart, &startedCount, &readyCount]() {
+            ObjectFactoryStorageRegular::Producer producer(gc(), storage);
             producer.Insert<int>(j);
             ++readyCount;
             while (!canStart) {
@@ -387,13 +395,13 @@ TEST(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
     EXPECT_THAT(actualAfter, testing::UnorderedElementsAreArray(expectedAfter));
 }
 
-TEST(ObjectFactoryStorageTest, EraseWhileConcurrentPublish) {
+TEST_F(ObjectFactoryStorageTest, EraseWhileConcurrentPublish) {
     ObjectFactoryStorageRegular storage;
     constexpr int kStartCount = 50;
     constexpr int kThreadCount = kDefaultThreadCount;
 
     KStdVector<int> expectedAfter;
-    ObjectFactoryStorageRegular::Producer producer(storage);
+    ObjectFactoryStorageRegular::Producer producer(gc(), storage);
     for (int i = 0; i < kStartCount; ++i) {
         if (i % 2 == 0) {
             expectedAfter.push_back(i);
@@ -409,8 +417,8 @@ TEST(ObjectFactoryStorageTest, EraseWhileConcurrentPublish) {
     for (int i = 0; i < kThreadCount; ++i) {
         int j = i + kStartCount;
         expectedAfter.push_back(j);
-        threads.emplace_back([j, &storage, &canStart, &startedCount, &readyCount]() {
-            ObjectFactoryStorageRegular::Producer producer(storage);
+        threads.emplace_back([this, j, &storage, &canStart, &startedCount, &readyCount]() {
+            ObjectFactoryStorageRegular::Producer producer(gc(), storage);
             producer.Insert<int>(j);
             ++readyCount;
             while (!canStart) {
@@ -464,12 +472,20 @@ KStdUniquePtr<TypeInfo> MakeArrayTypeInfo(int32_t elementSize) {
     return typeInfo;
 }
 
+class ObjectFactoryTest : public testing::Test {
+public:
+    mm::GC::ThreadData& gc() { return gc_; }
+
+private:
+    mm::GC::ThreadData gc_{mm::GC::Instance()};
+};
+
 } // namespace
 
-TEST(ObjectFactoryTest, CreateObject) {
+TEST_F(ObjectFactoryTest, CreateObject) {
     auto typeInfo = MakeObjectTypeInfo(24);
     ObjectFactory objectFactory;
-    ObjectFactory::ThreadQueue threadQueue(objectFactory);
+    ObjectFactory::ThreadQueue threadQueue(gc(), objectFactory);
 
     auto* object = threadQueue.CreateObject(typeInfo.get());
     threadQueue.Publish();
@@ -482,10 +498,10 @@ TEST(ObjectFactoryTest, CreateObject) {
     EXPECT_THAT(it, iter.end());
 }
 
-TEST(ObjectFactoryTest, CreateArray) {
+TEST_F(ObjectFactoryTest, CreateArray) {
     auto typeInfo = MakeArrayTypeInfo(24);
     ObjectFactory objectFactory;
-    ObjectFactory::ThreadQueue threadQueue(objectFactory);
+    ObjectFactory::ThreadQueue threadQueue(gc(), objectFactory);
 
     auto* array = threadQueue.CreateArray(typeInfo.get(), 3);
     threadQueue.Publish();
@@ -498,11 +514,11 @@ TEST(ObjectFactoryTest, CreateArray) {
     EXPECT_THAT(it, iter.end());
 }
 
-TEST(ObjectFactoryTest, Erase) {
+TEST_F(ObjectFactoryTest, Erase) {
     auto objectTypeInfo = MakeObjectTypeInfo(24);
     auto arrayTypeInfo = MakeArrayTypeInfo(24);
     ObjectFactory objectFactory;
-    ObjectFactory::ThreadQueue threadQueue(objectFactory);
+    ObjectFactory::ThreadQueue threadQueue(gc(), objectFactory);
 
     for (int i = 0; i < 10; ++i) {
         threadQueue.CreateObject(objectTypeInfo.get());
@@ -532,7 +548,7 @@ TEST(ObjectFactoryTest, Erase) {
     }
 }
 
-TEST(ObjectFactoryTest, ConcurrentPublish) {
+TEST_F(ObjectFactoryTest, ConcurrentPublish) {
     auto typeInfo = MakeObjectTypeInfo(24);
     ObjectFactory objectFactory;
     constexpr int kThreadCount = kDefaultThreadCount;
@@ -543,8 +559,8 @@ TEST(ObjectFactoryTest, ConcurrentPublish) {
     KStdVector<ObjHeader*> expected;
 
     for (int i = 0; i < kThreadCount; ++i) {
-        threads.emplace_back([&typeInfo, &objectFactory, &canStart, &readyCount, &expected, &expectedMutex]() {
-            ObjectFactory::ThreadQueue threadQueue(objectFactory);
+        threads.emplace_back([this, &typeInfo, &objectFactory, &canStart, &readyCount, &expected, &expectedMutex]() {
+            ObjectFactory::ThreadQueue threadQueue(gc(), objectFactory);
             auto* object = threadQueue.CreateObject(typeInfo.get());
             {
                 std::lock_guard<std::mutex> guard(expectedMutex);

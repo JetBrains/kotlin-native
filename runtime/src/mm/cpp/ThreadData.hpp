@@ -11,6 +11,7 @@
 
 #include "ObjectFactory.hpp"
 #include "GlobalsRegistry.hpp"
+#include "GC.hpp"
 #include "ShadowStack.hpp"
 #include "StableRefRegistry.hpp"
 #include "ThreadLocalStorage.hpp"
@@ -29,7 +30,8 @@ public:
         globalsThreadQueue_(GlobalsRegistry::Instance()),
         stableRefThreadQueue_(StableRefRegistry::Instance()),
         state_(ThreadState::kRunnable),
-        objectFactoryThreadQueue_(ObjectFactory::Instance()) {}
+        gc_(GC::Instance()),
+        objectFactoryThreadQueue_(gc_, ObjectFactory::Instance()) {}
 
     ~ThreadData() = default;
 
@@ -49,12 +51,15 @@ public:
 
     ShadowStack& shadowStack() noexcept { return shadowStack_; }
 
+    GC::ThreadData& gc() noexcept { return gc_; }
+
 private:
     const pthread_t threadId_;
     GlobalsRegistry::ThreadQueue globalsThreadQueue_;
     ThreadLocalStorage tls_;
     StableRefRegistry::ThreadQueue stableRefThreadQueue_;
     std::atomic<ThreadState> state_;
+    GC::ThreadData gc_;
     ObjectFactory::ThreadQueue objectFactoryThreadQueue_;
     ShadowStack shadowStack_;
 };

@@ -82,10 +82,6 @@ void EnsureNeverFrozen(ObjHeader* obj) {
     TODO();
 }
 
-RUNTIME_NOTHROW void PerformFullGC(MemoryState* memory) {
-    TODO();
-}
-
 bool TryAddHeapRef(const ObjHeader* object) {
     TODO();
 }
@@ -99,18 +95,6 @@ RUNTIME_NOTHROW void ReleaseHeapRefNoCollect(const ObjHeader* object) {
 }
 
 ForeignRefContext InitLocalForeignRef(ObjHeader* object) {
-    TODO();
-}
-
-RUNTIME_NOTHROW void Kotlin_mm_safePointFunctionEpilogue() {
-    TODO();
-}
-
-RUNTIME_NOTHROW void Kotlin_mm_safePointWhileLoopBody() {
-    TODO();
-}
-
-RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
     TODO();
 }
 

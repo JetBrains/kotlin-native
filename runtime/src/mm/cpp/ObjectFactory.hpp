@@ -13,6 +13,7 @@
 
 #include "Alignment.hpp"
 #include "Alloc.h"
+#include "GC.hpp"
 #include "Memory.h"
 #include "Mutex.hpp"
 #include "Types.h"
@@ -59,7 +60,7 @@ public:
 
         Node() noexcept = default;
 
-        static KStdUniquePtr<Node> Create(size_t dataSize) noexcept {
+        static KStdUniquePtr<Node> Create(mm::GC::ThreadData& gc, size_t dataSize) noexcept {
             size_t dataSizeAligned = AlignUp(dataSize, DataAlignment);
             size_t totalAlignment = std::max(alignof(Node), DataAlignment);
             size_t totalSize = AlignUp(sizeof(Node) + dataSizeAligned, totalAlignment);
@@ -68,10 +69,14 @@ public:
                     DataOffset());
             void* ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
             if (!ptr) {
-                // TODO: Try doing GC first.
+                // TODO: This GC call should be moved out of here for better modularity (and testing).
+                // No choice, but to stop and perform full GC hoping it'll free enough memory.
+                gc.PerformFullGC();
+                ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
                 konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", totalSize);
                 konan::abort();
             }
+            gc.SafePointAllocation(totalSize);
             RuntimeAssert(IsAligned(ptr, totalAlignment), "Allocator returned unaligned to %zu pointer %p", totalAlignment, ptr);
             return KStdUniquePtr<Node>(new (ptr) Node());
         }
@@ -83,13 +88,13 @@ public:
 
     class Producer : private MoveOnly {
     public:
-        explicit Producer(ObjectFactoryStorage& owner) noexcept : owner_(owner) {}
+        Producer(mm::GC::ThreadData& gc, ObjectFactoryStorage& owner) noexcept : gc_(gc), owner_(owner) {}
 
         ~Producer() { Publish(); }
 
         Node& Insert(size_t dataSize) noexcept {
             AssertCorrect();
-            auto node = Node::Create(dataSize);
+            auto node = Node::Create(gc_, dataSize);
             auto* nodePtr = node.get();
             if (!root_) {
                 root_ = std::move(node);
@@ -152,6 +157,7 @@ public:
             }
         }
 
+        GC::ThreadData& gc_;
         ObjectFactoryStorage& owner_; // weak
         KStdUniquePtr<Node> root_;
         Node* last_ = nullptr;
@@ -252,7 +258,7 @@ public:
 
     class ThreadQueue : private MoveOnly {
     public:
-        explicit ThreadQueue(ObjectFactory& owner) noexcept : producer_(owner.storage_) {}
+        ThreadQueue(GC::ThreadData& gc, ObjectFactory& owner) noexcept : producer_(gc, owner.storage_) {}
 
         ObjHeader* CreateObject(const TypeInfo* typeInfo) noexcept;
         ArrayHeader* CreateArray(const TypeInfo* typeInfo, uint32_t count) noexcept;

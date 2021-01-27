@@ -188,6 +188,10 @@ extern "C" bool Kotlin_Any_isShareable(ObjHeader* thiz) {
     return true;
 }
 
+extern "C" RUNTIME_NOTHROW void PerformFullGC(MemoryState* memory) {
+    GetThreadData(memory)->gc().PerformFullGC();
+}
+
 extern "C" RUNTIME_NOTHROW bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
     // TODO: Remove when legacy MM is gone.
     return true;
@@ -253,4 +257,19 @@ extern "C" void AdoptReferenceFromSharedVariable(ObjHeader* object) {
 void CheckGlobalsAccessible() {
     // TODO: Remove when legacy MM is gone.
     // Always accessible
+}
+
+extern "C" RUNTIME_NOTHROW void Kotlin_mm_safePointFunctionEpilogue() {
+    auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
+    threadData->gc().SafePointFunctionEpilogue();
+}
+
+extern "C" RUNTIME_NOTHROW void Kotlin_mm_safePointWhileLoopBody() {
+    auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
+    threadData->gc().SafePointLoopBody();
+}
+
+extern "C" RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
+    auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
+    threadData->gc().SafePointExceptionUnwind();
 }

@@ -7,6 +7,7 @@
 #define RUNTIME_MM_GLOBAL_DATA_H
 
 #include "ObjectFactory.hpp"
+#include "GC.hpp"
 #include "GlobalsRegistry.hpp"
 #include "StableRefRegistry.hpp"
 #include "ThreadRegistry.hpp"
@@ -24,6 +25,7 @@ public:
     GlobalsRegistry& globalsRegistry() noexcept { return globalsRegistry_; }
     StableRefRegistry& stableRefRegistry() noexcept { return stableRefRegistry_; }
     ObjectFactory& objectFactory() noexcept { return objectFactory_; }
+    GC& gc() noexcept { return gc_; }
 
 private:
     GlobalData();
@@ -35,6 +37,7 @@ private:
     GlobalsRegistry globalsRegistry_;
     StableRefRegistry stableRefRegistry_;
     ObjectFactory objectFactory_;
+    GC gc_;
 };
 
 } // namespace mm
