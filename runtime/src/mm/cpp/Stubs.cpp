@@ -85,6 +85,18 @@ RUNTIME_NOTHROW void PerformFullGC(MemoryState* memory) {
     TODO();
 }
 
+bool TryAddHeapRef(const ObjHeader* object) {
+    TODO();
+}
+
+RUNTIME_NOTHROW void ReleaseHeapRef(const ObjHeader* object) {
+    TODO();
+}
+
+RUNTIME_NOTHROW void ReleaseHeapRefNoCollect(const ObjHeader* object) {
+    TODO();
+}
+
 ForeignRefContext InitLocalForeignRef(ObjHeader* object) {
     TODO();
 }

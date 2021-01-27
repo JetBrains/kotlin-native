@@ -326,21 +326,6 @@ extern "C" RUNTIME_NOTHROW void CheckLifetimesConstraint(ObjHeader* obj, ObjHead
     }
 }
 
-extern "C" ALWAYS_INLINE bool TryAddHeapRef(const ObjHeader* object) {
-    // TODO: Remove when legacy MM is gone.
-    return true;
-}
-
-extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void ReleaseHeapRef(const ObjHeader* object) {
-    // TODO: Remove when legacy MM is gone.
-    // Nothing to do.
-}
-
-extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void ReleaseHeapRefNoCollect(const ObjHeader* object) {
-    // TODO: Remove when legacy MM is gone.
-    // Nothing to do.
-}
-
 extern "C" ForeignRefContext InitForeignRef(ObjHeader* object) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     auto* node = mm::StableRefRegistry::Instance().RegisterStableRef(threadData, object);
