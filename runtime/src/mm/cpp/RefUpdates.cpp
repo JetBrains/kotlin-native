@@ -35,7 +35,6 @@ ALWAYS_INLINE ObjHeader* mm::ReadHeapRefAtomic(ObjHeader** location) noexcept {
 }
 
 ALWAYS_INLINE ObjHeader* mm::CompareAndSwapHeapRef(ObjHeader** location, ObjHeader* expected, ObjHeader* value) noexcept {
-    if (expected == value) return expected;
     return __sync_val_compare_and_swap(location, expected, value);
 }
 

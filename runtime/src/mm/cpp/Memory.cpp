@@ -180,6 +180,8 @@ extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateHeapRef(ObjHeader** location
 }
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
+    if (object == nullptr)
+        return;
     mm::CompareAndSwapHeapRef(location, nullptr, const_cast<ObjHeader*>(object));
 }
 
