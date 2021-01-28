@@ -46,8 +46,8 @@ public:
 
     testing::MockFunction<void(ObjHeader*)>& constructor() { return constructor_; }
 
-    ObjHeader* InitThreadLocalSingleton(ObjHeader** location, size_t threadIndex) {
-        return mm::InitThreadLocalSingleton(threadDatas_[threadIndex].get(), location, &typeInfo_, constructorImpl);
+    OBJ_GETTER(InitThreadLocalSingleton, ObjHeader** location, size_t threadIndex) {
+        RETURN_RESULT_OF(mm::InitThreadLocalSingleton, threadDatas_[threadIndex].get(), location, &typeInfo_, constructorImpl);
     }
 
     OBJ_GETTER(InitSingleton, ObjHeader** location, size_t threadIndex) {
@@ -72,13 +72,16 @@ testing::MockFunction<void(ObjHeader*)>* InitSingletonTest::globalConstructor_ =
 
 TEST_F(InitSingletonTest, InitThreadLocalSingleton) {
     ObjHeader* location = nullptr;
+    ObjHeader* stackLocation = nullptr;
 
     ObjHeader* valueAtConstructor = nullptr;
-    EXPECT_CALL(constructor(), Call(_)).WillOnce([&location, &valueAtConstructor](ObjHeader* value) {
+    EXPECT_CALL(constructor(), Call(_)).WillOnce([&location, &stackLocation, &valueAtConstructor](ObjHeader* value) {
+        EXPECT_THAT(value, stackLocation);
         EXPECT_THAT(value, location);
         valueAtConstructor = value;
     });
-    ObjHeader* value = InitThreadLocalSingleton(&location, 0);
+    ObjHeader* value = InitThreadLocalSingleton(&location, 0, &stackLocation);
+    EXPECT_THAT(value, stackLocation);
     EXPECT_THAT(value, location);
     EXPECT_THAT(valueAtConstructor, location);
 }
@@ -86,24 +89,28 @@ TEST_F(InitSingletonTest, InitThreadLocalSingleton) {
 TEST_F(InitSingletonTest, InitThreadLocalSingletonTwice) {
     ObjHeader previousValue;
     ObjHeader* location = &previousValue;
+    ObjHeader* stackLocation = nullptr;
 
     EXPECT_CALL(constructor(), Call(_)).Times(0);
-    ObjHeader* value = InitThreadLocalSingleton(&location, 0);
+    ObjHeader* value = InitThreadLocalSingleton(&location, 0, &stackLocation);
+    EXPECT_THAT(value, stackLocation);
     EXPECT_THAT(value, location);
     EXPECT_THAT(value, &previousValue);
 }
 
 TEST_F(InitSingletonTest, InitThreadLocalSingletonFail) {
     ObjHeader* location = nullptr;
+    ObjHeader* stackLocation = nullptr;
     constexpr int kException = 42;
 
     EXPECT_CALL(constructor(), Call(_)).WillOnce([]() { throw kException; });
     try {
-        InitThreadLocalSingleton(&location, 0);
+        InitThreadLocalSingleton(&location, 0, &stackLocation);
         ASSERT_TRUE(false); // Cannot be reached.
     } catch (int exception) {
         EXPECT_THAT(exception, kException);
     }
+    EXPECT_THAT(stackLocation, nullptr);
     EXPECT_THAT(location, nullptr);
 }
 
@@ -191,12 +198,14 @@ TEST_F(InitSingletonTest, InitSingletonConcurrent) {
     for (size_t i = 0; i < kThreadCount; ++i) {
         threads.emplace_back([this, i, &location, &stackLocations, &actual, &readyCount, &canStart]() {
             ++readyCount;
-            while (!canStart) {}
+            while (!canStart) {
+            }
             actual[i] = InitSingleton(&location, i, &stackLocations[i]);
         });
     }
 
-    while (readyCount < kThreadCount) {}
+    while (readyCount < kThreadCount) {
+    }
     // Constructor is called exactly once.
     EXPECT_CALL(constructor(), Call(_));
     canStart = true;
@@ -223,7 +232,8 @@ TEST_F(InitSingletonTest, InitSingletonConcurrentFailing) {
     for (size_t i = 0; i < kThreadCount; ++i) {
         threads.emplace_back([this, i, &location, &stackLocations, &readyCount, &canStart]() {
             ++readyCount;
-            while (!canStart) {}
+            while (!canStart) {
+            }
             try {
                 InitSingleton(&location, i, &stackLocations[i]);
                 ASSERT_TRUE(false); // Cannot be reached.
@@ -233,7 +243,8 @@ TEST_F(InitSingletonTest, InitSingletonConcurrentFailing) {
         });
     }
 
-    while (readyCount < kThreadCount) {}
+    while (readyCount < kThreadCount) {
+    }
     // Constructor is called exactly `kThreadCount` times.
     EXPECT_CALL(constructor(), Call(_)).Times(kThreadCount).WillRepeatedly([]() { throw kException; });
     canStart = true;

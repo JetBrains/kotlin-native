@@ -130,8 +130,7 @@ extern "C" OBJ_GETTER(AllocArrayInstance, const TypeInfo* typeInfo, int32_t elem
 extern "C" ALWAYS_INLINE OBJ_GETTER(InitThreadLocalSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
 
-    auto* object = mm::InitThreadLocalSingleton(threadData, location, typeInfo, ctor);
-    RETURN_OBJ(object);
+    RETURN_RESULT_OF(mm::InitThreadLocalSingleton, threadData, location, typeInfo, ctor);
 }
 
 extern "C" ALWAYS_INLINE OBJ_GETTER(InitSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
@@ -180,9 +179,9 @@ extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateHeapRef(ObjHeader** location
 }
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
-    if (object == nullptr)
-        return;
-    mm::CompareAndSwapHeapRef(location, nullptr, const_cast<ObjHeader*>(object));
+    if (object == nullptr) return;
+    ObjHeader* result = nullptr; // No need to store this value in a rootset.
+    mm::CompareAndSwapHeapRef(location, nullptr, const_cast<ObjHeader*>(object), &result);
 }
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
@@ -191,8 +190,7 @@ extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void UpdateReturnRef(ObjHeader** return
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW OBJ_GETTER(
         SwapHeapRefLocked, ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
-    auto* oldValue = mm::CompareAndSwapHeapRef(location, expectedValue, newValue);
-    RETURN_OBJ(oldValue);
+    RETURN_RESULT_OF(mm::CompareAndSwapHeapRef, location, expectedValue, newValue);
 }
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void SetHeapRefLocked(
@@ -201,7 +199,7 @@ extern "C" ALWAYS_INLINE RUNTIME_NOTHROW void SetHeapRefLocked(
 }
 
 extern "C" ALWAYS_INLINE RUNTIME_NOTHROW OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* cookie) {
-    RETURN_OBJ(mm::ReadHeapRefAtomic(location));
+    RETURN_RESULT_OF(mm::ReadHeapRefAtomic, location);
 }
 
 extern "C" OBJ_GETTER(ReadHeapRefNoLock, ObjHeader* object, int32_t index) {

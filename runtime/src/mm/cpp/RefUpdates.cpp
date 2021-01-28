@@ -30,23 +30,30 @@ ALWAYS_INLINE void mm::SetHeapRefAtomic(ObjHeader** location, ObjHeader* value) 
     __atomic_store_n(location, value, __ATOMIC_RELEASE);
 }
 
-ALWAYS_INLINE ObjHeader* mm::ReadHeapRefAtomic(ObjHeader** location) noexcept {
-    return __atomic_load_n(location, __ATOMIC_ACQUIRE);
+ALWAYS_INLINE OBJ_GETTER(mm::ReadHeapRefAtomic, ObjHeader** location) noexcept {
+    __atomic_load(location, OBJ_RESULT, __ATOMIC_ACQUIRE);
+    return *OBJ_RESULT;
 }
 
-ALWAYS_INLINE ObjHeader* mm::CompareAndSwapHeapRef(ObjHeader** location, ObjHeader* expected, ObjHeader* value) noexcept {
-    return __sync_val_compare_and_swap(location, expected, value);
+ALWAYS_INLINE OBJ_GETTER(mm::CompareAndSwapHeapRef, ObjHeader** location, ObjHeader* expected, ObjHeader* value) noexcept {
+    mm::SetStackRef(OBJ_RESULT, expected);
+    // TODO: Do we need this strong memory model? Do we need to use strong CAS?
+    __atomic_compare_exchange_n(location, OBJ_RESULT, value, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    // On success, we already have old value (== `expected`) in the return slot.
+    // On failure, we have the old value written into the return slot.
+    return *OBJ_RESULT;
 }
 
 #pragma clang diagnostic pop
 
-ObjHeader* mm::InitThreadLocalSingleton(ThreadData* threadData, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+OBJ_GETTER(mm::InitThreadLocalSingleton, ThreadData* threadData, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
     if (auto* value = *location) {
         // Initialized by someone else.
-        return value;
+        RETURN_OBJ(value);
     }
     auto* value = threadData->objectFactoryThreadQueue().CreateObject(typeInfo);
-    // This places `value` in the root set.
+    // These place `value` in the root set.
+    mm::SetStackRef(OBJ_RESULT, value);
     mm::SetHeapRef(location, value);
 #if KONAN_NO_EXCEPTIONS
     ctor(value);
@@ -54,6 +61,7 @@ ObjHeader* mm::InitThreadLocalSingleton(ThreadData* threadData, ObjHeader** loca
     try {
         ctor(value);
     } catch (...) {
+        mm::SetStackRef(OBJ_RESULT, nullptr);
         mm::SetHeapRef(location, nullptr);
         throw;
     }
@@ -98,8 +106,8 @@ OBJ_GETTER(mm::InitSingleton, ThreadData* threadData, ObjHeader** location, cons
         throw;
     }
 #endif
-    mm::SetHeapRefAtomic(location, object);
     mm::GlobalsRegistry::Instance().RegisterStorageForGlobal(threadData, location);
+    mm::SetHeapRefAtomic(location, object);
     initializingSingletons.pop_back();
     return object;
 }
