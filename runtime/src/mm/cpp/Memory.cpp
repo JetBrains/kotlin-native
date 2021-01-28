@@ -113,8 +113,7 @@ extern "C" void RestoreMemory(MemoryState*) {
 
 extern "C" RUNTIME_NOTHROW OBJ_GETTER(AllocInstance, const TypeInfo* typeInfo) {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
-    auto* object = threadData->objectFactoryThreadQueue().CreateObject(typeInfo);
-    RETURN_OBJ(object);
+    RETURN_RESULT_OF(mm::AllocateObject, threadData, typeInfo);
 }
 
 extern "C" OBJ_GETTER(AllocArrayInstance, const TypeInfo* typeInfo, int32_t elements) {
@@ -122,9 +121,7 @@ extern "C" OBJ_GETTER(AllocArrayInstance, const TypeInfo* typeInfo, int32_t elem
         ThrowIllegalArgumentException();
     }
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
-    auto* array = threadData->objectFactoryThreadQueue().CreateArray(typeInfo, static_cast<uint32_t>(elements));
-    // `ArrayHeader` and `ObjHeader` are expected to be compatible.
-    RETURN_OBJ(reinterpret_cast<ObjHeader*>(array));
+    RETURN_RESULT_OF(mm::AllocateArray, threadData, typeInfo, static_cast<uint32_t>(elements));
 }
 
 extern "C" ALWAYS_INLINE OBJ_GETTER(InitThreadLocalSingleton, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {

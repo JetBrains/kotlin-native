@@ -46,14 +46,25 @@ ALWAYS_INLINE OBJ_GETTER(mm::CompareAndSwapHeapRef, ObjHeader** location, ObjHea
 
 #pragma clang diagnostic pop
 
+OBJ_GETTER(mm::AllocateObject, ThreadData* threadData, const TypeInfo* typeInfo) noexcept {
+    // TODO: Make this work with GCs that can stop thread at any point.
+    auto* object = threadData->objectFactoryThreadQueue().CreateObject(typeInfo);
+    RETURN_OBJ(object);
+}
+
+OBJ_GETTER(mm::AllocateArray, ThreadData* threadData, const TypeInfo* typeInfo, uint32_t elements) noexcept {
+    // TODO: Make this work with GCs that can stop thread at any point.
+    auto* array = threadData->objectFactoryThreadQueue().CreateArray(typeInfo, static_cast<uint32_t>(elements));
+    // `ArrayHeader` and `ObjHeader` are expected to be compatible.
+    RETURN_OBJ(reinterpret_cast<ObjHeader*>(array));
+}
+
 OBJ_GETTER(mm::InitThreadLocalSingleton, ThreadData* threadData, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
     if (auto* value = *location) {
         // Initialized by someone else.
         RETURN_OBJ(value);
     }
-    auto* value = threadData->objectFactoryThreadQueue().CreateObject(typeInfo);
-    // These place `value` in the root set.
-    mm::SetStackRef(OBJ_RESULT, value);
+    auto* value = mm::AllocateObject(threadData, typeInfo, OBJ_RESULT);
     mm::SetHeapRef(location, value);
 #if KONAN_NO_EXCEPTIONS
     ctor(value);
@@ -89,9 +100,7 @@ OBJ_GETTER(mm::InitSingleton, ThreadData* threadData, ObjHeader** location, cons
         // Initialized by someone else.
         RETURN_OBJ(value);
     }
-    auto* object = threadData->objectFactoryThreadQueue().CreateObject(typeInfo);
-    // Write object to stack to make sure there's a reference to it from the roots.
-    mm::SetStackRef(OBJ_RESULT, object);
+    auto* object = mm::AllocateObject(threadData, typeInfo, OBJ_RESULT);
     initializingSingletons.push_back(std::make_pair(location, object));
 
 #if KONAN_NO_EXCEPTIONS
