@@ -6,7 +6,7 @@
 #include "InitializationScheme.hpp"
 
 #include "Common.h"
-#include "RefUpdates.hpp"
+#include "ObjectOps.hpp"
 #include "ThreadData.hpp"
 
 using namespace kotlin;

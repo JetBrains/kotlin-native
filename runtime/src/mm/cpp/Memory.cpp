@@ -11,7 +11,7 @@
 #include "KAssert.h"
 #include "Natives.h"
 #include "Porting.h"
-#include "RefUpdates.hpp"
+#include "ObjectOps.hpp"
 #include "StableRefRegistry.hpp"
 #include "ThreadData.hpp"
 #include "ThreadRegistry.hpp"
