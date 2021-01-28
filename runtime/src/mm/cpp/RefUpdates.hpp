@@ -27,10 +27,6 @@ OBJ_GETTER(CompareAndSwapHeapRef, ObjHeader** location, ObjHeader* expected, Obj
 OBJ_GETTER(AllocateObject, ThreadData* threadData, const TypeInfo* typeInfo) noexcept;
 OBJ_GETTER(AllocateArray, ThreadData* threadData, const TypeInfo* typeInfo, uint32_t elements) noexcept;
 
-// TODO: Maybe these belong to a different file.
-OBJ_GETTER(InitThreadLocalSingleton, ThreadData* threadData, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*));
-OBJ_GETTER(InitSingleton, ThreadData* threadData, ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*));
-
 } // namespace mm
 } // namespace kotlin
 
