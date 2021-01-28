@@ -8,6 +8,7 @@
 #include "Exceptions.h"
 #include "ExtraObjectData.hpp"
 #include "GlobalsRegistry.hpp"
+#include "InitializationScheme.hpp"
 #include "KAssert.h"
 #include "Natives.h"
 #include "Porting.h"
