@@ -37,14 +37,14 @@ ALWAYS_INLINE OBJ_GETTER(mm::ReadHeapRefAtomic, ObjHeader** location) noexcept {
 }
 
 ALWAYS_INLINE OBJ_GETTER(mm::CompareAndSwapHeapRef, ObjHeader** location, ObjHeader* expected, ObjHeader* value) noexcept {
-    // TODO: Make this work with GCs that can stop thread at any point. This operation at least requires `*location` and `value` being kept
-    // alive for the entire function duration.
-    mm::SetStackRef(OBJ_RESULT, expected);
+    // TODO: Make this work with GCs that can stop thread at any point.
+    ObjHeader* actual = expected;
     // TODO: Do we need this strong memory model? Do we need to use strong CAS?
-    __atomic_compare_exchange_n(location, OBJ_RESULT, value, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-    // On success, we already have old value (== `expected`) in the return slot.
-    // On failure, we have the old value written into the return slot.
-    return *OBJ_RESULT;
+    // This intrinsic modifies `actual` non-atomically.
+    __atomic_compare_exchange_n(location, &actual, value, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+    // On success, we already have old value (== `expected`) in `actual`.
+    // On failure, we have the old value written into `actual`.
+    RETURN_OBJ(actual);
 }
 
 #pragma clang diagnostic pop
