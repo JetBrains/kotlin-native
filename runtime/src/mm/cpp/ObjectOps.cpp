@@ -31,11 +31,13 @@ ALWAYS_INLINE void mm::SetHeapRefAtomic(ObjHeader** location, ObjHeader* value) 
 }
 
 ALWAYS_INLINE OBJ_GETTER(mm::ReadHeapRefAtomic, ObjHeader** location) noexcept {
+    // TODO: Make this work with GCs that can stop thread at any point.
     __atomic_load(location, OBJ_RESULT, __ATOMIC_ACQUIRE);
     return *OBJ_RESULT;
 }
 
 ALWAYS_INLINE OBJ_GETTER(mm::CompareAndSwapHeapRef, ObjHeader** location, ObjHeader* expected, ObjHeader* value) noexcept {
+    // TODO: Make this work with GCs that can stop thread at any point.
     mm::SetStackRef(OBJ_RESULT, expected);
     // TODO: Do we need this strong memory model? Do we need to use strong CAS?
     __atomic_compare_exchange_n(location, OBJ_RESULT, value, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
