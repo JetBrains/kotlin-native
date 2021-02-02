@@ -207,6 +207,10 @@ internal class ObjCExportCodeGenerator(
         is ValueTypeBridge -> objCToKotlin(value, typeBridge.objCValueType)
     }
 
+    fun FunctionGenerationContext.initRuntimeIfNeeded() {
+        this.needsRuntimeInit = true
+    }
+
     inline fun FunctionGenerationContext.convertKotlin(
             genValue: (Lifetime) -> LLVMValueRef,
             actualType: IrType,
@@ -714,7 +718,6 @@ private fun ObjCExportCodeGenerator.emitCollectionConverters() {
 private inline fun ObjCExportCodeGenerator.generateObjCImpBy(
         methodBridge: MethodBridge,
         debugInfo: Boolean = false,
-        needsRuntimeInit: Boolean = false,
         genBody: FunctionGenerationContext.() -> Unit
 ): LLVMValueRef {
     val result = LLVMAddFunction(context.llvmModule, "objc2kotlin", objCFunctionType(context, methodBridge))!!
@@ -725,7 +728,7 @@ private inline fun ObjCExportCodeGenerator.generateObjCImpBy(
         null
     }
 
-    generateFunction(codegen, result, startLocation = location, endLocation = location, needsRuntimeInit = needsRuntimeInit) {
+    generateFunction(codegen, result, startLocation = location, endLocation = location) {
         genBody()
     }
 
@@ -774,7 +777,7 @@ private fun ObjCExportCodeGenerator.generateObjCImp(
                 resultLifetime: Lifetime,
                 exceptionHandler: ExceptionHandler
         ) -> LLVMValueRef?
-): LLVMValueRef = generateObjCImpBy(methodBridge, debugInfo = isDirect /* see below */, needsRuntimeInit = !methodBridge.isInstance /* for instance method it gets called when allocated */) {
+): LLVMValueRef = generateObjCImpBy(methodBridge, debugInfo = isDirect /* see below */) {
     // Considering direct calls inlinable above. If such a call is inlined into a bridge with no debug information,
     // lldb will not decode the inlined frame even if the callee has debug information.
     // So generate dummy debug information for bridge in this case.
@@ -784,6 +787,10 @@ private fun ObjCExportCodeGenerator.generateObjCImp(
 
     // TODO: call [NSObject init] if it is a constructor?
     // TODO: check for abstract class if it is a constructor.
+
+    if (!methodBridge.isInstance) {
+        initRuntimeIfNeeded() // For instance methods it gets called when allocating.
+    }
 
     var errorOutPtr: LLVMValueRef? = null
     var continuation: LLVMValueRef? = null
@@ -1438,7 +1445,7 @@ private inline fun ObjCExportCodeGenerator.generateObjCToKotlinSyntheticGetter(
             MethodBridgeReceiver.Static, valueParameters = emptyList()
     )
 
-    val imp = generateFunction(codegen, objCFunctionType(context, methodBridge), "objc2kotlin", needsRuntimeInit = true) {
+    val imp = generateFunction(codegen, objCFunctionType(context, methodBridge), "objc2kotlin") {
         block()
     }
 
@@ -1461,6 +1468,8 @@ private fun ObjCExportCodeGenerator.createUnitInstanceAdapter() =
         generateObjCToKotlinSyntheticGetter(
                 namer.getObjectInstanceSelector(context.builtIns.unit)
         ) {
+            initRuntimeIfNeeded() // For instance methods it gets called when allocating.
+
             ret(callFromBridge(context.llvm.Kotlin_ObjCExport_convertUnit, listOf(codegen.theUnitInstanceRef.llvm)))
         }
 
@@ -1473,6 +1482,7 @@ private fun ObjCExportCodeGenerator.createObjectInstanceAdapter(
     val selector = namer.getObjectInstanceSelector(irClass.descriptor)
 
     return generateObjCToKotlinSyntheticGetter(selector) {
+        initRuntimeIfNeeded() // For instance methods it gets called when allocating.
         val value = getObjectValue(irClass, startLocationInfo = null, exceptionHandler = ExceptionHandler.Caller)
         ret(kotlinToObjC(value, ReferenceBridge))
     }
@@ -1484,6 +1494,8 @@ private fun ObjCExportCodeGenerator.createEnumEntryAdapter(
     val selector = namer.getEnumEntrySelector(irEnumEntry.descriptor)
 
     return generateObjCToKotlinSyntheticGetter(selector) {
+        initRuntimeIfNeeded() // For instance methods it gets called when allocating.
+
         val value = getEnumEntry(irEnumEntry, ExceptionHandler.Caller)
         ret(kotlinToObjC(value, ReferenceBridge))
     }

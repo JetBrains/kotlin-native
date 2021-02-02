@@ -102,7 +102,6 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
                                         function: IrFunction,
                                         startLocation: LocationInfo? = null,
                                         endLocation: LocationInfo? = null,
-                                        needsRuntimeInit: Boolean = false,
                                         code: FunctionGenerationContext.(FunctionGenerationContext) -> R) {
     val llvmFunction = codegen.llvmFunction(function)
 
@@ -113,7 +112,7 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
             endLocation,
             function)
     try {
-        generateFunctionBody(functionGenerationContext, needsRuntimeInit, code)
+        generateFunctionBody(functionGenerationContext, code)
     } finally {
         functionGenerationContext.dispose()
     }
@@ -126,11 +125,10 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
 
 internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMValueRef,
                                         startLocation: LocationInfo? = null, endLocation: LocationInfo? = null,
-                                        needsRuntimeInit: Boolean = false,
                                         code:FunctionGenerationContext.(FunctionGenerationContext) -> R) {
     val functionGenerationContext = FunctionGenerationContext(function, codegen, startLocation, endLocation)
     try {
-        generateFunctionBody(functionGenerationContext, needsRuntimeInit, code)
+        generateFunctionBody(functionGenerationContext, code)
     } finally {
         functionGenerationContext.dispose()
     }
@@ -140,23 +138,21 @@ internal inline fun generateFunction(
         codegen: CodeGenerator,
         functionType: LLVMTypeRef,
         name: String,
-        needsRuntimeInit: Boolean = false,
         block: FunctionGenerationContext.(FunctionGenerationContext) -> Unit
 ): LLVMValueRef {
     val function = LLVMAddFunction(codegen.context.llvmModule, name, functionType)!!
-    generateFunction(codegen, function, startLocation = null, endLocation = null, needsRuntimeInit = needsRuntimeInit, code = block)
+    generateFunction(codegen, function, startLocation = null, endLocation = null, code = block)
     return function
 }
 
 private inline fun <R> generateFunctionBody(
         functionGenerationContext: FunctionGenerationContext,
-        needsRuntimeInit: Boolean,
         code: FunctionGenerationContext.(FunctionGenerationContext) -> R) {
     functionGenerationContext.prologue()
     functionGenerationContext.code(functionGenerationContext)
     if (!functionGenerationContext.isAfterTerminator())
         functionGenerationContext.unreachable()
-    functionGenerationContext.epilogue(needsRuntimeInit)
+    functionGenerationContext.epilogue()
     functionGenerationContext.resetDebugLocation()
 }
 
@@ -344,6 +340,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
      * TODO: consider merging this with [ExceptionHandler].
      */
     var forwardingForeignExceptionsTerminatedWith: LLVMValueRef? = null
+
+    // Whether the generating function needs to initialize Kotlin runtime before execution. Useful for interop bridges,
+    // for example.
+    var needsRuntimeInit = false
 
     init {
         irFunction?.let {
@@ -1209,7 +1209,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         positionAtEnd(entryBb)
     }
 
-    internal fun epilogue(needsRuntimeInit: Boolean) {
+    internal fun epilogue() {
         appendingTo(prologueBb) {
             if (needsRuntimeInit) {
                 call(context.llvm.initRuntimeIfNeeded, emptyList())
