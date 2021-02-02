@@ -98,9 +98,7 @@ internal class KonanIrLinker(
         }
 
         if (klib is KotlinLibrary && klib.isInteropLibrary()) {
-            // See https://youtrack.jetbrains.com/issue/KT-43517.
-            // Disabling this flag forces linker to generate IR.
-            val isCached = false //cachedLibraries.isLibraryCached(klib)
+            val isCached = cachedLibraries.isLibraryCached(klib)
             return KonanInteropModuleDeserializer(moduleDescriptor, isCached)
         }
 
