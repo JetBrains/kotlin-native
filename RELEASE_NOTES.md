@@ -72,7 +72,7 @@ and the [tutorials](https://kotlinlang.org/docs/tutorials/).
 The most complete experience with Kotlin/Native can be achieved by using
 [Gradle](https://kotlinlang.org/docs/tutorials/native/using-gradle.html),
 [IntelliJ IDEA](https://kotlinlang.org/docs/tutorials/native/using-intellij-idea.html) or
-[Android Studio with KMM plugin if you target iOS](https://kotlinlang.org/docs/mobile/create-first-app.html).
+[Android Studio with KMM plugin](https://kotlinlang.org/docs/mobile/create-first-app.html) if you target iOS.
 
 If you are interested in using Kotlin/Native for iOS, then
 [Kotlin Multiplatform Mobile portal](https://kotlinlang.org/lp/mobile/) might also be useful for you.
