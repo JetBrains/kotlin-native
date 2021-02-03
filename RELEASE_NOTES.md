@@ -25,7 +25,7 @@ the following platforms:
  * Ubuntu Linux x86-64 (14.04, 16.04 and later), other Linux flavours may work as well, host and target
    (`-target linux_x64`, default on Linux hosts, hosted on Linux, Windows and macOS).
  * Microsoft Windows x86-64 (tested on Windows 7 and Windows 10), host and target (`-target mingw_x64`,
-   default on Windows hosts). Experimental support is available on Linux and macOS hosts (requires Wine).
+   default on Windows hosts).
  * Microsoft Windows x86-32 cross-compiled target (`-target mingw_x86`), hosted on Windows.
    Experimental support is available on Linux and macOS hosts (requires Wine).
  * Apple iOS (armv7 and arm64 devices, x86 simulator), cross-compiled target
@@ -44,10 +44,6 @@ the following platforms:
  * Experimental support for Zephyr RTOS (`-target zephyr_stm32f4_disco`) is available on macOS, Linux
    and Windows hosts.
 
- To enable experimental targets Kotlin/Native must be recompiled with `org.jetbrains.kotlin.native.experimentalTargets` Gradle property set.
-
- Adding support for other target platforms shouldn't be too hard, if LLVM support is available.
-
  ## Compatibility and features ##
 
 To run _Kotlin/Native_ compiler JDK 8 or later  (JDK) for the host platform has to be installed.
@@ -62,6 +58,9 @@ However, there are certain limitations, see section [Known Limitations](#limitat
 collection algorithm. Multiple threads could be used, but objects must be explicitly transferred
 between threads, and same object couldn't be accessed by two threads concurrently unless it is frozen.
 See the relevant [documentation](https://kotlinlang.org/docs/reference/native/concurrency.html).
+We are going to lift these multithreading restrictions, which involves implementing a new memory manager.
+More details are available in
+["Kotlin/Native Memory Management Roadmap"](https://blog.jetbrains.com/kotlin/2020/07/kotlin-native-memory-management-roadmap/).
 
 _Kotlin/Native_ provides efficient bidirectional interoperability with C and Objective-C.
 See the [samples](https://github.com/JetBrains/kotlin-native/tree/master/samples)
