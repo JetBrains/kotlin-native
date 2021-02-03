@@ -257,6 +257,7 @@ public:
     AllocatorWithGC(BaseAllocator base, GC& gc) noexcept : base_(std::move(base)), gc_(gc) {}
 
     void* Alloc(size_t size, size_t alignment) noexcept {
+        gc_.SafePointAllocation(size);
         void* ptr = base_.Alloc(size, alignment);
         if (ptr) {
             return ptr;

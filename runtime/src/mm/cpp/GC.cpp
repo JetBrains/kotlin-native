@@ -26,6 +26,10 @@ void mm::GC::ThreadData::SafePointExceptionUnwind() noexcept {
     TODO();
 }
 
+void mm::GC::ThreadData::SafePointAllocation(size_t size) noexcept {
+    // TODO: Unimplemented
+}
+
 void mm::GC::ThreadData::PerformFullGC() noexcept {
     TODO();
 }

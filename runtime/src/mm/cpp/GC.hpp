@@ -26,6 +26,7 @@ public:
         void SafePointFunctionEpilogue() noexcept;
         void SafePointLoopBody() noexcept;
         void SafePointExceptionUnwind() noexcept;
+        void SafePointAllocation(size_t size) noexcept;
 
         // Stops the thread until full GC is performed.
         void PerformFullGC() noexcept;

@@ -478,6 +478,7 @@ private:
 
 class MockGC {
 public:
+    MOCK_METHOD(void, SafePointAllocation, (size_t));
     MOCK_METHOD(void, OnOOM, (size_t));
 };
 
@@ -489,8 +490,12 @@ TEST(AllocatorWithGCTest, AllocateWithoutOOM) {
     void* nonNull = reinterpret_cast<void*>(1);
     MockAllocatorWrapper baseAllocator;
     testing::StrictMock<MockGC> gc;
-    EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nonNull));
-    EXPECT_CALL(gc, OnOOM(_)).Times(0);
+    {
+        testing::InSequence seq;
+        EXPECT_CALL(gc, SafePointAllocation(size));
+        EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nonNull));
+        EXPECT_CALL(gc, OnOOM(_)).Times(0);
+    }
     AllocatorWithGC<MockAllocatorWrapper, MockGC> allocator(std::move(baseAllocator), gc);
     void* ptr = allocator.Alloc(size, alignment);
     EXPECT_THAT(ptr, nonNull);
@@ -502,8 +507,13 @@ TEST(AllocatorWithGCTest, AllocateWithFixableOOM) {
     void* nonNull = reinterpret_cast<void*>(1);
     MockAllocatorWrapper baseAllocator;
     testing::StrictMock<MockGC> gc;
-    EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr)).WillOnce(testing::Return(nonNull));
-    EXPECT_CALL(gc, OnOOM(size));
+    {
+        testing::InSequence seq;
+        EXPECT_CALL(gc, SafePointAllocation(size));
+        EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr));
+        EXPECT_CALL(gc, OnOOM(size));
+        EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nonNull));
+    }
     AllocatorWithGC<MockAllocatorWrapper, MockGC> allocator(std::move(baseAllocator), gc);
     void* ptr = allocator.Alloc(size, alignment);
     EXPECT_THAT(ptr, nonNull);
@@ -515,8 +525,13 @@ TEST(AllocatorWithGCDeathTest, AllocateWithFixableOOM) {
         constexpr size_t alignment = 8;
         MockAllocatorWrapper baseAllocator;
         testing::StrictMock<MockGC> gc;
-        EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr)).WillOnce(testing::Return(nullptr));
-        EXPECT_CALL(gc, OnOOM(size));
+        {
+            testing::InSequence seq;
+            EXPECT_CALL(gc, SafePointAllocation(size));
+            EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr));
+            EXPECT_CALL(gc, OnOOM(size));
+            EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr));
+        }
         AllocatorWithGC<MockAllocatorWrapper, MockGC> allocator(std::move(baseAllocator), gc);
         return allocator.Alloc(size, alignment);
     };
@@ -529,6 +544,8 @@ namespace {
 
 class GC {
 public:
+    void SafePointAllocation(size_t size) noexcept {}
+
     void OnOOM(size_t size) noexcept {}
 };
 
