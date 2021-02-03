@@ -13,6 +13,7 @@
 
 #include "Alignment.hpp"
 #include "Alloc.h"
+#include "GC.hpp"
 #include "Memory.h"
 #include "Mutex.hpp"
 #include "Types.h"
@@ -59,19 +60,15 @@ public:
 
         Node() noexcept = default;
 
-        static KStdUniquePtr<Node> Create(size_t dataSize) noexcept {
+        template <typename Allocator>
+        static KStdUniquePtr<Node> Create(Allocator& allocator, size_t dataSize) noexcept {
             size_t dataSizeAligned = AlignUp(dataSize, DataAlignment);
             size_t totalAlignment = std::max(alignof(Node), DataAlignment);
             size_t totalSize = AlignUp(sizeof(Node) + dataSizeAligned, totalAlignment);
             RuntimeAssert(
                     DataOffset() + dataSize <= totalSize, "totalSize %zu is not enough to fit data %zu at offset %zu", totalSize, dataSize,
                     DataOffset());
-            void* ptr = konanAllocAlignedMemory(totalSize, totalAlignment);
-            if (!ptr) {
-                // TODO: Try doing GC first.
-                konan::consoleErrorf("Out of memory trying to allocate %zu. Aborting.\n", totalSize);
-                konan::abort();
-            }
+            void* ptr = allocator.Alloc(totalSize, totalAlignment);
             RuntimeAssert(IsAligned(ptr, totalAlignment), "Allocator returned unaligned to %zu pointer %p", totalAlignment, ptr);
             return KStdUniquePtr<Node>(new (ptr) Node());
         }
@@ -81,15 +78,18 @@ public:
         // with C++ members.
     };
 
+    template <typename Allocator>
     class Producer : private MoveOnly {
     public:
+        explicit Producer(ObjectFactoryStorage& owner, Allocator&& allocator) noexcept : owner_(owner), allocator_(std::move(allocator)) {}
+
         explicit Producer(ObjectFactoryStorage& owner) noexcept : owner_(owner) {}
 
         ~Producer() { Publish(); }
 
         Node& Insert(size_t dataSize) noexcept {
             AssertCorrect();
-            auto node = Node::Create(dataSize);
+            auto node = Node::Create(allocator_, dataSize);
             auto* nodePtr = node.get();
             if (!root_) {
                 root_ = std::move(node);
@@ -159,6 +159,7 @@ public:
         }
 
         ObjectFactoryStorage& owner_; // weak
+        Allocator allocator_;
         KStdUniquePtr<Node> root_;
         Node* last_ = nullptr;
     };
@@ -250,25 +251,73 @@ private:
     SpinLock mutex_;
 };
 
+template <typename BaseAllocator, typename GC>
+class AllocatorWithGC {
+public:
+    AllocatorWithGC(BaseAllocator base, GC& gc) noexcept : base_(std::move(base)), gc_(gc) {}
+
+    void* Alloc(size_t size, size_t alignment) noexcept {
+        void* ptr = base_.Alloc(size, alignment);
+        if (ptr) {
+            return ptr;
+        }
+        gc_.OnOOM(size);
+        ptr = base_.Alloc(size, alignment);
+        if (ptr) {
+            return ptr;
+        }
+        konan::consoleErrorf("Out of memory trying to allocate %zu bytes. Aborting.\n", size);
+        konan::abort();
+    }
+
+private:
+    BaseAllocator base_;
+    GC& gc_;
+};
+
 } // namespace internal
 
 class ObjectFactory : private Pinned {
 public:
+    class Allocator {
+    public:
+        void* Alloc(size_t size, size_t alignment) noexcept { return konanAllocAlignedMemory(size, alignment); }
+    };
+
     using Storage = internal::ObjectFactoryStorage<kObjectAlignment>;
 
+    template <typename GC>
     class ThreadQueue : private MoveOnly {
     public:
-        explicit ThreadQueue(ObjectFactory& owner) noexcept : producer_(owner.storage_) {}
+        ThreadQueue(ObjectFactory& owner, GC& gc) noexcept : producer_(owner.storage_, internal::AllocatorWithGC(Allocator(), gc)) {}
 
-        ObjHeader* CreateObject(const TypeInfo* typeInfo) noexcept;
-        ArrayHeader* CreateArray(const TypeInfo* typeInfo, uint32_t count) noexcept;
+        ObjHeader* CreateObject(const TypeInfo* typeInfo) noexcept {
+            RuntimeAssert(!typeInfo->IsArray(), "Must not be an array");
+            size_t allocSize = typeInfo->instanceSize_;
+            auto& node = producer_.Insert(allocSize);
+            auto* object = static_cast<ObjHeader*>(node.Data());
+            object->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
+            return object;
+        }
+
+        ArrayHeader* CreateArray(const TypeInfo* typeInfo, uint32_t count) noexcept {
+            RuntimeAssert(typeInfo->IsArray(), "Must be an array");
+            uint32_t arraySize = static_cast<uint32_t>(-typeInfo->instanceSize_) * count;
+            // Note: array body is aligned, but for size computation it is enough to align the sum.
+            size_t allocSize = AlignUp(sizeof(ArrayHeader) + arraySize, kObjectAlignment);
+            auto& node = producer_.Insert(allocSize);
+            auto* array = static_cast<ArrayHeader*>(node.Data());
+            array->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
+            array->count_ = count;
+            return array;
+        }
 
         void Publish() noexcept { producer_.Publish(); }
 
         void ClearForTests() noexcept { producer_.ClearForTests(); }
 
     private:
-        Storage::Producer producer_;
+        Storage::Producer<internal::AllocatorWithGC<Allocator, GC>> producer_;
     };
 
     class Iterator {
