@@ -33,7 +33,7 @@ the following platforms:
  * Apple tvOS (arm64 devices, x86 simulator), cross-compiled target
     (`-target tvos_arm64|tvos_x64`), hosted on macOS.
  * Apple watchOS (arm32/arm64 devices, x86 simulator), cross-compiled target
-     (`-target watchos_arm32|watchos_arm64|watchos_x86`), hosted on macOS.
+     (`-target watchos_arm32|watchos_arm64|watchos_x86|watchos_x64`), hosted on macOS.
  * Linux arm32 hardfp, Raspberry Pi, cross-compiled target (`-target raspberrypi`), hosted on Linux, Windows and macOS
  * Linux MIPS big endian, cross-compiled target (`-target mips`), hosted on Linux.
  * Linux MIPS little endian, cross-compiled target (`-target mipsel`), hosted on Linux.
@@ -55,28 +55,34 @@ Produced programs are fully self-sufficient and do not need JVM or other runtime
 
 On macOS it also requires Xcode 11.0 or newer to be installed.
 
-The language and library version supported by this release match Kotlin 1.4.
+The language and library version supported by this release match Kotlin 1.5.
 However, there are certain limitations, see section [Known Limitations](#limitations).
 
  Currently _Kotlin/Native_ uses reference counting based memory management scheme with a cycle
 collection algorithm. Multiple threads could be used, but objects must be explicitly transferred
-between threads, and same object couldn't be accessed by two threads concurrently.
+between threads, and same object couldn't be accessed by two threads concurrently unless it is frozen.
+See the relevant [documentation](https://kotlinlang.org/docs/reference/native/concurrency.html).
 
-_Kotlin/Native_ provides efficient interoperability with libraries written in C or Objective-C, and supports
-automatic generation of Kotlin bindings from a C/Objective-C header file.
-See the samples coming with the distribution.
+_Kotlin/Native_ provides efficient bidirectional interoperability with C and Objective-C.
+See the [samples](https://github.com/JetBrains/kotlin-native/tree/master/samples)
+and the [tutorials](https://kotlinlang.org/docs/tutorials/).
 
   ## Getting Started ##
+  
+The most complete experience with Kotlin/Native can be achieved by using
+[Gradle](https://kotlinlang.org/docs/tutorials/native/using-gradle.html),
+[IntelliJ IDEA](https://kotlinlang.org/docs/tutorials/native/using-intellij-idea.html) or
+[Android Studio with KMM plugin if you target iOS](https://kotlinlang.org/docs/mobile/create-first-app.html).
 
- Download _Kotlin/Native_ distribution and unpack it. You can run command line compiler with
+If you are interested in using Kotlin/Native for iOS, then
+[Kotlin Multiplatform Mobile portal](https://kotlinlang.org/lp/mobile/) might also be useful for you.
+ 
+Command line compiler is also
+[available](https://kotlinlang.org/docs/tutorials/native/using-command-line-compiler.html).
 
-    bin/kotlinc <some_file>.kt <dir_with_kt_files> -o <program_name>
-
-  During the first run it will download all the external dependencies, such as LLVM.
-
-To see the list of available flags, run `kotlinc -h`.
-
-For documentation on C interoperability stubs see [INTEROP.md](https://github.com/JetBrains/kotlin-native/blob/master/INTEROP.md).
+More information can be found in the overviews of
+[Kotlin/Native](https://kotlinlang.org/docs/reference/native-overview.html)
+and [Kotlin Multiplatform](https://kotlinlang.org/docs/reference/multiplatform.html).
 
  ## <a name="limitations"></a>Known limitations ##
 
