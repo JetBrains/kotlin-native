@@ -87,6 +87,10 @@ public:
                     DataOffset() + dataSize <= totalSize, "totalSize %zu is not enough to fit data %zu at offset %zu", totalSize, dataSize,
                     DataOffset());
             void* ptr = allocator.Alloc(totalSize, totalAlignment);
+            if (!ptr) {
+                konan::consoleErrorf("Out of memory trying to allocate %zu bytes. Aborting.\n", totalSize);
+                konan::abort();
+            }
             RuntimeAssert(IsAligned(ptr, totalAlignment), "Allocator returned unaligned to %zu pointer %p", totalAlignment, ptr);
             return unique_ptr<Node>(new (ptr) Node());
         }
@@ -280,17 +284,12 @@ public:
 
     void* Alloc(size_t size, size_t alignment) noexcept {
         gc_.SafePointAllocation(size);
-        void* ptr = base_.Alloc(size, alignment);
-        if (ptr) {
+        if (void* ptr = base_.Alloc(size, alignment)) {
             return ptr;
         }
+        // Tell GC that we failed to allocate, and try one more time.
         gc_.OnOOM(size);
-        ptr = base_.Alloc(size, alignment);
-        if (ptr) {
-            return ptr;
-        }
-        konan::consoleErrorf("Out of memory trying to allocate %zu bytes. Aborting.\n", size);
-        konan::abort();
+        return base_.Alloc(size, alignment);
     }
 
     static void Free(void* instance) noexcept { BaseAllocator::Free(instance); }

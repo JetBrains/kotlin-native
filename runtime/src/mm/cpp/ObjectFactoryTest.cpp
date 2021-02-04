@@ -529,23 +529,21 @@ TEST(AllocatorWithGCTest, AllocateWithFixableOOM) {
     EXPECT_THAT(ptr, nonNull);
 }
 
-TEST(AllocatorWithGCDeathTest, AllocateWithFixableOOM) {
-    auto allocate = []() {
-        constexpr size_t size = 256;
-        constexpr size_t alignment = 8;
-        MockAllocatorWrapper baseAllocator;
-        testing::StrictMock<MockGC> gc;
-        {
-            testing::InSequence seq;
-            EXPECT_CALL(gc, SafePointAllocation(size));
-            EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr));
-            EXPECT_CALL(gc, OnOOM(size));
-            EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr));
-        }
-        AllocatorWithGC<MockAllocatorWrapper, MockGC> allocator(std::move(baseAllocator), gc);
-        return allocator.Alloc(size, alignment);
-    };
-    EXPECT_DEATH(allocate(), "Out of memory trying to allocate 256 bytes. Aborting.");
+TEST(AllocatorWithGCTest, AllocateWithUnfixableOOM) {
+    constexpr size_t size = 256;
+    constexpr size_t alignment = 8;
+    MockAllocatorWrapper baseAllocator;
+    testing::StrictMock<MockGC> gc;
+    {
+        testing::InSequence seq;
+        EXPECT_CALL(gc, SafePointAllocation(size));
+        EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr));
+        EXPECT_CALL(gc, OnOOM(size));
+        EXPECT_CALL(*baseAllocator, Alloc(size, alignment)).WillOnce(testing::Return(nullptr));
+    }
+    AllocatorWithGC<MockAllocatorWrapper, MockGC> allocator(std::move(baseAllocator), gc);
+    void* ptr = allocator.Alloc(size, alignment);
+    EXPECT_THAT(ptr, nullptr);
 }
 
 namespace {
