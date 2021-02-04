@@ -34,7 +34,7 @@ public:
         globalsThreadQueue_(GlobalsRegistry::Instance()),
         stableRefThreadQueue_(StableRefRegistry::Instance()),
         state_(ThreadState::kRunnable),
-        gc_(GC::Instance()),
+        gc_(GlobalData::Instance().gc()),
         objectFactoryThreadQueue_(GlobalData::Instance().objectFactory(), gc_) {}
 
     ~ThreadData() = default;
