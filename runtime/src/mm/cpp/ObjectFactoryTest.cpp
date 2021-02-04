@@ -540,6 +540,7 @@ namespace {
 class GC {
 public:
     struct ObjectData {
+        // TODO: Tests on accessing these flags.
         uint32_t flags;
     };
 
