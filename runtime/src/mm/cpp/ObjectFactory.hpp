@@ -365,13 +365,9 @@ public:
             return array;
         }
 
-        bool operator==(const NodeRef& rhs) const noexcept {
-            return &node_ == &rhs.node_;
-        }
+        bool operator==(const NodeRef& rhs) const noexcept { return &node_ == &rhs.node_; }
 
-        bool operator!=(const NodeRef& rhs) const noexcept {
-            return !(*this == rhs);
-        }
+        bool operator!=(const NodeRef& rhs) const noexcept { return !(*this == rhs); }
 
     private:
         typename Storage::Node& node_;
