@@ -27,7 +27,6 @@ the following platforms:
  * Microsoft Windows x86-64 (tested on Windows 7 and Windows 10), host and target (`-target mingw_x64`,
    default on Windows hosts).
  * Microsoft Windows x86-32 cross-compiled target (`-target mingw_x86`), hosted on Windows.
-   Experimental support is available on Linux and macOS hosts (requires Wine).
  * Apple iOS (armv7 and arm64 devices, x86 simulator), cross-compiled target
    (`-target ios_arm32|ios_arm64|ios_x64`), hosted on macOS.
  * Apple tvOS (arm64 devices, x86 simulator), cross-compiled target
