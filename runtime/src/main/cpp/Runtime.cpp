@@ -203,6 +203,10 @@ void Kotlin_deinitRuntimeIfNeeded() {
   }
 }
 
+RUNTIME_NOTHROW bool Kotlin_hasRuntime() {
+    return isValidRuntime();
+}
+
 // TODO: Consider exporting it to interop API.
 void Kotlin_shutdownRuntime() {
     auto* runtime = ::runtimeState;

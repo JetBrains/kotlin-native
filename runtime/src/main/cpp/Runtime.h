@@ -35,6 +35,7 @@ DestroyRuntimeMode Kotlin_getDestroyRuntimeMode();
 
 RUNTIME_NOTHROW void Kotlin_initRuntimeIfNeeded();
 void Kotlin_deinitRuntimeIfNeeded();
+RUNTIME_NOTHROW bool Kotlin_hasRuntime();
 
 // Can only be called once.
 // No new runtimes can be initialized on any thread after this.

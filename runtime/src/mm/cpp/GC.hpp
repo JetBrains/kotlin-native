@@ -6,6 +6,7 @@
 #ifndef RUNTIME_MM_GC_H
 #define RUNTIME_MM_GC_H
 
+#include "gc/MarkAndSweep.hpp"
 #include "gc/NoOpGC.hpp"
 
 namespace kotlin {
