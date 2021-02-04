@@ -81,9 +81,7 @@ public:
     template <typename Allocator>
     class Producer : private MoveOnly {
     public:
-        explicit Producer(ObjectFactoryStorage& owner, Allocator&& allocator) noexcept : owner_(owner), allocator_(std::move(allocator)) {}
-
-        explicit Producer(ObjectFactoryStorage& owner) noexcept : owner_(owner) {}
+        Producer(ObjectFactoryStorage& owner, Allocator allocator) noexcept : owner_(owner), allocator_(std::move(allocator)) {}
 
         ~Producer() { Publish(); }
 
@@ -278,36 +276,50 @@ private:
 
 } // namespace internal
 
+template <typename GC>
 class ObjectFactory : private Pinned {
-public:
+    struct HeapObjHeader {
+        typename GC::ObjectData gcData;
+        alignas(kObjectAlignment) ObjHeader object;
+    };
+
+    struct HeapArrayHeader {
+        typename GC::ObjectData gcData;
+        alignas(kObjectAlignment) ArrayHeader array;
+    };
+
     class Allocator {
     public:
         void* Alloc(size_t size, size_t alignment) noexcept { return konanAllocAlignedMemory(size, alignment); }
     };
 
+    using GCThreadData = typename GC::ThreadData;
+
+public:
     using Storage = internal::ObjectFactoryStorage<kObjectAlignment>;
 
-    template <typename GC>
     class ThreadQueue : private MoveOnly {
     public:
-        ThreadQueue(ObjectFactory& owner, GC& gc) noexcept : producer_(owner.storage_, internal::AllocatorWithGC(Allocator(), gc)) {}
+        ThreadQueue(ObjectFactory& owner, GCThreadData& gc) noexcept :
+            producer_(owner.storage_, internal::AllocatorWithGC(Allocator(), gc)) {}
 
         ObjHeader* CreateObject(const TypeInfo* typeInfo) noexcept {
             RuntimeAssert(!typeInfo->IsArray(), "Must not be an array");
-            size_t allocSize = typeInfo->instanceSize_;
+            size_t membersSize = typeInfo->instanceSize_ - sizeof(ObjHeader);
+            size_t allocSize = AlignUp(sizeof(HeapObjHeader) + membersSize, kObjectAlignment);
             auto& node = producer_.Insert(allocSize);
-            auto* object = static_cast<ObjHeader*>(node.Data());
+            auto* object = &static_cast<HeapObjHeader*>(node.Data())->object;
             object->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
             return object;
         }
 
         ArrayHeader* CreateArray(const TypeInfo* typeInfo, uint32_t count) noexcept {
             RuntimeAssert(typeInfo->IsArray(), "Must be an array");
-            uint32_t arraySize = static_cast<uint32_t>(-typeInfo->instanceSize_) * count;
+            uint32_t membersSize = static_cast<uint32_t>(-typeInfo->instanceSize_) * count;
             // Note: array body is aligned, but for size computation it is enough to align the sum.
-            size_t allocSize = AlignUp(sizeof(ArrayHeader) + arraySize, kObjectAlignment);
+            size_t allocSize = AlignUp(sizeof(HeapArrayHeader) + membersSize, kObjectAlignment);
             auto& node = producer_.Insert(allocSize);
-            auto* array = static_cast<ArrayHeader*>(node.Data());
+            auto* array = &static_cast<HeapArrayHeader*>(node.Data())->array;
             array->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
             array->count_ = count;
             return array;
@@ -318,7 +330,7 @@ public:
         void ClearForTests() noexcept { producer_.ClearForTests(); }
 
     private:
-        Storage::Producer<internal::AllocatorWithGC<Allocator, GC>> producer_;
+        Storage::Producer<internal::AllocatorWithGC<Allocator, GCThreadData>> producer_;
     };
 
     class Iterator {
@@ -334,10 +346,24 @@ public:
 
         bool operator!=(const Iterator& rhs) const noexcept { return iterator_ != rhs.iterator_; }
 
-        bool IsArray() noexcept;
+        bool IsArray() noexcept {
+            // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
+            // be always casted to the other.
+            auto* object = &static_cast<HeapObjHeader*>((*iterator_).Data())->object;
+            return object->type_info()->IsArray();
+        }
 
-        ObjHeader* GetObjHeader() noexcept;
-        ArrayHeader* GetArrayHeader() noexcept;
+        ObjHeader* GetObjHeader() noexcept {
+            auto* object = &static_cast<HeapObjHeader*>((*iterator_).Data())->object;
+            RuntimeAssert(!object->type_info()->IsArray(), "Must not be an array");
+            return object;
+        }
+
+        ArrayHeader* GetArrayHeader() noexcept {
+            auto* array = &static_cast<HeapArrayHeader*>((*iterator_).Data())->array;
+            RuntimeAssert(array->type_info()->IsArray(), "Must be an array");
+            return array;
+        }
 
     private:
         friend class ObjectFactory;
@@ -360,10 +386,8 @@ public:
         Storage::Iterable iter_;
     };
 
-    ObjectFactory() noexcept;
-    ~ObjectFactory();
-
-    static ObjectFactory& Instance() noexcept;
+    ObjectFactory() noexcept = default;
+    ~ObjectFactory() = default;
 
     Iterable Iter() noexcept { return Iterable(*this); }
 

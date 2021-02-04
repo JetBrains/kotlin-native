@@ -7,6 +7,7 @@
 #define RUNTIME_MM_GC_H
 
 #include <cstddef>
+#include <cstdint>
 
 #include "Utils.hpp"
 
@@ -18,8 +19,25 @@ namespace mm {
 
 class GC : private Pinned {
 public:
+    class ObjectData {
+    public:
+        enum class Color : uint32_t {
+            kWhite = 0,
+            kBlack,
+        };
+
+        Color color() const noexcept { return static_cast<Color>(flags_ & 0x1); }
+
+        void setColor(Color color) noexcept { flags_ |= static_cast<uint32_t>(color); }
+
+    private:
+        uint32_t flags_ = 0;
+    };
+
     class ThreadData : private Pinned {
     public:
+        using ObjectData = GC::ObjectData;
+
         explicit ThreadData(GC& gc) noexcept;
         ~ThreadData();
 
