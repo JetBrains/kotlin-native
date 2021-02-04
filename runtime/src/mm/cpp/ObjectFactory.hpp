@@ -26,11 +26,23 @@ namespace internal {
 
 // A queue that is constructed by collecting subqueues from several `Producer`s.
 // This is essentially a heterogeneous `MultiSourceQueue` on top of a singly linked list that
-// uses `konanAllocMemory` and `konanFreeMemory`
+// uses `Allocator` to allocate and free memory.
 // TODO: Consider merging with `MultiSourceQueue` somehow.
-template <size_t DataAlignment>
+template <size_t DataAlignment, typename Allocator>
 class ObjectFactoryStorage : private Pinned {
     static_assert(IsValidAlignment(DataAlignment), "DataAlignment is not a valid alignment");
+
+    template <typename T>
+    class Deleter {
+    public:
+        void operator()(T* instance) noexcept {
+            instance->~T();
+            Allocator::Free(instance);
+        }
+    };
+
+    template <typename T>
+    using unique_ptr = std::unique_ptr<T, Deleter<T>>;
 
 public:
     // This class does not know its size at compile-time. Does not inherit from `KonanAllocatorAware` because
@@ -60,8 +72,7 @@ public:
 
         Node() noexcept = default;
 
-        template <typename Allocator>
-        static KStdUniquePtr<Node> Create(Allocator& allocator, size_t dataSize) noexcept {
+        static unique_ptr<Node> Create(Allocator& allocator, size_t dataSize) noexcept {
             size_t dataSizeAligned = AlignUp(dataSize, DataAlignment);
             size_t totalAlignment = std::max(alignof(Node), DataAlignment);
             size_t totalSize = AlignUp(sizeof(Node) + dataSizeAligned, totalAlignment);
@@ -70,15 +81,14 @@ public:
                     DataOffset());
             void* ptr = allocator.Alloc(totalSize, totalAlignment);
             RuntimeAssert(IsAligned(ptr, totalAlignment), "Allocator returned unaligned to %zu pointer %p", totalAlignment, ptr);
-            return KStdUniquePtr<Node>(new (ptr) Node());
+            return unique_ptr<Node>(new (ptr) Node());
         }
 
-        KStdUniquePtr<Node> next_;
+        unique_ptr<Node> next_;
         // There's some more data of an unknown (at compile-time) size here, but it cannot be represented
         // with C++ members.
     };
 
-    template <typename Allocator>
     class Producer : private MoveOnly {
     public:
         Producer(ObjectFactoryStorage& owner, Allocator allocator) noexcept : owner_(owner), allocator_(std::move(allocator)) {}
@@ -158,7 +168,7 @@ public:
 
         ObjectFactoryStorage& owner_; // weak
         Allocator allocator_;
-        KStdUniquePtr<Node> root_;
+        unique_ptr<Node> root_;
         Node* last_ = nullptr;
     };
 
@@ -244,9 +254,16 @@ private:
         }
     }
 
-    KStdUniquePtr<Node> root_;
+    unique_ptr<Node> root_;
     Node* last_ = nullptr;
     SpinLock mutex_;
+};
+
+class SimpleAllocator {
+public:
+    void* Alloc(size_t size, size_t alignment) noexcept { return konanAllocAlignedMemory(size, alignment); }
+
+    static void Free(void* instance) noexcept { konanFreeMemory(instance); }
 };
 
 template <typename BaseAllocator, typename GC>
@@ -269,6 +286,8 @@ public:
         konan::abort();
     }
 
+    static void Free(void* instance) noexcept { BaseAllocator::Free(instance); }
+
 private:
     BaseAllocator base_;
     GC& gc_;
@@ -288,20 +307,17 @@ class ObjectFactory : private Pinned {
         alignas(kObjectAlignment) ArrayHeader array;
     };
 
-    class Allocator {
-    public:
-        void* Alloc(size_t size, size_t alignment) noexcept { return konanAllocAlignedMemory(size, alignment); }
-    };
-
     using GCThreadData = typename GC::ThreadData;
 
+    using Allocator = internal::AllocatorWithGC<internal::SimpleAllocator, GCThreadData>;
+
 public:
-    using Storage = internal::ObjectFactoryStorage<kObjectAlignment>;
+    using Storage = internal::ObjectFactoryStorage<kObjectAlignment, Allocator>;
 
     class ThreadQueue : private MoveOnly {
     public:
         ThreadQueue(ObjectFactory& owner, GCThreadData& gc) noexcept :
-            producer_(owner.storage_, internal::AllocatorWithGC(Allocator(), gc)) {}
+            producer_(owner.storage_, internal::AllocatorWithGC(internal::SimpleAllocator(), gc)) {}
 
         ObjHeader* CreateObject(const TypeInfo* typeInfo) noexcept {
             RuntimeAssert(!typeInfo->IsArray(), "Must not be an array");
@@ -330,12 +346,12 @@ public:
         void ClearForTests() noexcept { producer_.ClearForTests(); }
 
     private:
-        Storage::Producer<internal::AllocatorWithGC<Allocator, GCThreadData>> producer_;
+        typename Storage::Producer producer_;
     };
 
     class Iterator {
     public:
-        Storage::Node& operator*() noexcept { return *iterator_; }
+        typename Storage::Node& operator*() noexcept { return *iterator_; }
 
         Iterator& operator++() noexcept {
             ++iterator_;
@@ -368,9 +384,9 @@ public:
     private:
         friend class ObjectFactory;
 
-        explicit Iterator(Storage::Iterator iterator) noexcept : iterator_(std::move(iterator)) {}
+        explicit Iterator(typename Storage::Iterator iterator) noexcept : iterator_(std::move(iterator)) {}
 
-        Storage::Iterator iterator_;
+        typename Storage::Iterator iterator_;
     };
 
     class Iterable {
@@ -383,7 +399,7 @@ public:
         void EraseAndAdvance(Iterator& iterator) noexcept { iter_.EraseAndAdvance(iterator.iterator_); }
 
     private:
-        Storage::Iterable iter_;
+        typename Storage::Iterable iter_;
     };
 
     ObjectFactory() noexcept = default;

@@ -22,18 +22,15 @@ using testing::_;
 
 namespace {
 
-class SimpleAllocator {
-public:
-    void* Alloc(size_t size, size_t alignment) noexcept { return konanAllocAlignedMemory(size, alignment); }
-};
+using SimpleAllocator = mm::internal::SimpleAllocator;
 
 template <size_t DataAlignment>
-using ObjectFactoryStorage = mm::internal::ObjectFactoryStorage<DataAlignment>;
+using ObjectFactoryStorage = mm::internal::ObjectFactoryStorage<DataAlignment, SimpleAllocator>;
 
 using ObjectFactoryStorageRegular = ObjectFactoryStorage<alignof(void*)>;
 
 template <typename Storage>
-using Producer = typename Storage::template Producer<SimpleAllocator>;
+using Producer = typename Storage::Producer;
 
 template <size_t DataAlignment>
 KStdVector<void*> Collect(ObjectFactoryStorage<DataAlignment>& storage) {
