@@ -6,7 +6,7 @@
 #ifndef RUNTIME_MM_GC_H
 #define RUNTIME_MM_GC_H
 
-#include "gc/LeakGC.hpp"
+#include "gc/NoOpGC.hpp"
 
 namespace kotlin {
 namespace mm {
@@ -14,7 +14,7 @@ namespace mm {
 // TODO: GC should be extracted into a separate module, so that we can do different GCs without
 //       the need to redo the entire MM. For now changing GCs can be done by modifying `using` below.
 
-using GC = LeakGC;
+using GC = NoOpGC;
 
 } // namespace mm
 } // namespace kotlin

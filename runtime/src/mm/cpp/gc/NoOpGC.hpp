@@ -3,8 +3,8 @@
  * that can be found in the LICENSE file.
  */
 
-#ifndef RUNTIME_MM_LEAK_GC_H
-#define RUNTIME_MM_LEAK_GC_H
+#ifndef RUNTIME_MM_NOOP_GC_H
+#define RUNTIME_MM_NOOP_GC_H
 
 #include <cstddef>
 
@@ -13,17 +13,17 @@
 namespace kotlin {
 namespace mm {
 
-// LeakGC (aka no-op GC) is a GC that does not free memory.
+// No-op GC is a GC that does not free memory.
 // TODO: It can be made more efficient.
-class LeakGC : private Pinned {
+class NoOpGC : private Pinned {
 public:
     class ObjectData {};
 
     class ThreadData : private Pinned {
     public:
-        using ObjectData = LeakGC::ObjectData;
+        using ObjectData = NoOpGC::ObjectData;
 
-        explicit ThreadData(LeakGC& gc) noexcept {}
+        explicit ThreadData(NoOpGC& gc) noexcept {}
         ~ThreadData() = default;
 
         void SafePointFunctionEpilogue() noexcept {}
@@ -38,8 +38,8 @@ public:
     private:
     };
 
-    LeakGC() noexcept = default;
-    ~LeakGC() = default;
+    NoOpGC() noexcept = default;
+    ~NoOpGC() = default;
 
 private:
 };
@@ -47,4 +47,4 @@ private:
 } // namespace mm
 } // namespace kotlin
 
-#endif // RUNTIME_MM_LEAK_GC_H
+#endif // RUNTIME_MM_NOOP_GC_H
