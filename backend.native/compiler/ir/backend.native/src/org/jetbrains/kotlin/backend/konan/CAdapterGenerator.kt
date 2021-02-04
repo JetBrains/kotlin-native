@@ -467,9 +467,7 @@ private class ExportedElement(val kind: ElementKind,
     private fun addUsedType(type: KotlinType, set: MutableSet<ClassDescriptor>) {
         if (type.constructor.declarationDescriptor is TypeParameterDescriptor) return
         val clazz = TypeUtils.getClassDescriptor(type)
-        if (clazz == null) {
-            context.reportCompilationWarning("cannot get class for $type")
-        } else {
+        if (clazz != null) {
             set += clazz
         }
     }
@@ -603,7 +601,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     }
 
     override fun visitScriptDescriptor(descriptor: ScriptDescriptor, ignored: Void?): Boolean {
-        context.reportCompilationWarning("visitScriptDescriptor() is ignored")
         return true
     }
 
@@ -624,12 +621,10 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     }
 
     override fun visitVariableDescriptor(descriptor: VariableDescriptor, ignored: Void?): Boolean {
-        context.reportCompilationWarning("visitVariableDescriptor() is ignored for now")
         return true
     }
 
     override fun visitTypeParameterDescriptor(descriptor: TypeParameterDescriptor, ignored: Void?): Boolean {
-        context.reportCompilationWarning("visitTypeParameterDescriptor() is ignored for now")
         return true
     }
 
@@ -642,7 +637,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     }
 
     override fun visitTypeAliasDescriptor(descriptor: TypeAliasDescriptor, ignored: Void?): Boolean {
-        context.reportCompilationWarning("visitTypeAliasDescriptor() is ignored for now")
         return true
     }
 
