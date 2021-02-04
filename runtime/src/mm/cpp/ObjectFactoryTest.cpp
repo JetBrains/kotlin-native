@@ -185,6 +185,19 @@ TEST(ObjectFactoryStorageTest, PublishInDestructor) {
     EXPECT_THAT(actual, testing::ElementsAre(1, 2));
 }
 
+TEST(ObjectFactoryStorageTest, FindNode) {
+    ObjectFactoryStorageRegular storage;
+    Producer<ObjectFactoryStorageRegular> producer(storage, SimpleAllocator());
+
+    auto& node1 = producer.Insert<int>(1);
+    auto& node2 = producer.Insert<int>(2);
+
+    producer.Publish();
+
+    EXPECT_THAT(&ObjectFactoryStorageRegular::Node::FromData(node1.Data()), &node1);
+    EXPECT_THAT(&ObjectFactoryStorageRegular::Node::FromData(node2.Data()), &node2);
+}
+
 TEST(ObjectFactoryStorageTest, EraseFirst) {
     ObjectFactoryStorageRegular storage;
     Producer<ObjectFactoryStorageRegular> producer(storage, SimpleAllocator());
@@ -540,8 +553,7 @@ namespace {
 class GC {
 public:
     struct ObjectData {
-        // TODO: Tests on accessing these flags.
-        uint32_t flags;
+        uint32_t flags = 42;
     };
 
     class ThreadData {
@@ -579,10 +591,14 @@ TEST(ObjectFactoryTest, CreateObject) {
     auto* object = threadQueue.CreateObject(typeInfo.get());
     threadQueue.Publish();
 
+    auto node = ObjectFactory::NodeRef::From(object);
+    EXPECT_FALSE(node.IsArray());
+    EXPECT_THAT(node.GetObjHeader(), object);
+    EXPECT_THAT(node.GCObjectData().flags, 42);
+
     auto iter = objectFactory.Iter();
     auto it = iter.begin();
-    EXPECT_FALSE(it.IsArray());
-    EXPECT_THAT(it.GetObjHeader(), object);
+    EXPECT_THAT(*it, node);
     ++it;
     EXPECT_THAT(it, iter.end());
 }
@@ -596,10 +612,14 @@ TEST(ObjectFactoryTest, CreateArray) {
     auto* array = threadQueue.CreateArray(typeInfo.get(), 3);
     threadQueue.Publish();
 
+    auto node = ObjectFactory::NodeRef::From(array);
+    EXPECT_TRUE(node.IsArray());
+    EXPECT_THAT(node.GetArrayHeader(), array);
+    EXPECT_THAT(node.GCObjectData().flags, 42);
+
     auto iter = objectFactory.Iter();
     auto it = iter.begin();
-    EXPECT_TRUE(it.IsArray());
-    EXPECT_THAT(it.GetArrayHeader(), array);
+    EXPECT_THAT(*it, node);
     ++it;
     EXPECT_THAT(it, iter.end());
 }
@@ -621,7 +641,7 @@ TEST(ObjectFactoryTest, Erase) {
     {
         auto iter = objectFactory.Iter();
         for (auto it = iter.begin(); it != iter.end();) {
-            if (it.IsArray()) {
+            if (it->IsArray()) {
                 iter.EraseAndAdvance(it);
             } else {
                 ++it;
@@ -633,7 +653,7 @@ TEST(ObjectFactoryTest, Erase) {
         auto iter = objectFactory.Iter();
         int count = 0;
         for (auto it = iter.begin(); it != iter.end(); ++it, ++count) {
-            EXPECT_FALSE(it.IsArray());
+            EXPECT_FALSE(it->IsArray());
         }
         EXPECT_THAT(count, 10);
     }
@@ -675,7 +695,7 @@ TEST(ObjectFactoryTest, ConcurrentPublish) {
     auto iter = objectFactory.Iter();
     KStdVector<ObjHeader*> actual;
     for (auto it = iter.begin(); it != iter.end(); ++it) {
-        actual.push_back(it.GetObjHeader());
+        actual.push_back(it->GetObjHeader());
     }
 
     EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected));

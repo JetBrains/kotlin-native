@@ -53,6 +53,13 @@ public:
     public:
         ~Node() = default;
 
+        static Node& FromData(void* data) noexcept {
+            constexpr size_t kDataOffset = DataOffset();
+            Node* node = reinterpret_cast<Node*>(reinterpret_cast<uintptr_t>(data) - kDataOffset);
+            RuntimeAssert(node->Data() == data, "Node layout has broken");
+            return *node;
+        }
+
         // Note: This can only be trivially destructible data, as nobody can invoke its destructor.
         void* Data() noexcept {
             constexpr size_t kDataOffset = DataOffset();
@@ -297,22 +304,79 @@ private:
 
 template <typename GC>
 class ObjectFactory : private Pinned {
-    struct HeapObjHeader {
-        typename GC::ObjectData gcData;
-        alignas(kObjectAlignment) ObjHeader object;
-    };
-
-    struct HeapArrayHeader {
-        typename GC::ObjectData gcData;
-        alignas(kObjectAlignment) ArrayHeader array;
-    };
-
+    using GCObjectData = typename GC::ObjectData;
     using GCThreadData = typename GC::ThreadData;
 
     using Allocator = internal::AllocatorWithGC<internal::SimpleAllocator, GCThreadData>;
 
+    struct HeapObjHeader {
+        GCObjectData gcData;
+        alignas(kObjectAlignment) ObjHeader object;
+    };
+
+    struct HeapArrayHeader {
+        GCObjectData gcData;
+        alignas(kObjectAlignment) ArrayHeader array;
+    };
+
 public:
     using Storage = internal::ObjectFactoryStorage<kObjectAlignment, Allocator>;
+
+    class NodeRef {
+    public:
+        explicit NodeRef(typename Storage::Node& node) noexcept : node_(node) {}
+
+        static NodeRef From(ObjHeader* object) noexcept {
+            RuntimeAssert(object->heap(), "Must be a heap object");
+            auto* heapObject = reinterpret_cast<HeapObjHeader*>(reinterpret_cast<uintptr_t>(object) - offsetof(HeapObjHeader, object));
+            RuntimeAssert(&heapObject->object == object, "HeapObjHeader layout has broken");
+            return NodeRef(Storage::Node::FromData(heapObject));
+        }
+
+        static NodeRef From(ArrayHeader* array) noexcept {
+            // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
+            // be always casted to the other.
+            return From(reinterpret_cast<ObjHeader*>(array));
+        }
+
+        NodeRef* operator->() noexcept { return this; }
+
+        GCObjectData& GCObjectData() noexcept {
+            // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
+            // be always casted to the other.
+            return static_cast<HeapObjHeader*>(node_.Data())->gcData;
+        }
+
+        bool IsArray() const noexcept {
+            // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
+            // be always casted to the other.
+            auto* object = &static_cast<HeapObjHeader*>(node_.Data())->object;
+            return object->type_info()->IsArray();
+        }
+
+        ObjHeader* GetObjHeader() noexcept {
+            auto* object = &static_cast<HeapObjHeader*>(node_.Data())->object;
+            RuntimeAssert(!object->type_info()->IsArray(), "Must not be an array");
+            return object;
+        }
+
+        ArrayHeader* GetArrayHeader() noexcept {
+            auto* array = &static_cast<HeapArrayHeader*>(node_.Data())->array;
+            RuntimeAssert(array->type_info()->IsArray(), "Must be an array");
+            return array;
+        }
+
+        bool operator==(const NodeRef& rhs) const noexcept {
+            return &node_ == &rhs.node_;
+        }
+
+        bool operator!=(const NodeRef& rhs) const noexcept {
+            return !(*this == rhs);
+        }
+
+    private:
+        typename Storage::Node& node_;
+    };
 
     class ThreadQueue : private MoveOnly {
     public:
@@ -324,7 +388,8 @@ public:
             size_t membersSize = typeInfo->instanceSize_ - sizeof(ObjHeader);
             size_t allocSize = AlignUp(sizeof(HeapObjHeader) + membersSize, kObjectAlignment);
             auto& node = producer_.Insert(allocSize);
-            auto* object = &static_cast<HeapObjHeader*>(node.Data())->object;
+            auto* heapObject = new (node.Data()) HeapObjHeader();
+            auto* object = &heapObject->object;
             object->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
             return object;
         }
@@ -335,7 +400,8 @@ public:
             // Note: array body is aligned, but for size computation it is enough to align the sum.
             size_t allocSize = AlignUp(sizeof(HeapArrayHeader) + membersSize, kObjectAlignment);
             auto& node = producer_.Insert(allocSize);
-            auto* array = &static_cast<HeapArrayHeader*>(node.Data())->array;
+            auto* heapArray = new (node.Data()) HeapArrayHeader();
+            auto* array = &heapArray->array;
             array->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
             array->count_ = count;
             return array;
@@ -351,7 +417,8 @@ public:
 
     class Iterator {
     public:
-        typename Storage::Node& operator*() noexcept { return *iterator_; }
+        NodeRef operator*() noexcept { return NodeRef(*iterator_); }
+        NodeRef operator->() noexcept { return NodeRef(*iterator_); }
 
         Iterator& operator++() noexcept {
             ++iterator_;
@@ -361,25 +428,6 @@ public:
         bool operator==(const Iterator& rhs) const noexcept { return iterator_ == rhs.iterator_; }
 
         bool operator!=(const Iterator& rhs) const noexcept { return iterator_ != rhs.iterator_; }
-
-        bool IsArray() noexcept {
-            // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
-            // be always casted to the other.
-            auto* object = &static_cast<HeapObjHeader*>((*iterator_).Data())->object;
-            return object->type_info()->IsArray();
-        }
-
-        ObjHeader* GetObjHeader() noexcept {
-            auto* object = &static_cast<HeapObjHeader*>((*iterator_).Data())->object;
-            RuntimeAssert(!object->type_info()->IsArray(), "Must not be an array");
-            return object;
-        }
-
-        ArrayHeader* GetArrayHeader() noexcept {
-            auto* array = &static_cast<HeapArrayHeader*>((*iterator_).Data())->array;
-            RuntimeAssert(array->type_info()->IsArray(), "Must be an array");
-            return array;
-        }
 
     private:
         friend class ObjectFactory;
