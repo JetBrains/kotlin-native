@@ -41,7 +41,8 @@ the following platforms:
  * WebAssembly (`-target wasm32`) target, hosted on Linux, Windows or macOS. Webassembly support is experimental
    and could be discontinued in further releases.
  * Experimental support for Zephyr RTOS (`-target zephyr_stm32f4_disco`) is available on macOS, Linux
-   and Windows hosts.
+   and Windows hosts. "Experimental" here also means that support for this target might be broken at the moment,
+   and UX might be disappointing.
 
  ## Compatibility and features ##
 
