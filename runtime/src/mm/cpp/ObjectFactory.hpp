@@ -13,7 +13,6 @@
 
 #include "Alignment.hpp"
 #include "Alloc.h"
-#include "GC.hpp"
 #include "Memory.h"
 #include "Mutex.hpp"
 #include "Types.h"
