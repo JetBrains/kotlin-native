@@ -313,6 +313,8 @@ class ObjectFactory : private Pinned {
         alignas(kObjectAlignment) ObjHeader object;
     };
 
+    // Needs to be kept compatible with `HeapObjHeader` just like `ArrayHeader` is compatible
+    // with `ObjHeader`: the former can always be casted to the other.
     struct HeapArrayHeader {
         GCObjectData gcData;
         alignas(kObjectAlignment) ArrayHeader array;
@@ -335,19 +337,22 @@ public:
         static NodeRef From(ArrayHeader* array) noexcept {
             // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
             // be always casted to the other.
-            return From(reinterpret_cast<ObjHeader*>(array));
+            RuntimeAssert(reinterpret_cast<ObjHeader*>(array)->heap(), "Must be a heap object");
+            auto* heapArray = reinterpret_cast<HeapArrayHeader*>(reinterpret_cast<uintptr_t>(array) - offsetof(HeapArrayHeader, array));
+            RuntimeAssert(&heapArray->array == array, "HeapArrayHeader layout has broken");
+            return NodeRef(Storage::Node::FromData(heapArray));
         }
 
         NodeRef* operator->() noexcept { return this; }
 
         GCObjectData& GCObjectData() noexcept {
-            // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
+            // `HeapArrayHeader` and `HeapObjHeader` are kept compatible, so the former can
             // be always casted to the other.
             return static_cast<HeapObjHeader*>(node_.Data())->gcData;
         }
 
         bool IsArray() const noexcept {
-            // `ArrayHeader` and `ObjHeader` are kept compatible, so the former can
+            // `HeapArrayHeader` and `HeapObjHeader` are kept compatible, so the former can
             // be always casted to the other.
             auto* object = &static_cast<HeapObjHeader*>(node_.Data())->object;
             return object->type_info()->IsArray();
