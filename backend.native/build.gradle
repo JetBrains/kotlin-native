@@ -56,6 +56,13 @@ compileCompilerKotlin {
     // but not for Kotlin.
     dependsOn('generateCompilerProto')
     kotlinOptions.jvmTarget = "1.8"
+
+    // Setting jvmTarget using DSL (above) doesn't seem to work.
+    // This is _likely_ caused by using different versions of compiler (before changing the default JVM target)
+    // and Gradle plugin (after chaging).
+    // Workaround (to be removed soon):
+    kotlinOptions.freeCompilerArgs += ["-jvm-target", "1.8"]
+
     kotlinOptions.allWarningsAsErrors=true
     kotlinOptions.freeCompilerArgs += ['-Xopt-in=kotlin.RequiresOptIn', '-Xopt-in=org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI']
 }

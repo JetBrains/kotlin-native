@@ -54,6 +54,12 @@ sourceSets["main"].withConvention(KotlinSourceSet::class) {
 tasks.withType<KotlinCompile> {
     dependsOn(generateCompilerVersion)
     kotlinOptions.jvmTarget = "1.8"
+
+    // Setting jvmTarget using DSL (above) doesn't seem to work.
+    // This is _likely_ caused by using different versions of compiler (before changing the default JVM target)
+    // and Gradle plugin (after chaging).
+    // Workaround (to be removed soon):
+    kotlinOptions.freeCompilerArgs += listOf("-jvm-target", "1.8")
 }
 
 tasks.clean {
