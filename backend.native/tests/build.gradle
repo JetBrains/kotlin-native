@@ -5079,7 +5079,7 @@ private void configureStdlibTest(KonanGTest task, boolean inWorker) {
     task.testLogger = KonanTest.Logger.GTEST
     task.finalizedBy("resultsTask")
     task.enabled = (project.testTarget != 'wasm32') && // Uses exceptions
-        !ext.isExperimentalMM  // Experimental MM doesn't support multiple mutators yet.
+        (!inWorker || !ext.isExperimentalMM)  // Experimental MM doesn't support multiple mutators yet.
 }
 
 /**
