@@ -18,14 +18,9 @@ namespace mm {
 
 class ThreadData;
 
-// A helper class to unify root set iteration.
-// Use `ThreadIter(ThreadData&)` to iterate over thread-specific rootset, and use `GlobalIter` to
-// lock and iterate over global rootset.
-class RootSet {
+class ThreadRootSet {
 public:
-    class ThreadRootSetIterable;
-
-    class ThreadRootSetIterator {
+    class Iterator {
     public:
         struct begin_t {};
         static constexpr inline begin_t begin = begin_t{};
@@ -33,15 +28,15 @@ public:
         struct end_t {};
         static constexpr inline end_t end = end_t{};
 
-        ThreadRootSetIterator(begin_t, ThreadRootSetIterable& owner) noexcept;
-        ThreadRootSetIterator(end_t, ThreadRootSetIterable& owner) noexcept;
+        Iterator(begin_t, ThreadRootSet& owner) noexcept;
+        Iterator(end_t, ThreadRootSet& owner) noexcept;
 
         ObjHeader*& operator*() noexcept;
 
-        ThreadRootSetIterator& operator++() noexcept;
+        Iterator& operator++() noexcept;
 
-        bool operator==(const ThreadRootSetIterator& rhs) const noexcept;
-        bool operator!=(const ThreadRootSetIterator& rhs) const noexcept { return !(*this == rhs); }
+        bool operator==(const Iterator& rhs) const noexcept;
+        bool operator!=(const Iterator& rhs) const noexcept { return !(*this == rhs); }
 
     private:
         enum class Phase {
@@ -52,7 +47,7 @@ public:
 
         void Init() noexcept;
 
-        ThreadRootSetIterable& owner_;
+        ThreadRootSet& owner_;
         Phase phase_;
         union {
             ShadowStack::Iterator stackIterator_;
@@ -60,23 +55,20 @@ public:
         };
     };
 
-    class ThreadRootSetIterable {
-    public:
-        ThreadRootSetIterable(ShadowStack& stack, ThreadLocalStorage& tls) noexcept : stack_(stack), tls_(tls) {}
+    ThreadRootSet(ShadowStack& stack, ThreadLocalStorage& tls) noexcept : stack_(stack), tls_(tls) {}
+    explicit ThreadRootSet(ThreadData& threadData) noexcept;
 
-        ThreadRootSetIterator begin() noexcept { return ThreadRootSetIterator(ThreadRootSetIterator::begin, *this); }
-        ThreadRootSetIterator end() noexcept { return ThreadRootSetIterator(ThreadRootSetIterator::end, *this); }
+    Iterator begin() noexcept { return Iterator(Iterator::begin, *this); }
+    Iterator end() noexcept { return Iterator(Iterator::end, *this); }
 
-    private:
-        friend class ThreadRootSetIterator;
+private:
+    ShadowStack& stack_;
+    ThreadLocalStorage& tls_;
+};
 
-        ShadowStack& stack_;
-        ThreadLocalStorage& tls_;
-    };
-
-    class GlobalRootSetIterable;
-
-    class GlobalRootSetIterator {
+class GlobalRootSet {
+public:
+    class Iterator {
     public:
         struct begin_t {};
         static constexpr inline begin_t begin = begin_t{};
@@ -84,15 +76,15 @@ public:
         struct end_t {};
         static constexpr inline end_t end = end_t{};
 
-        GlobalRootSetIterator(begin_t, GlobalRootSetIterable& owner) noexcept;
-        GlobalRootSetIterator(end_t, GlobalRootSetIterable& owner) noexcept;
+        Iterator(begin_t, GlobalRootSet& owner) noexcept;
+        Iterator(end_t, GlobalRootSet& owner) noexcept;
 
         ObjHeader*& operator*() noexcept;
 
-        GlobalRootSetIterator& operator++() noexcept;
+        Iterator& operator++() noexcept;
 
-        bool operator==(const GlobalRootSetIterator& rhs) const noexcept;
-        bool operator!=(const GlobalRootSetIterator& rhs) const noexcept { return !(*this == rhs); }
+        bool operator==(const Iterator& rhs) const noexcept;
+        bool operator!=(const Iterator& rhs) const noexcept { return !(*this == rhs); }
 
     private:
         enum class Phase {
@@ -103,7 +95,7 @@ public:
 
         void Init() noexcept;
 
-        GlobalRootSetIterable& owner_;
+        GlobalRootSet& owner_;
         Phase phase_;
         union {
             GlobalsRegistry::Iterator globalsIterator_;
@@ -111,26 +103,18 @@ public:
         };
     };
 
-    class GlobalRootSetIterable {
-    public:
-        GlobalRootSetIterable(GlobalsRegistry& globalsRegistry, StableRefRegistry& stableRefRegistry) noexcept :
-            globalsIterable_(globalsRegistry.Iter()), stableRefsIterable_(stableRefRegistry.Iter()) {}
+    GlobalRootSet(GlobalsRegistry& globalsRegistry, StableRefRegistry& stableRefRegistry) noexcept :
+        globalsIterable_(globalsRegistry.Iter()), stableRefsIterable_(stableRefRegistry.Iter()) {}
+    GlobalRootSet() noexcept;
 
-        GlobalRootSetIterator begin() noexcept { return GlobalRootSetIterator(GlobalRootSetIterator::begin, *this); }
-        GlobalRootSetIterator end() noexcept { return GlobalRootSetIterator(GlobalRootSetIterator::end, *this); }
+    Iterator begin() noexcept { return Iterator(Iterator::begin, *this); }
+    Iterator end() noexcept { return Iterator(Iterator::end, *this); }
 
-    private:
-        friend class GlobalRootSetIterator;
-
-        // TODO: These use separate locks, which is inefficient, and slightly dangerous. In practice it's
-        //       fine, because this is the only place where these two locks are taken simultaneously.
-        GlobalsRegistry::Iterable globalsIterable_;
-        StableRefRegistry::Iterable stableRefsIterable_;
-    };
-
-    ThreadRootSetIterable ThreadIter(ThreadData& threadData) noexcept;
-
-    GlobalRootSetIterable GlobalIter() noexcept;
+private:
+    // TODO: These use separate locks, which is inefficient, and slightly dangerous. In practice it's
+    //       fine, because this is the only place where these two locks are taken simultaneously.
+    GlobalsRegistry::Iterable globalsIterable_;
+    StableRefRegistry::Iterable stableRefsIterable_;
 };
 
 } // namespace mm

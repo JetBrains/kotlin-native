@@ -11,15 +11,14 @@
 
 using namespace kotlin;
 
-mm::RootSet::ThreadRootSetIterator::ThreadRootSetIterator(begin_t, ThreadRootSetIterable& owner) noexcept :
+mm::ThreadRootSet::Iterator::Iterator(begin_t, ThreadRootSet& owner) noexcept :
     owner_(owner), phase_(Phase::kStack), stackIterator_(owner_.stack_.begin()) {
     Init();
 }
 
-mm::RootSet::ThreadRootSetIterator::ThreadRootSetIterator(end_t, ThreadRootSetIterable& owner) noexcept :
-    owner_(owner), phase_(Phase::kDone) {}
+mm::ThreadRootSet::Iterator::Iterator(end_t, ThreadRootSet& owner) noexcept : owner_(owner), phase_(Phase::kDone) {}
 
-ObjHeader*& mm::RootSet::ThreadRootSetIterator::operator*() noexcept {
+ObjHeader*& mm::ThreadRootSet::Iterator::operator*() noexcept {
     switch (phase_) {
         case Phase::kStack:
             return *stackIterator_;
@@ -30,7 +29,7 @@ ObjHeader*& mm::RootSet::ThreadRootSetIterator::operator*() noexcept {
     }
 }
 
-mm::RootSet::ThreadRootSetIterator& mm::RootSet::ThreadRootSetIterator::operator++() noexcept {
+mm::ThreadRootSet::Iterator& mm::ThreadRootSet::Iterator::operator++() noexcept {
     switch (phase_) {
         case Phase::kStack:
             ++stackIterator_;
@@ -45,7 +44,7 @@ mm::RootSet::ThreadRootSetIterator& mm::RootSet::ThreadRootSetIterator::operator
     }
 }
 
-bool mm::RootSet::ThreadRootSetIterator::operator==(const ThreadRootSetIterator& rhs) const noexcept {
+bool mm::ThreadRootSet::Iterator::operator==(const Iterator& rhs) const noexcept {
     if (phase_ != rhs.phase_) {
         return false;
     }
@@ -60,7 +59,7 @@ bool mm::RootSet::ThreadRootSetIterator::operator==(const ThreadRootSetIterator&
     }
 }
 
-void mm::RootSet::ThreadRootSetIterator::Init() noexcept {
+void mm::ThreadRootSet::Iterator::Init() noexcept {
     while (phase_ != Phase::kDone) {
         switch (phase_) {
             case Phase::kStack:
@@ -78,15 +77,14 @@ void mm::RootSet::ThreadRootSetIterator::Init() noexcept {
     }
 }
 
-mm::RootSet::GlobalRootSetIterator::GlobalRootSetIterator(begin_t, GlobalRootSetIterable& owner) noexcept :
+mm::GlobalRootSet::Iterator::Iterator(begin_t, GlobalRootSet& owner) noexcept :
     owner_(owner), phase_(Phase::kGlobals), globalsIterator_(owner_.globalsIterable_.begin()) {
     Init();
 }
 
-mm::RootSet::GlobalRootSetIterator::GlobalRootSetIterator(end_t, GlobalRootSetIterable& owner) noexcept :
-    owner_(owner), phase_(Phase::kDone) {}
+mm::GlobalRootSet::Iterator::Iterator(end_t, GlobalRootSet& owner) noexcept : owner_(owner), phase_(Phase::kDone) {}
 
-ObjHeader*& mm::RootSet::GlobalRootSetIterator::operator*() noexcept {
+ObjHeader*& mm::GlobalRootSet::Iterator::operator*() noexcept {
     switch (phase_) {
         case Phase::kGlobals:
             return **globalsIterator_;
@@ -97,7 +95,7 @@ ObjHeader*& mm::RootSet::GlobalRootSetIterator::operator*() noexcept {
     }
 }
 
-mm::RootSet::GlobalRootSetIterator& mm::RootSet::GlobalRootSetIterator::operator++() noexcept {
+mm::GlobalRootSet::Iterator& mm::GlobalRootSet::Iterator::operator++() noexcept {
     switch (phase_) {
         case Phase::kGlobals:
             ++globalsIterator_;
@@ -112,7 +110,7 @@ mm::RootSet::GlobalRootSetIterator& mm::RootSet::GlobalRootSetIterator::operator
     }
 }
 
-bool mm::RootSet::GlobalRootSetIterator::operator==(const GlobalRootSetIterator& rhs) const noexcept {
+bool mm::GlobalRootSet::Iterator::operator==(const Iterator& rhs) const noexcept {
     if (phase_ != rhs.phase_) {
         return false;
     }
@@ -127,7 +125,7 @@ bool mm::RootSet::GlobalRootSetIterator::operator==(const GlobalRootSetIterator&
     }
 }
 
-void mm::RootSet::GlobalRootSetIterator::Init() noexcept {
+void mm::GlobalRootSet::Iterator::Init() noexcept {
     while (phase_ != Phase::kDone) {
         switch (phase_) {
             case Phase::kGlobals:
@@ -145,11 +143,7 @@ void mm::RootSet::GlobalRootSetIterator::Init() noexcept {
     }
 }
 
-mm::RootSet::ThreadRootSetIterable mm::RootSet::ThreadIter(ThreadData& threadData) noexcept {
-    return ThreadRootSetIterable(threadData.shadowStack(), threadData.tls());
-}
+mm::ThreadRootSet::ThreadRootSet(ThreadData& threadData) noexcept : ThreadRootSet(threadData.shadowStack(), threadData.tls()) {}
 
-mm::RootSet::GlobalRootSetIterable mm::RootSet::GlobalIter() noexcept {
-    auto& globalData = mm::GlobalData::Instance();
-    return GlobalRootSetIterable(globalData.globalsRegistry(), globalData.stableRefRegistry());
-}
+mm::GlobalRootSet::GlobalRootSet() noexcept :
+    GlobalRootSet(mm::GlobalData::Instance().globalsRegistry(), mm::GlobalData::Instance().stableRefRegistry()) {}

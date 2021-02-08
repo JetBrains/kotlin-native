@@ -48,7 +48,7 @@ struct TLSKey {};
 
 } // namespace
 
-TEST(ThreadRootSetIterableTest, Basic) {
+TEST(ThreadRootSetTest, Basic) {
     mm::ShadowStack stack;
     StackEntry<2> entry(stack);
 
@@ -57,7 +57,7 @@ TEST(ThreadRootSetIterableTest, Basic) {
     tls.AddRecord(&key, 3);
     tls.Commit();
 
-    mm::RootSet::ThreadRootSetIterable iter(stack, tls);
+    mm::ThreadRootSet iter(stack, tls);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {
@@ -67,11 +67,11 @@ TEST(ThreadRootSetIterableTest, Basic) {
     EXPECT_THAT(actual, testing::ElementsAre(entry[0], entry[1], *tls.Lookup(&key, 0), *tls.Lookup(&key, 1), *tls.Lookup(&key, 2)));
 }
 
-TEST(ThreadRootSetIterableTest, Empty) {
+TEST(ThreadRootSetTest, Empty) {
     mm::ShadowStack stack;
     mm::ThreadLocalStorage tls;
 
-    mm::RootSet::ThreadRootSetIterable iter(stack, tls);
+    mm::ThreadRootSet iter(stack, tls);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {
@@ -81,7 +81,7 @@ TEST(ThreadRootSetIterableTest, Empty) {
     EXPECT_THAT(actual, testing::IsEmpty());
 }
 
-TEST(GlobalRootSetIterableTest, Basic) {
+TEST(GlobalRootSetTest, Basic) {
     mm::GlobalsRegistry globals;
     mm::GlobalsRegistry::ThreadQueue globalsProducer(globals);
     ObjHeader* global1 = reinterpret_cast<ObjHeader*>(1);
@@ -101,7 +101,7 @@ TEST(GlobalRootSetIterableTest, Basic) {
     globalsProducer.Publish();
     stableRefsProducer.Publish();
 
-    mm::RootSet::GlobalRootSetIterable iter(globals, stableRefs);
+    mm::GlobalRootSet iter(globals, stableRefs);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {
@@ -111,11 +111,11 @@ TEST(GlobalRootSetIterableTest, Basic) {
     EXPECT_THAT(actual, testing::ElementsAre(global1, global2, stableRef1, stableRef2, stableRef3));
 }
 
-TEST(GlobalRootSetIterableTest, Empty) {
+TEST(GlobalRootSetTest, Empty) {
     mm::GlobalsRegistry globals;
     mm::StableRefRegistry stableRefs;
 
-    mm::RootSet::GlobalRootSetIterable iter(globals, stableRefs);
+    mm::GlobalRootSet iter(globals, stableRefs);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {
