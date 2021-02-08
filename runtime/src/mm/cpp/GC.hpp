@@ -15,7 +15,7 @@ namespace mm {
 // TODO: GC should be extracted into a separate module, so that we can do different GCs without
 //       the need to redo the entire MM. For now changing GCs can be done by modifying `using` below.
 
-using GC = NoOpGC;
+using GC = MarkAndSweep;
 
 } // namespace mm
 } // namespace kotlin
