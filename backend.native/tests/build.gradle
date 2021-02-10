@@ -3730,10 +3730,10 @@ int customCompare(const char* str1, const char* str2) {
 void createInterop(String name, Closure conf) {
     konanArtifacts {
         interop(name, targets: [target.name]) {
-            conf(it)
             noDefaultLibs(true)
             noEndorsedLibs(true)
             baseDir "$testOutputLocal/$name"
+            conf(it)
         }
     }
 }
@@ -3898,6 +3898,13 @@ createInterop("kt43502") {
             )
         }
     }
+}
+
+createInterop("kt44295") {
+    it.defFile 'interop/kt44295/kt44295.def'
+    // This test depends on platform libraries
+    it.noDefaultLibs(false)
+    it.noEndorsedLibs(false)
 }
 
 createInterop("leakMemoryWithRunningThread") {
@@ -4227,6 +4234,14 @@ dynamicTest("interop_kt43502") {
     source = "interop/kt43502/main.kt"
     cSource = "$projectDir/interop/kt43502/main.c"
     goldValue = "null\n"
+}
+
+interopTest("interop_kt44295") {
+    disabled = (project.testTarget == 'wasm32')
+    dependsOnPlatformLibs(it)
+    interop = "kt44295"
+    source = "interop/kt44295/main.kt"
+    goldValue = "0\n"
 }
 
 interopTest("interop_leakMemoryWithRunningThreadUnchecked") {

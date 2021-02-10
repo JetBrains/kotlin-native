@@ -1,0 +1,8 @@
+---
+#include <stdarg.h>
+
+// Here we test how cinterop handles va_list,
+// so there is no need for meaningful function body.
+int fn(const char* arg1, va_list arg2) {
+    return 0;
+}
