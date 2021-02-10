@@ -34,7 +34,8 @@ public:
     // Try not to use it very often, as (1) thread local access can be slow on some platforms,
     // (2) TLS gets deallocated before our thread destruction hooks run.
     // Using this after `Unregister` for the thread has been called is undefined behaviour.
-    ThreadData* CurrentThreadData() const noexcept { return currentThreadData_; }
+    ThreadData* CurrentThreadData() const noexcept;
+    Node* CurrentThreadDataNode() const noexcept { return currentThreadDataNode_; }
 
 private:
     friend class GlobalData;
@@ -42,7 +43,7 @@ private:
     ThreadRegistry();
     ~ThreadRegistry();
 
-    static thread_local ThreadData* currentThreadData_;
+    static thread_local Node* currentThreadDataNode_;
 
     SingleLockList<ThreadData> list_;
 };

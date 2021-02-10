@@ -22,6 +22,7 @@
 #include "TypeInfo.h"
 #include "Atomic.h"
 #include "PointerBits.h"
+#include "Utils.hpp"
 
 typedef enum {
   // Must match to permTag() in Kotlin.
@@ -356,23 +357,22 @@ class ObjHolder {
    ObjHeader* obj_;
 };
 
-//! TODO Follow the Rule of Zero to prevent dangling on unintented copy ctor
-class ExceptionObjHolder {
- public:
-   explicit ExceptionObjHolder(const ObjHeader* obj) {
-     ::SetHeapRef(&obj_, obj);
-   }
+// This is used to catch kotlin exception in `CAdapterGenerator` without the need
+// to replicate the entire `ExceptionObjHolder`.
+class ExceptionObjHolderBase {};
 
-   ~ExceptionObjHolder() {
-     ZeroHeapRef(&obj_);
-   }
+class ExceptionObjHolder : public ExceptionObjHolderBase, private kotlin::Pinned {
+public:
+    explicit ExceptionObjHolder(ObjHeader* obj) noexcept;
+    ~ExceptionObjHolder();
 
-   ObjHeader* obj() { return obj_; }
+    ObjHeader* obj() noexcept { return obj_; }
 
-   const ObjHeader* obj() const { return obj_; }
+    const ObjHeader* obj() const noexcept { return obj_; }
 
- private:
-   ObjHeader* obj_;
+private:
+    ObjHeader* obj_;
+    MemoryState* memory_;
 };
 
 #endif // RUNTIME_MEMORY_H

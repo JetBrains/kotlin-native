@@ -252,6 +252,10 @@ RUNTIME_NORETURN void TerminateWithUnhandledException(KRef throwable) {
   });
 }
 
+RUNTIME_NORETURN void TerminateWithUnhandledExceptionHolder(ExceptionObjHolderBase* holder) {
+    TerminateWithUnhandledException(static_cast<ExceptionObjHolder*>(holder)->obj());
+}
+
 #if !KONAN_NO_EXCEPTIONS
 
 namespace {

@@ -436,3 +436,15 @@ extern "C" RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
     auto* threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     threadData->gc().SafePointExceptionUnwind();
 }
+
+ExceptionObjHolder::ExceptionObjHolder(ObjHeader* obj) noexcept : obj_(obj) {
+    auto* threadDataNode = mm::ThreadRegistry::Instance().CurrentThreadDataNode();
+    memory_ = ToMemoryState(threadDataNode);
+    threadDataNode->Get()->currentException().AddException(obj_);
+}
+
+ExceptionObjHolder::~ExceptionObjHolder() {
+    auto* threadDataNode = mm::ThreadRegistry::Instance().CurrentThreadDataNode();
+    RuntimeAssert(ToMemoryState(threadDataNode) == memory_, "Exception has unexpectedly migrated between threads");
+    threadDataNode->Get()->currentException().RemoveException(obj_);
+}

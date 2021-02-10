@@ -3691,3 +3691,12 @@ ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
 }
 
 } // extern "C"
+
+ExceptionObjHolder::ExceptionObjHolder(ObjHeader* obj) noexcept : memory_(::memoryState) {
+    ::SetHeapRef(&obj_, obj);
+}
+
+ExceptionObjHolder::~ExceptionObjHolder() {
+    RuntimeAssert(::memoryState == memory_, "Exception has unexpectedly migrated between threads");
+    ZeroHeapRef(&obj_);
+}

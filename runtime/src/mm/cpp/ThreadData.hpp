@@ -9,6 +9,7 @@
 #include <atomic>
 #include <pthread.h>
 
+#include "CurrentException.hpp"
 #include "GlobalData.hpp"
 #include "GlobalsRegistry.hpp"
 #include "GC.hpp"
@@ -59,6 +60,8 @@ public:
 
     GC::ThreadData& gc() noexcept { return gc_; }
 
+    CurrentException& currentException() noexcept { return currentException_; }
+
     void Publish() noexcept {
         // TODO: These use separate locks, which is inefficient.
         globalsThreadQueue_.Publish();
@@ -76,6 +79,7 @@ private:
     GC::ThreadData gc_;
     ObjectFactory<GC>::ThreadQueue objectFactoryThreadQueue_;
     KStdVector<std::pair<ObjHeader**, ObjHeader*>> initializingSingletons_;
+    CurrentException currentException_;
 };
 
 } // namespace mm

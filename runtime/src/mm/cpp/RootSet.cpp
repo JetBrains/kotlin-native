@@ -22,6 +22,8 @@ ObjHeader*& mm::ThreadRootSet::Iterator::operator*() noexcept {
     switch (phase_) {
         case Phase::kStack:
             return *stackIterator_;
+        case Phase::kException:
+            return *exceptionsIterator_;
         case Phase::kTLS:
             return **tlsIterator_;
         case Phase::kDone:
@@ -33,6 +35,10 @@ mm::ThreadRootSet::Iterator& mm::ThreadRootSet::Iterator::operator++() noexcept 
     switch (phase_) {
         case Phase::kStack:
             ++stackIterator_;
+            Init();
+            return *this;
+        case Phase::kException:
+            ++exceptionsIterator_;
             Init();
             return *this;
         case Phase::kTLS:
@@ -54,6 +60,8 @@ bool mm::ThreadRootSet::Iterator::operator==(const Iterator& rhs) const noexcept
             return true;
         case Phase::kStack:
             return stackIterator_ == rhs.stackIterator_;
+        case Phase::kException:
+            return exceptionsIterator_ == rhs.exceptionsIterator_;
         case Phase::kTLS:
             return tlsIterator_ == rhs.tlsIterator_;
     }
@@ -64,6 +72,11 @@ void mm::ThreadRootSet::Iterator::Init() noexcept {
         switch (phase_) {
             case Phase::kStack:
                 if (stackIterator_ != owner_.stack_.end()) return;
+                phase_ = Phase::kException;
+                exceptionsIterator_ = owner_.currentException_.begin();
+                break;
+            case Phase::kException:
+                if (exceptionsIterator_ != owner_.currentException_.end()) return;
                 phase_ = Phase::kTLS;
                 tlsIterator_ = owner_.tls_.begin();
                 break;
@@ -143,7 +156,8 @@ void mm::GlobalRootSet::Iterator::Init() noexcept {
     }
 }
 
-mm::ThreadRootSet::ThreadRootSet(ThreadData& threadData) noexcept : ThreadRootSet(threadData.shadowStack(), threadData.tls()) {}
+mm::ThreadRootSet::ThreadRootSet(ThreadData& threadData) noexcept :
+    ThreadRootSet(threadData.shadowStack(), threadData.currentException(), threadData.tls()) {}
 
 mm::GlobalRootSet::GlobalRootSet() noexcept :
     GlobalRootSet(mm::GlobalData::Instance().globalsRegistry(), mm::GlobalData::Instance().stableRefRegistry()) {}
