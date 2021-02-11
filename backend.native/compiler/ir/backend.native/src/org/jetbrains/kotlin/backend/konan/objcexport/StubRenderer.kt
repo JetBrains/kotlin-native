@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.backend.common.serialization.extractSerializedKdocSt
 import org.jetbrains.kotlin.backend.common.serialization.metadata.findKDocString
 
 object StubRenderer {
-    fun render(stub: Stub<*>): List<String> = collect {
+    fun render(stub: Stub<*>, shouldExportKDoc: Boolean): List<String> = collect {
         stub.run {
             this.comment?.let { comment ->
                 +"" // Probably makes the output more readable.
@@ -24,7 +24,9 @@ object StubRenderer {
             }
 
             // Let's try to keep non-trivial kdoc formatting intact
-            this.descriptor?.extractKDocString()?.let { +it }
+            if (shouldExportKDoc) {
+                this.descriptor?.extractKDocString()?.let { +it }
+            }
 
             when (this) {
                 is ObjCProtocol -> {
@@ -33,7 +35,7 @@ object StubRenderer {
                     }
                     +renderProtocolHeader()
                     +"@required"
-                    renderMembers(this)
+                    renderMembers(this, shouldExportKDoc)
                     +"@end;"
                 }
                 is ObjCInterface -> {
@@ -41,7 +43,7 @@ object StubRenderer {
                         +renderAttribute(it)
                     }
                     +renderInterfaceHeader()
-                    renderMembers(this)
+                    renderMembers(this, shouldExportKDoc)
                     +"@end;"
                 }
                 is ObjCMethod -> {
@@ -176,9 +178,9 @@ object StubRenderer {
         appendSuperProtocols(this@renderInterfaceHeader)
     }
 
-    private fun Collector.renderMembers(clazz: ObjCClass<*>) {
+    private fun Collector.renderMembers(clazz: ObjCClass<*>, shouldExportKDoc: Boolean) {
         clazz.members.forEach {
-            +render(it)
+            +render(it, shouldExportKDoc)
         }
     }
 

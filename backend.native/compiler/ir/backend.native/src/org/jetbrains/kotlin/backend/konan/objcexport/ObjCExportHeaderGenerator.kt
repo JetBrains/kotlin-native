@@ -1012,8 +1012,9 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         }
         add("")
 
+        val shouldExportKDoc = (this@ObjCExportHeaderGenerator as? ObjCExportHeaderGeneratorImpl)?.context?.shouldExportKDoc() ?: false
         stubs.forEach {
-            addAll(StubRenderer.render(it))
+            addAll(StubRenderer.render(it, shouldExportKDoc))
             add("")
         }
 
