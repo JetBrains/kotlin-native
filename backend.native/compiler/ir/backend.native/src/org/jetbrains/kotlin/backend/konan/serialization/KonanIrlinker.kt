@@ -45,6 +45,7 @@ import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi2ir.generators.StandaloneDeclarationGenerator
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
@@ -75,7 +76,8 @@ internal class KonanIrLinker(
         private val stubGenerator: DeclarationStubGenerator,
         private val cenumsProvider: IrProviderForCEnumAndCStructStubs,
         exportedDependencies: List<ModuleDescriptor>,
-        private val cachedLibraries: CachedLibraries
+        private val cachedLibraries: CachedLibraries,
+        private val standaloneDeclarationGenerator: StandaloneDeclarationGenerator
 ) : KotlinIrLinker(currentModule, messageLogger, builtIns, symbolTable, exportedDependencies) {
 
     companion object {
@@ -134,18 +136,39 @@ internal class KonanIrLinker(
             moduleDescriptor: ModuleDescriptor,
             klib: KotlinLibrary
     ) : IrModuleDeserializer(moduleDescriptor) {
-        override fun contains(idSig: IdSignature): Boolean {
-            TODO("Not yet implemented")
+        private val descriptorByIdSignatureFinder = DescriptorByIdSignatureFinder(
+                moduleDescriptor, KonanManglerDesc,
+                DescriptorByIdSignatureFinder.LookupMode.MODULE_ONLY
+        )
+
+        override val moduleFragment: IrModuleFragment =
+                KonanIrModuleFragmentImpl(moduleDescriptor, builtIns)
+
+        private val cachedDeclarationBuilder = CachedDeclarationBuilder(moduleFragment, klib, standaloneDeclarationGenerator)
+
+        override fun contains(idSig: IdSignature): Boolean =
+                descriptorByIdSignatureFinder.findDescriptorBySignature(idSig) != null
+
+        private val fileMap = mutableMapOf<PackageFragmentDescriptor, IrFile>()
+
+        private fun getIrFile(packageFragment: PackageFragmentDescriptor): IrFile = fileMap.getOrPut(packageFragment) {
+            IrFileImpl(NaiveSourceBasedFileEntryImpl(IrProviderForCEnumAndCStructStubs.cTypeDefinitionsFileName), packageFragment).also {
+                moduleFragment.files.add(it)
+            }
         }
 
         override fun deserializeIrSymbol(idSig: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
-            TODO("Not yet implemented")
+            val descriptor = descriptorByIdSignatureFinder.findDescriptorBySignature(idSig)
+                    ?: error("Can't find descriptor for $idSig with kind $symbolKind")
+            val file = getIrFile(descriptor.findPackage())
+            return cachedDeclarationBuilder.getDeclaration(descriptor, file, symbolKind).symbol
         }
 
-        override val moduleFragment: IrModuleFragment
-            get() = TODO("Not yet implemented")
-        override val moduleDependencies: Collection<IrModuleDeserializer>
-            get() = TODO("Not yet implemented")
+        override val moduleDependencies: Collection<IrModuleDeserializer> by lazy {
+            moduleDescriptor.allDependencyModules
+                    .filter { it != moduleDescriptor }
+                    .map { resolveModuleDeserializer(it, null) }
+        }
     }
 
     private inner class KonanInteropModuleDeserializer(

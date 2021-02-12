@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
+import org.jetbrains.kotlin.psi2ir.generators.StandaloneDeclarationGenerator
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.CleanableBindingContext
 import org.jetbrains.kotlin.utils.DFS
@@ -89,6 +90,12 @@ internal fun Context.psiToIr(
                 get() = generatorContext.irBuiltIns
         }
 
+        val standaloneDeclarationGenerator = StandaloneDeclarationGenerator(
+                generatorContext.typeTranslator,
+                symbolTable,
+                generatorContext.irFactory,
+        )
+
         KonanIrLinker(
                 moduleDescriptor,
                 functionIrClassFactory,
@@ -100,7 +107,8 @@ internal fun Context.psiToIr(
                 stubGenerator,
                 irProviderForCEnumsAndCStructs,
                 exportedDependencies,
-                config.cachedLibraries
+                config.cachedLibraries,
+                standaloneDeclarationGenerator
         ).also { linker ->
 
             // context.config.librariesWithDependencies could change at each iteration.
