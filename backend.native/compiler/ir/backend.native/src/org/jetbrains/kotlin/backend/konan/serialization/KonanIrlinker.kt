@@ -92,17 +92,29 @@ internal class KonanIrLinker(
     private val forwardDeclarationDeserializer = forwardModuleDescriptor?.let { KonanForwardDeclarationModuleDeserializer(it) }
     override val fakeOverrideBuilder = FakeOverrideBuilder(this, symbolTable, IdSignatureSerializer(KonanManglerIr), builtIns, KonanFakeOverrideClassFilter)
 
-    override fun createModuleDeserializer(moduleDescriptor: ModuleDescriptor, klib: IrLibrary?, strategy: DeserializationStrategy): IrModuleDeserializer {
-        if (moduleDescriptor === forwardModuleDescriptor) {
-            return forwardDeclarationDeserializer ?: error("forward declaration deserializer expected")
+    override fun createModuleDeserializer(
+            moduleDescriptor: ModuleDescriptor,
+            klib: IrLibrary?,
+            strategy: DeserializationStrategy
+    ): IrModuleDeserializer = when {
+        moduleDescriptor === forwardModuleDescriptor -> {
+            forwardDeclarationDeserializer
+                    ?: error("forward declaration deserializer expected")
         }
-
-        if (klib is KotlinLibrary && klib.isInteropLibrary()) {
+        klib is KotlinLibrary && klib.isInteropLibrary() -> {
             val isCached = cachedLibraries.isLibraryCached(klib)
-            return KonanInteropModuleDeserializer(moduleDescriptor, isCached)
+            KonanInteropModuleDeserializer(moduleDescriptor, isCached)
         }
-
-        return KonanModuleDeserializer(moduleDescriptor, klib ?: error("Expecting kotlin library"), strategy)
+        klib is KotlinLibrary && cachedLibraries.isLibraryCached(klib) -> {
+            KonanCachedModuleDeserializer(moduleDescriptor, klib)
+        }
+        klib != null -> KonanModuleDeserializer(moduleDescriptor, klib, strategy)
+        else -> error("""
+                    Cannot find deserializer for
+                    module: ${moduleDescriptor.name}
+                    klib: $klib
+                    strategy: $strategy
+                """.trimIndent())
     }
 
     private inner class KonanModuleDeserializer(
@@ -111,6 +123,29 @@ internal class KonanIrLinker(
             strategy: DeserializationStrategy
     ): KotlinIrLinker.BasicIrModuleDeserializer(moduleDescriptor, klib, strategy) {
         override val moduleFragment: IrModuleFragment = KonanIrModuleFragmentImpl(moduleDescriptor, builtIns, emptyList())
+    }
+
+    /**
+     * Deserializer for libraries that are already cached.
+     * Thus we don't need function bodies (except inline ones) and can apply some optimizations
+     * (e.g. build IR from descriptors).
+     */
+    private inner class KonanCachedModuleDeserializer(
+            moduleDescriptor: ModuleDescriptor,
+            klib: KotlinLibrary
+    ) : IrModuleDeserializer(moduleDescriptor) {
+        override fun contains(idSig: IdSignature): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        override fun deserializeIrSymbol(idSig: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
+            TODO("Not yet implemented")
+        }
+
+        override val moduleFragment: IrModuleFragment
+            get() = TODO("Not yet implemented")
+        override val moduleDependencies: Collection<IrModuleDeserializer>
+            get() = TODO("Not yet implemented")
     }
 
     private inner class KonanInteropModuleDeserializer(
