@@ -144,7 +144,7 @@ internal class KonanIrLinker(
         override val moduleFragment: IrModuleFragment =
                 KonanIrModuleFragmentImpl(moduleDescriptor, builtIns)
 
-        private val cachedDeclarationBuilder = CachedDeclarationBuilder(moduleFragment, klib, standaloneDeclarationGenerator)
+        private val cachedDeclarationBuilder = DescriptorToIrTranslator(moduleFragment, klib, standaloneDeclarationGenerator)
 
         override fun contains(idSig: IdSignature): Boolean =
                 descriptorByIdSignatureFinder.findDescriptorBySignature(idSig) != null
@@ -161,7 +161,7 @@ internal class KonanIrLinker(
             val descriptor = descriptorByIdSignatureFinder.findDescriptorBySignature(idSig)
                     ?: error("Can't find descriptor for $idSig with kind $symbolKind")
             val file = getIrFile(descriptor.findPackage())
-            return cachedDeclarationBuilder.getDeclaration(descriptor, file, symbolKind).symbol
+            return cachedDeclarationBuilder.getDeclaration(descriptor, file, symbolKind)
         }
 
         override val moduleDependencies: Collection<IrModuleDeserializer> by lazy {
