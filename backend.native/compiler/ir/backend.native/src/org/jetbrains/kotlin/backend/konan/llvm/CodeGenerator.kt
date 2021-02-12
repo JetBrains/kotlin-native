@@ -1228,7 +1228,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     internal fun epilogue() {
         appendingTo(prologueBb) {
             if (needsRuntimeInit) {
-                assert(!forbidRuntime)
+                check(!forbidRuntime) { "Attempt to init runtime where runtime usage is forbidden" }
                 call(context.llvm.initRuntimeIfNeeded, emptyList())
             }
             val slots = if (needSlotsPhi)
@@ -1236,7 +1236,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             else
                 kNullObjHeaderPtrPtr
             if (needSlots) {
-                assert(!forbidRuntime)
+                check(!forbidRuntime) { "Attempt to start a frame where runtime usage is forbidden" }
                 // Zero-init slots.
                 val slotsMem = bitcast(kInt8Ptr, slots)
                 call(context.llvm.memsetFunction,
@@ -1461,7 +1461,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
     private fun releaseVars() {
         if (needSlots) {
-            assert(!forbidRuntime)
+            check(!forbidRuntime) { "Attempt to leave a frame where runtime usage is forbidden" }
             call(context.llvm.leaveFrameFunction,
                     listOf(slotsPhi!!, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
         }
