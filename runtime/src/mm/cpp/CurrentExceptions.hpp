@@ -3,8 +3,8 @@
  * that can be found in the LICENSE file.
  */
 
-#ifndef RUNTIME_MM_CURRENT_EXCEPTION_H
-#define RUNTIME_MM_CURRENT_EXCEPTION_H
+#ifndef RUNTIME_MM_CURRENT_EXCEPTIONS_H
+#define RUNTIME_MM_CURRENT_EXCEPTIONS_H
 
 #include "Types.h"
 #include "Utils.hpp"
@@ -14,7 +14,7 @@ struct ObjHeader;
 namespace kotlin {
 namespace mm {
 
-class CurrentException : private Pinned {
+class CurrentExceptions : private Pinned {
 public:
     using Iterator = KStdVector<ObjHeader*>::iterator;
 
@@ -32,4 +32,4 @@ private:
 } // namespace mm
 } // namespace kotlin
 
-#endif // RUNTIME_MM_CURRENT_EXCEPTION_H
+#endif // RUNTIME_MM_CURRENT_EXCEPTIONS_H

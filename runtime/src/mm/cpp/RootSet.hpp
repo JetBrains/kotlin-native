@@ -6,7 +6,7 @@
 #ifndef RUNTIME_MM_ROOT_SET_H
 #define RUNTIME_MM_ROOT_SET_H
 
-#include "CurrentException.hpp"
+#include "CurrentExceptions.hpp"
 #include "GlobalsRegistry.hpp"
 #include "ShadowStack.hpp"
 #include "StableRefRegistry.hpp"
@@ -53,13 +53,13 @@ public:
         Phase phase_;
         union {
             ShadowStack::Iterator stackIterator_;
-            CurrentException::Iterator exceptionsIterator_;
+            CurrentExceptions::Iterator exceptionsIterator_;
             ThreadLocalStorage::Iterator tlsIterator_;
         };
     };
 
-    ThreadRootSet(ShadowStack& stack, CurrentException& currentException, ThreadLocalStorage& tls) noexcept :
-        stack_(stack), currentException_(currentException), tls_(tls) {}
+    ThreadRootSet(ShadowStack& stack, CurrentExceptions& currentExceptions, ThreadLocalStorage& tls) noexcept :
+        stack_(stack), currentExceptions_(currentExceptions), tls_(tls) {}
     explicit ThreadRootSet(ThreadData& threadData) noexcept;
 
     Iterator begin() noexcept { return Iterator(Iterator::begin, *this); }
@@ -67,7 +67,7 @@ public:
 
 private:
     ShadowStack& stack_;
-    CurrentException& currentException_;
+    CurrentExceptions& currentExceptions_;
     ThreadLocalStorage& tls_;
 };
 

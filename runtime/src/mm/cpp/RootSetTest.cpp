@@ -53,15 +53,15 @@ TEST(ThreadRootSetTest, Basic) {
     StackEntry<2> entry(stack);
 
     ObjHeader exception;
-    mm::CurrentException currentException;
-    currentException.AddException(&exception);
+    mm::CurrentExceptions currentExceptions;
+    currentExceptions.AddException(&exception);
 
     TLSKey key;
     mm::ThreadLocalStorage tls;
     tls.AddRecord(&key, 3);
     tls.Commit();
 
-    mm::ThreadRootSet iter(stack, currentException, tls);
+    mm::ThreadRootSet iter(stack, currentExceptions, tls);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {
@@ -74,10 +74,10 @@ TEST(ThreadRootSetTest, Basic) {
 
 TEST(ThreadRootSetTest, Empty) {
     mm::ShadowStack stack;
-    mm::CurrentException currentException;
+    mm::CurrentExceptions currentExceptions;
     mm::ThreadLocalStorage tls;
 
-    mm::ThreadRootSet iter(stack, currentException, tls);
+    mm::ThreadRootSet iter(stack, currentExceptions, tls);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {

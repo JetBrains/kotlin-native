@@ -907,7 +907,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |#define RUNTIME_NORETURN __attribute__((noreturn))
         |
         |extern "C" {
-        |void UpdateHeapRef(KObjHeader**, const KObjHeader*) RUNTIME_NOTHROW;
         |void UpdateStackRef(KObjHeader**, const KObjHeader*) RUNTIME_NOTHROW;
         |KObjHeader* AllocInstance(const KTypeInfo*, KObjHeader**) RUNTIME_NOTHROW;
         |KObjHeader* DerefStablePointer(void*, KObjHeader**) RUNTIME_NOTHROW;
