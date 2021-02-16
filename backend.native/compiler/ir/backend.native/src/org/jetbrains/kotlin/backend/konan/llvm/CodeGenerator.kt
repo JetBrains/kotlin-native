@@ -140,7 +140,12 @@ internal inline fun generateFunction(
         name: String,
         block: FunctionGenerationContext.(FunctionGenerationContext) -> Unit
 ): LLVMValueRef {
-    val function = LLVMAddFunction(codegen.context.llvmModule, name, functionType)!!
+    val function = addLlvmFunctionWithDefaultAttributes(
+            codegen.context,
+            codegen.context.llvmModule!!,
+            name,
+            functionType
+    )
     generateFunction(codegen, function, startLocation = null, endLocation = null, code = block)
     return function
 }
@@ -340,6 +345,17 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
      * TODO: consider merging this with [ExceptionHandler].
      */
     var forwardingForeignExceptionsTerminatedWith: LLVMValueRef? = null
+
+    // Whether the generating function needs to initialize Kotlin runtime before execution. Useful for interop bridges,
+    // for example.
+    var needsRuntimeInit = false
+
+    // Marks that function is not allowed to call into Kotlin runtime. For this function no safepoints, no enter/leave
+    // frames are generated.
+    // TODO: Should forbid all calls into runtime except for explicitly allowed. Also should impose the same restriction
+    //       on function being called from this one.
+    // TODO: Consider using a different abstraction than `FunctionGenerationContext`.
+    var forbidRuntime = false
 
     init {
         irFunction?.let {
@@ -1037,9 +1053,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 ObjectStorageKind.THREAD_LOCAL -> {
                     val valueGetterName = irClass.threadLocalObjectStorageGetterSymbolName
                     val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName)
-                            ?: LLVMAddFunction(context.llvmModule, valueGetterName,
-                                    functionType(kObjHeaderPtrPtr, false))
-                    call(valueGetterFunction!!,
+                            ?: addLlvmFunctionWithDefaultAttributes(
+                                    context,
+                                    context.llvmModule!!,
+                                    valueGetterName,
+                                    functionType(kObjHeaderPtrPtr, false)
+                            )
+                    call(valueGetterFunction,
                             listOf(),
                             resultLifetime = Lifetime.GLOBAL,
                             exceptionHandler = exceptionHandler)
@@ -1207,11 +1227,16 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
     internal fun epilogue() {
         appendingTo(prologueBb) {
+            if (needsRuntimeInit) {
+                check(!forbidRuntime) { "Attempt to init runtime where runtime usage is forbidden" }
+                call(context.llvm.initRuntimeIfNeeded, emptyList())
+            }
             val slots = if (needSlotsPhi)
                 LLVMBuildArrayAlloca(builder, kObjHeaderPtr, Int32(slotCount).llvm, "")!!
             else
                 kNullObjHeaderPtrPtr
             if (needSlots) {
+                check(!forbidRuntime) { "Attempt to start a frame where runtime usage is forbidden" }
                 // Zero-init slots.
                 val slotsMem = bitcast(kInt8Ptr, slots)
                 call(context.llvm.memsetFunction,
@@ -1251,7 +1276,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 returnType == voidType -> {
                     releaseVars()
                     assert(returnSlot == null)
-                    if (context.memoryModel == MemoryModel.EXPERIMENTAL)
+                    if (!forbidRuntime && context.memoryModel == MemoryModel.EXPERIMENTAL)
                         call(context.llvm.Kotlin_mm_safePointFunctionEpilogue, emptyList())
                     LLVMBuildRetVoid(builder)
                 }
@@ -1262,7 +1287,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                         updateReturnRef(returnPhi, returnSlot!!)
                     }
                     releaseVars()
-                    if (context.memoryModel == MemoryModel.EXPERIMENTAL)
+                    if (!forbidRuntime && context.memoryModel == MemoryModel.EXPERIMENTAL)
                         call(context.llvm.Kotlin_mm_safePointFunctionEpilogue, emptyList())
                     LLVMBuildRet(builder, returnPhi)
                 }
@@ -1304,7 +1329,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
             releaseVars()
-            if (context.memoryModel == MemoryModel.EXPERIMENTAL)
+            if (!forbidRuntime && context.memoryModel == MemoryModel.EXPERIMENTAL)
                 call(context.llvm.Kotlin_mm_safePointExceptionUnwind, emptyList())
             LLVMBuildResume(builder, landingpad)
         }
@@ -1436,6 +1461,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
     private fun releaseVars() {
         if (needSlots) {
+            check(!forbidRuntime) { "Attempt to leave a frame where runtime usage is forbidden" }
             call(context.llvm.leaveFrameFunction,
                     listOf(slotsPhi!!, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
         }
