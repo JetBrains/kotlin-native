@@ -2820,6 +2820,10 @@ standaloneTest("lambda14") {
     flags = ['-tr']
 }
 
+task funInterface_nonTrivialProjectionInSuperType(type: KonanLocalTest) {
+    source = "codegen/funInterface/nonTrivialProjectionInSuperType.kt"
+}
+
 task objectExpression1(type: KonanLocalTest) {
     goldValue = "aabb\n"
     source = "codegen/objectExpression/expr1.kt"
