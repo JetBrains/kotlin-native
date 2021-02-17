@@ -35,9 +35,10 @@ void ThrowException(KRef exception);
 void OnUnhandledException(KRef throwable);
 
 RUNTIME_NORETURN void TerminateWithUnhandledException(KRef exception);
-RUNTIME_NORETURN void TerminateWithUnhandledExceptionHolder(ExceptionObjHolderBase* holder);
 
 void SetKonanTerminateHandler();
+
+RUNTIME_NOTHROW OBJ_GETTER(Kotlin_getExceptionObject, void* holder);
 
 // The functions below are implemented in Kotlin (at package kotlin.native.internal).
 

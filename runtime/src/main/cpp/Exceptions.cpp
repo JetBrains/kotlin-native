@@ -208,7 +208,7 @@ void ThrowException(KRef exception) {
   PrintThrowable(exception);
   RuntimeCheck(false, "Exceptions unsupported");
 #else
-  throw ExceptionObjHolder(exception);
+  ExceptionObjHolder::Throw(exception);
 #endif
 }
 
@@ -252,8 +252,8 @@ RUNTIME_NORETURN void TerminateWithUnhandledException(KRef throwable) {
   });
 }
 
-RUNTIME_NORETURN void TerminateWithUnhandledExceptionHolder(ExceptionObjHolderBase* holder) {
-    TerminateWithUnhandledException(static_cast<ExceptionObjHolder*>(holder)->obj());
+RUNTIME_NOTHROW OBJ_GETTER(Kotlin_getExceptionObject, void* holder) {
+    RETURN_OBJ(static_cast<ExceptionObjHolder*>(holder)->obj());
 }
 
 #if !KONAN_NO_EXCEPTIONS

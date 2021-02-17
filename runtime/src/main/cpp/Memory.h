@@ -357,22 +357,16 @@ class ObjHolder {
    ObjHeader* obj_;
 };
 
-// This is used to catch kotlin exception in `CAdapterGenerator` without the need
-// to replicate the entire `ExceptionObjHolder`.
-class ExceptionObjHolderBase {};
-
-class ExceptionObjHolder : public ExceptionObjHolderBase, private kotlin::Pinned {
+class ExceptionObjHolder {
 public:
-    explicit ExceptionObjHolder(ObjHeader* obj) noexcept;
-    ~ExceptionObjHolder();
+#if !KONAN_NO_EXCEPTIONS
+    static void Throw(ObjHeader* exception) RUNTIME_NORETURN;
+#endif
 
-    ObjHeader* obj() noexcept { return obj_; }
+    // Exceptions are not on a hot path, so having virtual dispatch is fine.
+    virtual ~ExceptionObjHolder() = default;
 
-    const ObjHeader* obj() const noexcept { return obj_; }
-
-private:
-    ObjHeader* obj_;
-    MemoryState* memory_;
+    virtual ObjHeader* obj() noexcept = 0;
 };
 
 #endif // RUNTIME_MEMORY_H

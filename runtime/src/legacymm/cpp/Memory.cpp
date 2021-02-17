@@ -440,6 +440,20 @@ void setContainerFor(ObjHeader* obj, ContainerHeader* container) {
   obj->typeInfoOrMeta_ = setPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_NONTRIVIAL_CONTAINER);
 }
 
+#if !KONAN_NO_EXCEPTIONS
+class ExceptionObjHolderImpl : public ExceptionObjHolder {
+public:
+    explicit ExceptionObjHolderImpl(ObjHeader* obj) noexcept { ::SetHeapRef(&obj_, obj); }
+
+    ~ExceptionObjHolderImpl() override { ZeroHeapRef(&obj_); }
+
+    ObjHeader* obj() noexcept override { return obj_; }
+
+private:
+    ObjHeader* obj_;
+};
+#endif
+
 }  // namespace
 
 ContainerHeader* containerFor(const ObjHeader* obj) {
@@ -3692,11 +3706,9 @@ ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
 
 } // extern "C"
 
-ExceptionObjHolder::ExceptionObjHolder(ObjHeader* obj) noexcept : memory_(::memoryState) {
-    ::SetHeapRef(&obj_, obj);
+#if !KONAN_NO_EXCEPTIONS
+// static
+RUNTIME_NORETURN void ExceptionObjHolder::Throw(ObjHeader* exception) {
+    throw ExceptionObjHolderImpl(exception);
 }
-
-ExceptionObjHolder::~ExceptionObjHolder() {
-    RuntimeAssert(::memoryState == memory_, "Exception has unexpectedly migrated between threads");
-    ZeroHeapRef(&obj_);
-}
+#endif

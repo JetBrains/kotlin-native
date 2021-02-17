@@ -461,7 +461,7 @@ private class ExportedElement(val kind: ElementKind,
                     "result", cfunction[0], Direction.KOTLIN_TO_C, builder)
             builder.append("  return $result;\n")
         }
-        builder.append("   } catch (ExceptionObjHolderBase& holder) { TerminateWithUnhandledExceptionHolder(&holder); } \n")
+        builder.append("   } catch (ExceptionObjHolder& e) { TerminateWithUnhandledException(e.obj()); } \n")
 
         builder.append("}\n")
 
@@ -900,8 +900,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |struct KTypeInfo;
         |typedef struct KTypeInfo KTypeInfo;
         |
-        |class ExceptionObjHolderBase {};
-        |
         |#define RUNTIME_NOTHROW __attribute__((nothrow))
         |#define RUNTIME_USED __attribute__((used))
         |#define RUNTIME_NORETURN __attribute__((noreturn))
@@ -916,7 +914,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |void EnterFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void LeaveFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void Kotlin_initRuntimeIfNeeded();
-        |void TerminateWithUnhandledExceptionHolder(ExceptionObjHolderBase*) RUNTIME_NORETURN;
+        |void TerminateWithUnhandledException(KObjHeader*) RUNTIME_NORETURN;
         |
         |KObjHeader* CreateStringFromCString(const char*, KObjHeader**);
         |char* CreateCStringFromString(const KObjHeader*);
@@ -949,6 +947,13 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |  KObjHeader* obj_;
         |
         |  KObjHeader** frame() { return reinterpret_cast<KObjHeader**>(&frame_); }
+        |};
+        |
+        |class ExceptionObjHolder {
+        |public:
+        |    virtual ~ExceptionObjHolder() = default;
+        |
+        |    virtual KObjHeader* obj() noexcept = 0;
         |};
         |
         |static void DisposeStablePointerImpl(${prefix}_KNativePtr ptr) {

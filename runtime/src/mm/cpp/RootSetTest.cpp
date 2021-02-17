@@ -52,32 +52,26 @@ TEST(ThreadRootSetTest, Basic) {
     mm::ShadowStack stack;
     StackEntry<2> entry(stack);
 
-    ObjHeader exception;
-    mm::CurrentExceptions currentExceptions;
-    currentExceptions.AddException(&exception);
-
     TLSKey key;
     mm::ThreadLocalStorage tls;
     tls.AddRecord(&key, 3);
     tls.Commit();
 
-    mm::ThreadRootSet iter(stack, currentExceptions, tls);
+    mm::ThreadRootSet iter(stack, tls);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {
         actual.push_back(object);
     }
 
-    EXPECT_THAT(
-            actual, testing::ElementsAre(entry[0], entry[1], &exception, *tls.Lookup(&key, 0), *tls.Lookup(&key, 1), *tls.Lookup(&key, 2)));
+    EXPECT_THAT(actual, testing::ElementsAre(entry[0], entry[1], *tls.Lookup(&key, 0), *tls.Lookup(&key, 1), *tls.Lookup(&key, 2)));
 }
 
 TEST(ThreadRootSetTest, Empty) {
     mm::ShadowStack stack;
-    mm::CurrentExceptions currentExceptions;
     mm::ThreadLocalStorage tls;
 
-    mm::ThreadRootSet iter(stack, currentExceptions, tls);
+    mm::ThreadRootSet iter(stack, tls);
 
     KStdVector<ObjHeader*> actual;
     for (auto& object : iter) {
