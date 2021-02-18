@@ -14,6 +14,11 @@ import org.jetbrains.kotlin.backend.common.serialization.metadata.findKDocString
 object StubRenderer {
     fun render(stub: Stub<*>, shouldExportKDoc: Boolean): List<String> = collect {
         stub.run {
+            // Let's try to keep non-trivial kdoc formatting intact
+            if (shouldExportKDoc) {
+                this.descriptor?.extractKDocString()?.let { +it }
+            }
+
             this.comment?.let { comment ->
                 +"" // Probably makes the output more readable.
                 +"/**"
@@ -21,11 +26,6 @@ object StubRenderer {
                     +" $it"
                 }
                 +"*/"
-            }
-
-            // Let's try to keep non-trivial kdoc formatting intact
-            if (shouldExportKDoc) {
-                this.descriptor?.extractKDocString()?.let { +it }
             }
 
             when (this) {
