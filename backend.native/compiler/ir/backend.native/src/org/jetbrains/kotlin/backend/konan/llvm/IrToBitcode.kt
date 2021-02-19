@@ -813,7 +813,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 if (declaration.isExported() && !isObjCCompanion &&
                         declaration.constructors.singleOrNull() { it.valueParameters.size == 0 } != null) {
                     val valueGetterName = declaration.threadLocalObjectStorageGetterSymbolName
-                    generateFunctionNoRuntime(codegen,
+                    generateFunction(codegen,
                             functionType(codegen.kObjHeaderPtrPtr, false),
                             valueGetterName) {
                         val value = access.getAddress(this)
