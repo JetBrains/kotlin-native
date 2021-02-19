@@ -447,7 +447,7 @@ public:
 
     ~ExceptionObjHolderImpl() override { ZeroHeapRef(&obj_); }
 
-    ObjHeader* obj() noexcept override { return obj_; }
+    ObjHeader* obj() noexcept { return obj_; }
 
 private:
     ObjHeader* obj_;
@@ -3708,7 +3708,12 @@ ALWAYS_INLINE RUNTIME_NOTHROW void Kotlin_mm_safePointExceptionUnwind() {
 
 #if !KONAN_NO_EXCEPTIONS
 // static
-RUNTIME_NORETURN void ExceptionObjHolder::Throw(ObjHeader* exception) {
+ALWAYS_INLINE RUNTIME_NORETURN void ExceptionObjHolder::Throw(ObjHeader* exception) {
     throw ExceptionObjHolderImpl(exception);
 }
 #endif
+
+// static
+ALWAYS_INLINE ObjHeader* ExceptionObjHolder::GetExceptionObject(ExceptionObjHolder& holder) noexcept {
+    return static_cast<ExceptionObjHolderImpl&>(holder).obj();
+}

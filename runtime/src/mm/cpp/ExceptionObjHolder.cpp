@@ -26,7 +26,7 @@ public:
         threadData->stableRefThreadQueue().Erase(stableRef_);
     }
 
-    ObjHeader* obj() noexcept override { return **stableRef_; }
+    ObjHeader* obj() noexcept { return **stableRef_; }
 
 private:
     mm::StableRefRegistry::Node* stableRef_;
@@ -41,3 +41,8 @@ RUNTIME_NORETURN void ExceptionObjHolder::Throw(ObjHeader* exception) {
     throw ExceptionObjHolderImpl(exception);
 }
 #endif
+
+// static
+ObjHeader* ExceptionObjHolder::GetExceptionObject(ExceptionObjHolder& holder) noexcept {
+    return static_cast<ExceptionObjHolderImpl&>(holder).obj();
+}

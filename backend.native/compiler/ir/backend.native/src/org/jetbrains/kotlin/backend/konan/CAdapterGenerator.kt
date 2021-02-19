@@ -461,7 +461,7 @@ private class ExportedElement(val kind: ElementKind,
                     "result", cfunction[0], Direction.KOTLIN_TO_C, builder)
             builder.append("  return $result;\n")
         }
-        builder.append("   } catch (ExceptionObjHolder& e) { TerminateWithUnhandledException(e.obj()); } \n")
+        builder.append("   } catch (ExceptionObjHolder& e) { TerminateWithUnhandledException(ExceptionObjHolder::GetExceptionObject(e)); } \n")
 
         builder.append("}\n")
 
@@ -953,7 +953,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |public:
         |    virtual ~ExceptionObjHolder() = default;
         |
-        |    virtual KObjHeader* obj() noexcept = 0;
+        |    static KObjHeader* GetExceptionObject(ExceptionObjHolder&) noexcept;
         |};
         |
         |static void DisposeStablePointerImpl(${prefix}_KNativePtr ptr) {

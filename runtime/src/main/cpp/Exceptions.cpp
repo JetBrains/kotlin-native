@@ -253,7 +253,7 @@ RUNTIME_NORETURN void TerminateWithUnhandledException(KRef throwable) {
 }
 
 RUNTIME_NOTHROW OBJ_GETTER(Kotlin_getExceptionObject, void* holder) {
-    RETURN_OBJ(static_cast<ExceptionObjHolder*>(holder)->obj());
+    RETURN_OBJ(ExceptionObjHolder::GetExceptionObject(*static_cast<ExceptionObjHolder*>(holder)));
 }
 
 #if !KONAN_NO_EXCEPTIONS
@@ -270,7 +270,7 @@ class TerminateHandler : private kotlin::Pinned {
         try {
           std::rethrow_exception(currentException);
         } catch (ExceptionObjHolder& e) {
-          processUnhandledKotlinException(e.obj());
+          processUnhandledKotlinException(ExceptionObjHolder::GetExceptionObject(e));
           konan::abort();
         } catch (...) {
           // Not a Kotlin exception - call default handler
