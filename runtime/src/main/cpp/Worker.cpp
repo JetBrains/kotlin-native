@@ -959,7 +959,7 @@ JobKind Worker::processQueueElement(bool blocking) {
         WorkerLaunchpad(obj, dummyHolder.slot());
       } catch (ExceptionObjHolder& e) {
         if (errorReporting())
-          ReportUnhandledException(ExceptionObjHolder::GetExceptionObject(e));
+          ReportUnhandledException(e.GetExceptionObject());
       }
       DisposeStablePointer(job.executeAfter.operation);
       break;
@@ -979,7 +979,7 @@ JobKind Worker::processQueueElement(bool blocking) {
        } catch (ExceptionObjHolder& e) {
          ok = false;
          if (errorReporting())
-           ReportUnhandledException(ExceptionObjHolder::GetExceptionObject(e));
+           ReportUnhandledException(e.GetExceptionObject());
        }
        // Notify the future.
        job.regularJob.future->storeResultUnlocked(result, ok);

@@ -42,7 +42,6 @@ RUNTIME_NORETURN void ExceptionObjHolder::Throw(ObjHeader* exception) {
 }
 #endif
 
-// static
-ObjHeader* ExceptionObjHolder::GetExceptionObject(ExceptionObjHolder& holder) noexcept {
-    return static_cast<ExceptionObjHolderImpl&>(holder).obj();
+ObjHeader* ExceptionObjHolder::GetExceptionObject() noexcept {
+    return static_cast<ExceptionObjHolderImpl*>(this)->obj();
 }

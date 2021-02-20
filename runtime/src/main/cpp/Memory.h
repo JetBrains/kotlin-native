@@ -363,7 +363,7 @@ public:
     static void Throw(ObjHeader* exception) RUNTIME_NORETURN;
 #endif
 
-    static ObjHeader* GetExceptionObject(ExceptionObjHolder& holder) noexcept;
+    ObjHeader* GetExceptionObject() noexcept;
 
     // Exceptions are not on a hot path, so having virtual dispatch is fine.
     virtual ~ExceptionObjHolder() = default;

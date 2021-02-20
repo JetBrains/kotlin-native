@@ -3713,7 +3713,6 @@ ALWAYS_INLINE RUNTIME_NORETURN void ExceptionObjHolder::Throw(ObjHeader* excepti
 }
 #endif
 
-// static
-ALWAYS_INLINE ObjHeader* ExceptionObjHolder::GetExceptionObject(ExceptionObjHolder& holder) noexcept {
-    return static_cast<ExceptionObjHolderImpl&>(holder).obj();
+ALWAYS_INLINE ObjHeader* ExceptionObjHolder::GetExceptionObject() noexcept {
+    return static_cast<ExceptionObjHolderImpl*>(this)->obj();
 }
