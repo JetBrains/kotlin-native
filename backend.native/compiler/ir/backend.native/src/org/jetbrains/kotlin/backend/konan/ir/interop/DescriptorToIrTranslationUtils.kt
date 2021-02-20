@@ -79,7 +79,7 @@ internal interface DescriptorToIrTranslationMixin {
         return fakeOverrides.map {
             when (it) {
                 is PropertyDescriptor -> createProperty(it)
-                is FunctionDescriptor -> createFunction(it, IrDeclarationOrigin.FAKE_OVERRIDE)
+                is FunctionDescriptor -> createFunction(it)
                 else -> error("Unexpected fake override descriptor: $it")
             }
         }
@@ -108,11 +108,7 @@ internal interface DescriptorToIrTranslationMixin {
     }
 
     fun createProperty(propertyDescriptor: PropertyDescriptor): IrProperty {
-        val origin = if (propertyDescriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
-            IrDeclarationOrigin.FAKE_OVERRIDE
-        } else {
-            IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB
-        }
+        val origin = IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB
         val irProperty = symbolTable.declareProperty(SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, origin, propertyDescriptor)
         irProperty.getter = propertyDescriptor.getter?.let {
             val irGetter = createFunction(it, origin)
