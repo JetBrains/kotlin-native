@@ -40,8 +40,8 @@ private:
 RUNTIME_NORETURN void ExceptionObjHolder::Throw(ObjHeader* exception) {
     throw ExceptionObjHolderImpl(exception);
 }
-#endif
 
 ObjHeader* ExceptionObjHolder::GetExceptionObject() noexcept {
     return static_cast<ExceptionObjHolderImpl*>(this)->obj();
 }
+#endif

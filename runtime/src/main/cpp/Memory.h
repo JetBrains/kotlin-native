@@ -361,9 +361,9 @@ class ExceptionObjHolder {
 public:
 #if !KONAN_NO_EXCEPTIONS
     static void Throw(ObjHeader* exception) RUNTIME_NORETURN;
-#endif
 
     ObjHeader* GetExceptionObject() noexcept;
+#endif
 
     // Exceptions are not on a hot path, so having virtual dispatch is fine.
     virtual ~ExceptionObjHolder() = default;

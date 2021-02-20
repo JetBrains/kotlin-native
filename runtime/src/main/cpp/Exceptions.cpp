@@ -253,7 +253,11 @@ RUNTIME_NORETURN void TerminateWithUnhandledException(KRef throwable) {
 }
 
 ALWAYS_INLINE RUNTIME_NOTHROW OBJ_GETTER(Kotlin_getExceptionObject, void* holder) {
+#if !KONAN_NO_EXCEPTIONS
     RETURN_OBJ(static_cast<ExceptionObjHolder*>(holder)->GetExceptionObject());
+#else
+    RETURN_OBJ(nullptr);
+#endif
 }
 
 #if !KONAN_NO_EXCEPTIONS
