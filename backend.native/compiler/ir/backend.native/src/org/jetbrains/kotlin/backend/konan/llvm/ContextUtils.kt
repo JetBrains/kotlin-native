@@ -516,7 +516,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val checkLifetimesConstraint = importRtFunction("CheckLifetimesConstraint")
     val freezeSubgraph = importRtFunction("FreezeSubgraph")
     val checkGlobalsAccessible = importRtFunction("CheckGlobalsAccessible")
-    val Kotlin_getExceptionObject by lazyRtFunction
+    val Kotlin_getExceptionObject by rtFunction
 
     val kRefSharedHolderInitLocal = importRtFunction("KRefSharedHolder_initLocal")
     val kRefSharedHolderInit = importRtFunction("KRefSharedHolder_init")
@@ -614,6 +614,11 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val fileInitializers = mutableListOf<IrField>()
     var fileUsesThreadLocalObjects = false
     val globalSharedObjects = mutableSetOf<LLVMValueRef>()
+
+    private object rtFunction {
+        operator fun provideDelegate(_thisRef: Llvm, _property: KProperty<*>) =
+                ReadOnlyProperty<Llvm, LLVMValueRef> { thisRef, property -> thisRef.importRtFunction(property.name) }
+    }
 
     private object lazyRtFunction {
         operator fun provideDelegate(
