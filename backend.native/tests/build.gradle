@@ -1308,6 +1308,10 @@ task enum_reorderedArguments(type: KonanLocalTest) {
     source = "codegen/enum/reorderedArguments.kt"
 }
 
+task enum_kt38540(type: KonanLocalTest) {
+    source = "codegen/enum/kt38540.kt"
+}
+
 standaloneTest('switchLowering') {
     goldValue = "EnumA.A\nok\nok\nok\nok\nok\n"
     source = "codegen/enum/switchLowering.kt"
