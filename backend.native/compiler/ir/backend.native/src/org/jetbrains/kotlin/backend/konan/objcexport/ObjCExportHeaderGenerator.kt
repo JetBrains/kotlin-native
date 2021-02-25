@@ -981,7 +981,7 @@ abstract class ObjCExportHeaderGenerator internal constructor(
     private val extensions = mutableMapOf<ClassDescriptor, MutableList<CallableMemberDescriptor>>()
     private val topLevel = mutableMapOf<SourceFile, MutableList<CallableMemberDescriptor>>()
 
-    open val shouldExportKDoc = false
+    open val stubRenderer: StubRendererBase = StubRenderer
 
     fun build(): List<String> = mutableListOf<String>().apply {
         addImports(foundationImports)
@@ -1015,7 +1015,7 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         add("")
 
         stubs.forEach {
-            addAll(StubRenderer.render(it, shouldExportKDoc))
+            addAll(stubRenderer.render(it))
             add("")
         }
 

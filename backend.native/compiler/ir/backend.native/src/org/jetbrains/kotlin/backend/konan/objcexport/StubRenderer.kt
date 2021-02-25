@@ -11,9 +11,11 @@ import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithSource
 import org.jetbrains.kotlin.backend.common.serialization.extractSerializedKdocString
 import org.jetbrains.kotlin.backend.common.serialization.metadata.findKDocString
 
-object StubRenderer {
-    fun render(stub: Stub<*>): List<String> = render(stub, false)
-    internal fun render(stub: Stub<*>, shouldExportKDoc: Boolean): List<String> = collect {
+object StubRenderer : StubRendererBase()
+
+open class StubRendererBase(private val shouldExportKDoc: Boolean = false) {
+
+    fun render(stub: Stub<*>): List<String> = collect {
         stub.run {
             val kDoc = if (shouldExportKDoc) {
                 this.descriptor?.extractKDocString()
@@ -39,7 +41,7 @@ object StubRenderer {
                     }
                     +renderProtocolHeader()
                     +"@required"
-                    renderMembers(this, shouldExportKDoc)
+                    renderMembers(this)
                     +"@end;"
                 }
                 is ObjCInterface -> {
@@ -47,7 +49,7 @@ object StubRenderer {
                         +renderAttribute(it)
                     }
                     +renderInterfaceHeader()
-                    renderMembers(this, shouldExportKDoc)
+                    renderMembers(this)
                     +"@end;"
                 }
                 is ObjCMethod -> {
@@ -140,7 +142,7 @@ object StubRenderer {
 
     private fun Appendable.appendPostfixDeclarationAttributes(attributes: List<kotlin.String>) {
         if (attributes.isNotEmpty()) this.append(' ')
-        attributes.joinTo(this, separator = " ", transform = this@StubRenderer::renderAttribute)
+        attributes.joinTo(this, separator = " ", transform = this@StubRendererBase::renderAttribute)
     }
 
     private fun ObjCProtocol.renderProtocolHeader() = buildString {
@@ -182,9 +184,9 @@ object StubRenderer {
         appendSuperProtocols(this@renderInterfaceHeader)
     }
 
-    private fun Collector.renderMembers(clazz: ObjCClass<*>, shouldExportKDoc: Boolean) {
+    private fun Collector.renderMembers(clazz: ObjCClass<*>) {
         clazz.members.forEach {
-            +render(it, shouldExportKDoc)
+            +render(it)
         }
     }
 
