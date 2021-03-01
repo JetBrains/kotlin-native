@@ -5057,7 +5057,7 @@ private void configureStdlibTest(KonanGTest task, boolean inWorker) {
             [ 'build/stdlib_external/stdlib', 'stdlib_external/utils.kt',
                                  'stdlib_external/collections',
                                  'stdlib_external/jsCollectionFactoriesActuals.kt',
-                                 'stdlib_external/text/StringEncodingTestNative.kt'],
+                                 'stdlib_external/text'],
             [ 'build/stdlib_external/stdlib/test/internalAnnotations.kt' ])
 
     konanArtifacts {
