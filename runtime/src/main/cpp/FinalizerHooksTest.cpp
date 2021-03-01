@@ -38,8 +38,6 @@ TEST_F(FinalizerHooksTest, TypeWithFinalizerHookWithoutExtra) {
     EXPECT_CALL(finalizerHook(), Call(&obj));
     RunFinalizers(&obj);
     EXPECT_FALSE(obj.has_meta_object());
-
-    testing::Mock::VerifyAndClearExpectations(&finalizerHook());
 }
 
 TEST_F(FinalizerHooksTest, TypeWithFinalizerHookWithExtra) {
@@ -54,8 +52,6 @@ TEST_F(FinalizerHooksTest, TypeWithFinalizerHookWithExtra) {
     EXPECT_CALL(finalizerHook(), Call(&obj));
     RunFinalizers(&obj);
     EXPECT_FALSE(obj.has_meta_object());
-
-    testing::Mock::VerifyAndClearExpectations(&finalizerHook());
 }
 
 TEST_F(FinalizerHooksTest, TypeWithoutFinalizerHookWithoutExtra) {
@@ -69,8 +65,6 @@ TEST_F(FinalizerHooksTest, TypeWithoutFinalizerHookWithoutExtra) {
     EXPECT_CALL(finalizerHook(), Call(_)).Times(0);
     RunFinalizers(&obj);
     EXPECT_FALSE(obj.has_meta_object());
-
-    testing::Mock::VerifyAndClearExpectations(&finalizerHook());
 }
 
 TEST_F(FinalizerHooksTest, TypeWithoutFinalizerHookWithExtra) {
@@ -85,6 +79,4 @@ TEST_F(FinalizerHooksTest, TypeWithoutFinalizerHookWithExtra) {
     EXPECT_CALL(finalizerHook(), Call(_)).Times(0);
     RunFinalizers(&obj);
     EXPECT_FALSE(obj.has_meta_object());
-
-    testing::Mock::VerifyAndClearExpectations(&finalizerHook());
 }
