@@ -54,7 +54,7 @@ public:
         size_t safePointsCounter_ = 0;
     };
 
-    MarkAndSweep() noexcept = default;
+    MarkAndSweep() noexcept {}
     ~MarkAndSweep() = default;
 
     void SetThreshold(size_t value) noexcept { threshold_ = value; }
