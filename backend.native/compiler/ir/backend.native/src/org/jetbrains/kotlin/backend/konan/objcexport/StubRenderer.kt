@@ -12,7 +12,8 @@ import org.jetbrains.kotlin.backend.common.serialization.extractSerializedKdocSt
 import org.jetbrains.kotlin.backend.common.serialization.metadata.findKDocString
 
 object StubRenderer {
-    fun render(stub: Stub<*>, shouldExportKDoc: Boolean): List<String> = collect {
+    fun render(stub: Stub<*>): List<String> = render(stub, false)
+    internal fun render(stub: Stub<*>, shouldExportKDoc: Boolean): List<String> = collect {
         stub.run {
             val kDoc = if (shouldExportKDoc) {
                 this.descriptor?.extractKDocString()
