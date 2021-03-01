@@ -11,9 +11,7 @@ namespace {
 
 class TypeInfoImpl {
 public:
-    TypeInfoImpl() {
-        type_.typeInfo_ = &type_;
-    }
+    TypeInfoImpl() { type_.typeInfo_ = &type_; }
 
     TypeInfo* type() { return &type_; }
 
@@ -42,7 +40,7 @@ TypeInfoImpl theUnitTypeInfoImpl;
 TypeInfoImpl theWorkerBoundReferenceTypeInfoImpl;
 TypeInfoImpl theCleanerImplTypeInfoImpl;
 
-ArrayHeader theEmptyStringImpl = { theStringTypeInfoImpl.type(), /* element count */ 0 };
+ArrayHeader theEmptyStringImpl = {theStringTypeInfoImpl.type(), /* element count */ 0};
 
 template <class T>
 struct KBox {
@@ -81,7 +79,7 @@ extern const TypeInfo* theUnitTypeInfo = theUnitTypeInfoImpl.type();
 extern const TypeInfo* theWorkerBoundReferenceTypeInfo = theWorkerBoundReferenceTypeInfoImpl.type();
 extern const TypeInfo* theCleanerImplTypeInfo = theCleanerImplTypeInfoImpl.type();
 
-extern const ArrayHeader theEmptyArray = { theArrayTypeInfoImpl.type(), /* element count */0 };
+extern const ArrayHeader theEmptyArray = {theArrayTypeInfoImpl.type(), /* element count */ 0};
 
 OBJ_GETTER0(TheEmptyString) {
     RETURN_OBJ(theEmptyStringImpl.obj());
