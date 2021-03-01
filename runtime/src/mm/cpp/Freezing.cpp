@@ -23,7 +23,7 @@ namespace {
 template <typename func>
 inline void traverseObjectFields(ObjHeader* obj, func process) {
     const TypeInfo* typeInfo = obj->type_info();
-    if (!typeInfo->IsArray()) {
+    if (typeInfo != theArrayTypeInfo) {
         for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
             ObjHeader** location = reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
             process(*location);
