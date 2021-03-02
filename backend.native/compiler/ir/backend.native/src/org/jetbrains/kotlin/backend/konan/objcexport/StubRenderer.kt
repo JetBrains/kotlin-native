@@ -196,11 +196,9 @@ object StubRenderer {
     }
 }
 
-fun formatGenerics(buffer: Appendable, generics: List<ObjCNonNullReferenceType>) {
+fun formatGenerics(buffer: Appendable, generics: List<Renderable>) {
     if (generics.isNotEmpty()) {
-        generics.joinTo(buffer, separator = ", ", prefix = "<", postfix = ">") {
-            (it.variance?.declaration ?: "") + it.render()
-        }
+        generics.joinTo(buffer, separator = ", ", prefix = "<", postfix = ">") { it.render() }
     }
 }
 

@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.types.Variance
 
-sealed class ObjCType {
+sealed class Renderable {
     final override fun toString(): String = this.render()
 
     abstract fun render(attrsAndName: String): String
@@ -18,6 +18,8 @@ sealed class ObjCType {
     protected fun String.withAttrsAndName(attrsAndName: String) =
             if (attrsAndName.isEmpty()) this else "$this ${attrsAndName.trimStart()}"
 }
+
+sealed class ObjCType : Renderable()
 
 data class ObjCRawType(
         val rawText: String
@@ -52,42 +54,21 @@ data class ObjCClassType(
     }
 }
 
-sealed class ObjCGenericType : ObjCNonNullReferenceType() {
-    abstract val variance: ObjCVariance
-}
-
-data class ObjCGenericRawType(
-        val typeName: String,
-        override val variance: ObjCVariance = ObjCVariance.INVARIANT
-) : ObjCGenericType() {
-    override fun render(attrsAndName: String): String {
+sealed class ObjCGenericTypeUsage: ObjCNonNullReferenceType() {
+    abstract val typeName: String
+    final override fun render(attrsAndName: String): String {
         return typeName.withAttrsAndName(attrsAndName)
     }
 }
 
-sealed class ObjCGenericTypeBase : ObjCGenericType() {
-    abstract val typeParameterDescriptor: TypeParameterDescriptor
-    abstract val namer: ObjCExportNamer
+data class ObjCGenericTypeRawUsage(override val typeName: String) : ObjCGenericTypeUsage()
 
-    override fun render(attrsAndName: String): String {
-        return namer.getTypeParameterName(typeParameterDescriptor).withAttrsAndName(attrsAndName)
-    }
-}
-
-data class ObjCGenericTypeUsage(
-        override val typeParameterDescriptor: TypeParameterDescriptor,
-        override val namer: ObjCExportNamer
-) : ObjCGenericTypeBase() {
-    override val variance: ObjCVariance
-        get() = ObjCVariance.INVARIANT
-}
-
-data class ObjCGenericTypeDeclaration(
-        override val typeParameterDescriptor: TypeParameterDescriptor,
-        override val namer: ObjCExportNamer
-) : ObjCGenericTypeBase() {
-    override val variance: ObjCVariance
-        get() = ObjCVariance.fromKotlinVariance(typeParameterDescriptor.variance)
+data class ObjCGenericTypeParameterUsage(
+        val typeParameterDescriptor: TypeParameterDescriptor,
+        val namer: ObjCExportNamer
+) : ObjCGenericTypeUsage() {
+    override val typeName: String
+        get() = namer.getTypeParameterName(typeParameterDescriptor)
 }
 
 data class ObjCProtocolType(
@@ -200,6 +181,30 @@ enum class ObjCVariance(internal val declaration: String) {
     }
 }
 
+sealed class ObjCGenericTypeDeclaration : Renderable() {
+    abstract val typeName: String
+    abstract val variance: ObjCVariance
+
+    final override fun render(attrsAndName: String): String {
+        return variance.declaration + typeName.withAttrsAndName(attrsAndName)
+    }
+}
+
+data class ObjCGenericTypeRawDeclaration(
+        override val typeName: String,
+        override val variance: ObjCVariance = ObjCVariance.INVARIANT
+) : ObjCGenericTypeDeclaration()
+
+data class ObjCGenericTypeParameterDeclaration(
+        val typeParameterDescriptor: TypeParameterDescriptor,
+        val namer: ObjCExportNamer
+) : ObjCGenericTypeDeclaration() {
+    override val typeName: String
+        get() = namer.getTypeParameterName(typeParameterDescriptor)
+    override val variance: ObjCVariance
+        get() = ObjCVariance.fromKotlinVariance(typeParameterDescriptor.variance)
+}
+
 internal fun ObjCType.makeNullableIfReferenceOrPointer(): ObjCType = when (this) {
     is ObjCPointerType -> ObjCPointerType(this.pointee, nullable = true)
 
@@ -212,6 +217,3 @@ internal fun ObjCReferenceType.makeNullable(): ObjCNullableReferenceType = when 
     is ObjCNonNullReferenceType -> ObjCNullableReferenceType(this)
     is ObjCNullableReferenceType -> this
 }
-
-internal val ObjCNonNullReferenceType.variance: ObjCVariance?
-    get() = (this as? ObjCGenericType)?.variance

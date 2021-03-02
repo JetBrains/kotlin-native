@@ -21,7 +21,6 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.ErrorUtils
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
-import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.types.typeUtil.builtIns
 import org.jetbrains.kotlin.types.typeUtil.isInterface
 import org.jetbrains.kotlin.types.typeUtil.isTypeParameter
@@ -79,7 +78,7 @@ internal class ObjCExportTranslatorImpl(
 
         // TODO: only if appears
         add {
-            val generics = listOf(ObjCGenericRawType("ObjectType"))
+            val generics = listOf("ObjectType")
             objCInterface(
                     namer.mutableSetName,
                     generics = generics,
@@ -90,7 +89,7 @@ internal class ObjCExportTranslatorImpl(
 
         // TODO: only if appears
         add {
-            val generics = listOf(ObjCGenericRawType("KeyType"), ObjCGenericRawType("ObjectType"))
+            val generics = listOf("KeyType", "ObjectType")
             objCInterface(
                     namer.mutableMapName,
                     generics = generics,
@@ -202,8 +201,8 @@ internal class ObjCExportTranslatorImpl(
 
         return translateClassOrInterfaceName(descriptor).also { className ->
             val generics = mapTypeConstructorParameters(descriptor)
-            val classType = ObjCClassType(className.objCName, generics)
-            generator?.referenceClass(classType)
+            val forwardDeclaration = ObjCClassForwardDeclaration(className.objCName, generics)
+            generator?.referenceClass(forwardDeclaration)
         }
     }
 
@@ -407,10 +406,10 @@ internal class ObjCExportTranslatorImpl(
         )
     }
 
-    private fun mapTypeConstructorParameters(descriptor: ClassDescriptor): List<ObjCGenericTypeDeclaration> {
+    private fun mapTypeConstructorParameters(descriptor: ClassDescriptor): List<ObjCGenericTypeParameterDeclaration> {
         if (objcGenerics) {
             return descriptor.typeConstructor.parameters.map {
-                ObjCGenericTypeDeclaration(it, namer)
+                ObjCGenericTypeParameterDeclaration(it, namer)
             }
         }
         return emptyList()
@@ -883,8 +882,10 @@ internal class ObjCExportTranslatorImpl(
         return ObjCProtocolType(name)
     }
 
-    private fun foreignClassType(name: String, typeArguments: List<ObjCNonNullReferenceType> = emptyList()): ObjCClassType =
-            ObjCClassType(name, typeArguments).also { generator?.referenceClass(it) }
+    private fun foreignClassType(name: String): ObjCClassType {
+        generator?.referenceClass(ObjCClassForwardDeclaration(name))
+        return ObjCClassType(name)
+    }
 
     internal fun mapFunctionTypeIgnoringNullability(
             functionType: KotlinType,
@@ -961,7 +962,7 @@ abstract class ObjCExportHeaderGenerator internal constructor(
 ) {
     private val stubs = mutableListOf<Stub<*>>()
 
-    private val classForwardDeclarations = linkedSetOf<ObjCClassType>()
+    private val classForwardDeclarations = linkedSetOf<ObjCClassForwardDeclaration>()
     private val protocolForwardDeclarations = linkedSetOf<String>()
     private val extraClassesToTranslate = mutableSetOf<ClassDescriptor>()
 
@@ -981,7 +982,7 @@ abstract class ObjCExportHeaderGenerator internal constructor(
                 classForwardDeclarations.joinToString {
                     buildString {
                         append(it.className)
-                        formatGenerics(this, it.typeArguments)
+                        formatGenerics(this, it.typeDeclarations)
                     }
                 }
             };")
@@ -1158,8 +1159,8 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         }
     }
 
-    internal fun referenceClass(classType: ObjCClassType) {
-        classForwardDeclarations += classType
+    internal fun referenceClass(forwardDeclaration: ObjCClassForwardDeclaration) {
+        classForwardDeclarations += forwardDeclaration
     }
 
     internal fun referenceProtocol(objCName: String) {
@@ -1187,7 +1188,19 @@ abstract class ObjCExportHeaderGenerator internal constructor(
 
 private fun objCInterface(
         name: ObjCExportNamer.ClassOrProtocolName,
-        generics: List<ObjCGenericType> = emptyList(),
+        generics: List<String>,
+        superClass: String,
+        superClassGenerics: List<String>
+): ObjCInterface = objCInterface(
+        name,
+        generics = generics.map { ObjCGenericTypeRawDeclaration(it) },
+        superClass = superClass,
+        superClassGenerics = superClassGenerics.map { ObjCGenericTypeRawUsage(it) }
+)
+
+private fun objCInterface(
+        name: ObjCExportNamer.ClassOrProtocolName,
+        generics: List<ObjCGenericTypeDeclaration> = emptyList(),
         descriptor: ClassDescriptor? = null,
         superClass: String? = null,
         superClassGenerics: List<ObjCNonNullReferenceType> = emptyList(),
@@ -1248,7 +1261,7 @@ internal class ObjCClassExportScope constructor(container:DeclarationDescriptor,
         return if(localTypeParam == null) {
             null
         } else {
-            ObjCGenericTypeUsage(localTypeParam, namer)
+            ObjCGenericTypeParameterUsage(localTypeParam, namer)
         }
     }
 }
