@@ -289,8 +289,8 @@ private:
         AssertCorrectUnsafe();
 
         if (previousNode == nullptr) {
+            // Extracting the root.
             auto node = std::move(root_);
-            // Deleting the root.
             root_ = std::move(node->next_);
             if (!root_) {
                 last_ = nullptr;

@@ -322,6 +322,7 @@ TEST(ObjectFactoryStorageTest, EraseTheOnlyElement) {
         auto iter = storage.Iter();
         auto it = iter.begin();
         iter.EraseAndAdvance(it);
+        EXPECT_THAT(it, iter.end());
     }
 
     auto actual = Collect<int>(storage);
@@ -454,6 +455,7 @@ TEST(ObjectFactoryStorageTest, MoveTheOnlyElement) {
         auto iter = storage.Iter();
         auto it = iter.begin();
         iter.MoveAndAdvance(consumer, it);
+        EXPECT_THAT(it, iter.end());
     }
 
     auto actual = Collect<int>(storage);
