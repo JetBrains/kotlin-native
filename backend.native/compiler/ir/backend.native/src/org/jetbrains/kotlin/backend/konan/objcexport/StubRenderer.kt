@@ -199,7 +199,7 @@ object StubRenderer {
 fun formatGenerics(buffer: Appendable, generics: List<ObjCNonNullReferenceType>) {
     if (generics.isNotEmpty()) {
         generics.joinTo(buffer, separator = ", ", prefix = "<", postfix = ">") {
-            it.variance.objcDeclaration() + it.render()
+            (it.variance?.declaration ?: "") + it.render()
         }
     }
 }

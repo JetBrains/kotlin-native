@@ -152,7 +152,12 @@ internal class ObjCExportLazyImpl(
 
     private fun translateGenerics(ktClassOrObject: KtClassOrObject): List<ObjCGenericType> = if (configuration.objcGenerics) {
         ktClassOrObject.typeParametersWithOuter
-                .map { ObjCGenericRawType(nameTranslator.getTypeParameterName(it), it.variance) }
+                .map {
+                    ObjCGenericRawType(
+                            nameTranslator.getTypeParameterName(it),
+                            ObjCVariance.fromKotlinVariance(it.variance)
+                    )
+                }
                 .toList()
     } else {
         emptyList()

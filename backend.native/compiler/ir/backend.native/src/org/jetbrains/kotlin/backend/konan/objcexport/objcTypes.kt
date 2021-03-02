@@ -53,12 +53,12 @@ data class ObjCClassType(
 }
 
 sealed class ObjCGenericType : ObjCNonNullReferenceType() {
-    abstract val variance: Variance
+    abstract val variance: ObjCVariance
 }
 
 data class ObjCGenericRawType(
         val typeName: String,
-        override val variance: Variance = Variance.INVARIANT
+        override val variance: ObjCVariance = ObjCVariance.INVARIANT
 ) : ObjCGenericType() {
     override fun render(attrsAndName: String): String {
         return typeName.withAttrsAndName(attrsAndName)
@@ -78,16 +78,16 @@ data class ObjCGenericTypeUsage(
         override val typeParameterDescriptor: TypeParameterDescriptor,
         override val namer: ObjCExportNamer
 ) : ObjCGenericTypeBase() {
-    override val variance: Variance
-        get() = Variance.INVARIANT
+    override val variance: ObjCVariance
+        get() = ObjCVariance.INVARIANT
 }
 
 data class ObjCGenericTypeDeclaration(
         override val typeParameterDescriptor: TypeParameterDescriptor,
         override val namer: ObjCExportNamer
 ) : ObjCGenericTypeBase() {
-    override val variance: Variance
-        get() = typeParameterDescriptor.variance
+    override val variance: ObjCVariance
+        get() = ObjCVariance.fromKotlinVariance(typeParameterDescriptor.variance)
 }
 
 data class ObjCProtocolType(
@@ -186,6 +186,20 @@ internal enum class ObjCValueType(val encoding: String) {
     POINTER("^v")
 }
 
+enum class ObjCVariance(internal val declaration: String) {
+    INVARIANT(""),
+    COVARIANT("__covariant "),
+    CONTRAVARIANT("__contravariant ");
+
+    companion object {
+        fun fromKotlinVariance(variance: Variance): ObjCVariance = when (variance) {
+            Variance.OUT_VARIANCE -> COVARIANT
+            Variance.IN_VARIANCE -> CONTRAVARIANT
+            else -> INVARIANT
+        }
+    }
+}
+
 internal fun ObjCType.makeNullableIfReferenceOrPointer(): ObjCType = when (this) {
     is ObjCPointerType -> ObjCPointerType(this.pointee, nullable = true)
 
@@ -199,5 +213,5 @@ internal fun ObjCReferenceType.makeNullable(): ObjCNullableReferenceType = when 
     is ObjCNullableReferenceType -> this
 }
 
-internal val ObjCNonNullReferenceType.variance: Variance?
+internal val ObjCNonNullReferenceType.variance: ObjCVariance?
     get() = (this as? ObjCGenericType)?.variance

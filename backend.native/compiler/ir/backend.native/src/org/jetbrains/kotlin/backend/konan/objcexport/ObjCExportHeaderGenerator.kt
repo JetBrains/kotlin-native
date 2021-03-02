@@ -1257,12 +1257,6 @@ internal object ObjCNoneExportScope: ObjCExportScope{
     override fun getGenericTypeUsage(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeUsage? = null
 }
 
-internal fun Variance?.objcDeclaration(): String = when (this) {
-    Variance.OUT_VARIANCE -> "__covariant "
-    Variance.IN_VARIANCE -> "__contravariant "
-    else -> ""
-}
-
 private fun computeSuperClassType(descriptor: ClassDescriptor): KotlinType? = descriptor.typeConstructor.supertypes.filter { !it.isInterface() }.firstOrNull()
 
 internal const val OBJC_SUBCLASSING_RESTRICTED = "objc_subclassing_restricted"
