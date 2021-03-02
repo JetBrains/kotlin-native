@@ -2227,3 +2227,42 @@ __attribute__((swift_name("ValuesKt")))
 @property (class) int32_t gh3525InitCount __attribute__((swift_name("gh3525InitCount")));
 @end;
 
+__attribute__((swift_name("InvariantSuper")))
+@interface KtInvariantSuper<T> : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("Invariant")))
+@interface KtInvariant<T> : KtInvariantSuper<T>
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((swift_name("OutVariantSuper")))
+@interface KtOutVariantSuper<__covariant T> : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("OutVariant")))
+@interface KtOutVariant<__covariant T> : KtOutVariantSuper<T>
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((swift_name("InVariantSuper")))
+@interface KtInVariantSuper<__contravariant T> : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("InVariant")))
+@interface KtInVariant<__contravariant T> : KtInVariantSuper<T>
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+

@@ -41,7 +41,7 @@ class ObjCProtocolImpl(
         attributes: List<String> = emptyList()) : ObjCProtocol(name, attributes)
 
 abstract class ObjCInterface(name: String,
-                             val generics: List<String>,
+                             val generics: List<ObjCGenericType>,
                              val categoryName: String?,
                              attributes: List<String>) : ObjCClass<ClassDescriptor>(name, attributes) {
     abstract val superClass: String?
@@ -50,7 +50,7 @@ abstract class ObjCInterface(name: String,
 
 class ObjCInterfaceImpl(
         name: String,
-        generics: List<String> = emptyList(),
+        generics: List<ObjCGenericType> = emptyList(),
         override val descriptor: ClassDescriptor? = null,
         override val superClass: String? = null,
         override val superClassGenerics: List<ObjCNonNullReferenceType> = emptyList(),

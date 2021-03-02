@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.objcexport
 
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
+import org.jetbrains.kotlin.types.Variance
 
 sealed class ObjCType {
     final override fun toString(): String = this.render()
@@ -18,7 +19,7 @@ sealed class ObjCType {
             if (attrsAndName.isEmpty()) this else "$this ${attrsAndName.trimStart()}"
 }
 
-class ObjCRawType(
+data class ObjCRawType(
         val rawText: String
 ) : ObjCType() {
     override fun render(attrsAndName: String): String = rawText.withAttrsAndName(attrsAndName)
@@ -34,7 +35,7 @@ data class ObjCNullableReferenceType(
     override fun render(attrsAndName: String) = nonNullType.render(" _Nullable".withAttrsAndName(attrsAndName))
 }
 
-class ObjCClassType(
+data class ObjCClassType(
         val className: String,
         val typeArguments: List<ObjCNonNullReferenceType> = emptyList()
 ) : ObjCNonNullReferenceType() {
@@ -51,16 +52,45 @@ class ObjCClassType(
     }
 }
 
-class ObjCGenericTypeDeclaration(
-        val typeParameterDescriptor: TypeParameterDescriptor,
-        val namer: ObjCExportNamer
-) : ObjCNonNullReferenceType() {
+sealed class ObjCGenericType : ObjCNonNullReferenceType() {
+    abstract val variance: Variance
+}
+
+data class ObjCGenericRawType(
+        val typeName: String,
+        override val variance: Variance = Variance.INVARIANT
+) : ObjCGenericType() {
+    override fun render(attrsAndName: String): String {
+        return typeName.withAttrsAndName(attrsAndName)
+    }
+}
+
+sealed class ObjCGenericTypeBase : ObjCGenericType() {
+    abstract val typeParameterDescriptor: TypeParameterDescriptor
+    abstract val namer: ObjCExportNamer
+
     override fun render(attrsAndName: String): String {
         return namer.getTypeParameterName(typeParameterDescriptor).withAttrsAndName(attrsAndName)
     }
 }
 
-class ObjCProtocolType(
+data class ObjCGenericTypeUsage(
+        override val typeParameterDescriptor: TypeParameterDescriptor,
+        override val namer: ObjCExportNamer
+) : ObjCGenericTypeBase() {
+    override val variance: Variance
+        get() = Variance.INVARIANT
+}
+
+data class ObjCGenericTypeDeclaration(
+        override val typeParameterDescriptor: TypeParameterDescriptor,
+        override val namer: ObjCExportNamer
+) : ObjCGenericTypeBase() {
+    override val variance: Variance
+        get() = typeParameterDescriptor.variance
+}
+
+data class ObjCProtocolType(
         val protocolName: String
 ) : ObjCNonNullReferenceType() {
     override fun render(attrsAndName: String) = "id<$protocolName>".withAttrsAndName(attrsAndName)
@@ -74,7 +104,7 @@ object ObjCInstanceType : ObjCNonNullReferenceType() {
     override fun render(attrsAndName: String): String = "instancetype".withAttrsAndName(attrsAndName)
 }
 
-class ObjCBlockPointerType(
+data class ObjCBlockPointerType(
         val returnType: ObjCType,
         val parameterTypes: List<ObjCReferenceType>
 ) : ObjCNonNullReferenceType() {
@@ -124,7 +154,7 @@ sealed class ObjCPrimitiveType(
     override fun render(attrsAndName: String) = cName.withAttrsAndName(attrsAndName)
 }
 
-class ObjCPointerType(
+data class ObjCPointerType(
         val pointee: ObjCType,
         val nullable: Boolean = false
 ) : ObjCType() {
@@ -168,3 +198,6 @@ internal fun ObjCReferenceType.makeNullable(): ObjCNullableReferenceType = when 
     is ObjCNonNullReferenceType -> ObjCNullableReferenceType(this)
     is ObjCNullableReferenceType -> this
 }
+
+internal val ObjCNonNullReferenceType.variance: Variance?
+    get() = (this as? ObjCGenericType)?.variance

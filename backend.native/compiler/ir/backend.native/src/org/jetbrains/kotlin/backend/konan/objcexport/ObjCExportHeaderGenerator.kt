@@ -79,19 +79,23 @@ internal class ObjCExportTranslatorImpl(
 
         // TODO: only if appears
         add {
+            val generics = listOf(ObjCGenericRawType("ObjectType"))
             objCInterface(
                     namer.mutableSetName,
-                    generics = listOf("ObjectType"),
-                    superClass = "NSMutableSet<ObjectType>"
+                    generics = generics,
+                    superClass = "NSMutableSet",
+                    superClassGenerics = generics
             )
         }
 
         // TODO: only if appears
         add {
+            val generics = listOf(ObjCGenericRawType("KeyType"), ObjCGenericRawType("ObjectType"))
             objCInterface(
                     namer.mutableMapName,
-                    generics = listOf("KeyType", "ObjectType"),
-                    superClass = "NSMutableDictionary<KeyType, ObjectType>"
+                    generics = generics,
+                    superClass = "NSMutableDictionary",
+                    superClassGenerics = generics
             )
         }
 
@@ -192,23 +196,14 @@ internal class ObjCExportTranslatorImpl(
     }
 
     private fun referenceClass(descriptor: ClassDescriptor): ObjCExportNamer.ClassOrProtocolName {
-        fun forwardDeclarationObjcClassName(objcGenerics: Boolean, descriptor: ClassDescriptor, namer:ObjCExportNamer): String {
-            val className = translateClassOrInterfaceName(descriptor)
-            val builder = StringBuilder(className.objCName)
-            if (objcGenerics)
-                formatGenerics(builder, descriptor.typeConstructor.parameters.map { typeParameterDescriptor ->
-                    "${typeParameterDescriptor.variance.objcDeclaration()}${namer.getTypeParameterName(typeParameterDescriptor)}"
-                })
-            return builder.toString()
-        }
-
         assert(mapper.shouldBeExposed(descriptor)) { "Shouldn't be exposed: $descriptor" }
         assert(!descriptor.isInterface)
         generator?.requireClassOrInterface(descriptor)
 
-        return translateClassOrInterfaceName(descriptor).also {
-            val objcName = forwardDeclarationObjcClassName(objcGenerics, descriptor, namer)
-            generator?.referenceClass(objcName)
+        return translateClassOrInterfaceName(descriptor).also { className ->
+            val generics = mapTypeConstructorParameters(descriptor)
+            val classType = ObjCClassType(className.objCName, generics)
+            generator?.referenceClass(classType)
         }
     }
 
@@ -296,14 +291,14 @@ internal class ObjCExportTranslatorImpl(
         }
 
         fun superClassGenerics(genericExportScope: ObjCExportScope): List<ObjCNonNullReferenceType> {
-            val parentType = computeSuperClassType(descriptor)
-            return if(parentType != null) {
-                parentType.arguments.map { typeProjection ->
-                    mapReferenceTypeIgnoringNullability(typeProjection.type, genericExportScope)
+            if (objcGenerics) {
+                computeSuperClassType(descriptor)?.let { parentType ->
+                    return parentType.arguments.map { typeProjection ->
+                        mapReferenceTypeIgnoringNullability(typeProjection.type, genericExportScope)
+                    }
                 }
-            } else {
-                emptyList()
             }
+            return emptyList()
         }
 
         val superClass = descriptor.getSuperClassNotAny()
@@ -397,20 +392,8 @@ internal class ObjCExportTranslatorImpl(
         val attributes = if (descriptor.isFinalOrEnum) listOf(OBJC_SUBCLASSING_RESTRICTED) else emptyList()
 
         val name = translateClassOrInterfaceName(descriptor)
-
-        val generics = if (objcGenerics) {
-            descriptor.typeConstructor.parameters.map {
-                "${it.variance.objcDeclaration()}${namer.getTypeParameterName(it)}"
-            }
-        } else {
-            emptyList()
-        }
-
-        val superClassGenerics = if (objcGenerics) {
-            superClassGenerics(genericExportScope)
-        } else {
-            emptyList()
-        }
+        val generics = mapTypeConstructorParameters(descriptor)
+        val superClassGenerics = superClassGenerics(genericExportScope)
 
         return objCInterface(
                 name,
@@ -422,6 +405,15 @@ internal class ObjCExportTranslatorImpl(
                 members = members,
                 attributes = attributes
         )
+    }
+
+    private fun mapTypeConstructorParameters(descriptor: ClassDescriptor): List<ObjCGenericTypeDeclaration> {
+        if (objcGenerics) {
+            return descriptor.typeConstructor.parameters.map {
+                ObjCGenericTypeDeclaration(it, namer)
+            }
+        }
+        return emptyList()
     }
 
     private fun buildEnumValuesMethod(
@@ -822,9 +814,9 @@ internal class ObjCExportTranslatorImpl(
         }
 
         if(objcGenerics && kotlinType.isTypeParameter()){
-            val genericTypeDeclaration = objCExportScope.getGenericDeclaration(TypeUtils.getTypeParameterDescriptorOrNull(kotlinType))
-            if(genericTypeDeclaration != null)
-                return genericTypeDeclaration
+            val genericTypeUsage = objCExportScope.getGenericTypeUsage(TypeUtils.getTypeParameterDescriptorOrNull(kotlinType))
+            if(genericTypeUsage != null)
+                return genericTypeUsage
         }
 
         val classDescriptor = kotlinType.getErasedTypeClass()
@@ -891,10 +883,8 @@ internal class ObjCExportTranslatorImpl(
         return ObjCProtocolType(name)
     }
 
-    private fun foreignClassType(name: String): ObjCClassType {
-        generator?.referenceClass(name)
-        return ObjCClassType(name)
-    }
+    private fun foreignClassType(name: String, typeArguments: List<ObjCNonNullReferenceType> = emptyList()): ObjCClassType =
+            ObjCClassType(name, typeArguments).also { generator?.referenceClass(it) }
 
     internal fun mapFunctionTypeIgnoringNullability(
             functionType: KotlinType,
@@ -971,7 +961,7 @@ abstract class ObjCExportHeaderGenerator internal constructor(
 ) {
     private val stubs = mutableListOf<Stub<*>>()
 
-    private val classForwardDeclarations = linkedSetOf<String>()
+    private val classForwardDeclarations = linkedSetOf<ObjCClassType>()
     private val protocolForwardDeclarations = linkedSetOf<String>()
     private val extraClassesToTranslate = mutableSetOf<ClassDescriptor>()
 
@@ -987,7 +977,14 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         add("")
 
         if (classForwardDeclarations.isNotEmpty()) {
-            add("@class ${classForwardDeclarations.joinToString()};")
+            add("@class ${
+                classForwardDeclarations.joinToString {
+                    buildString {
+                        append(it.className)
+                        formatGenerics(this, it.typeArguments)
+                    }
+                }
+            };")
             add("")
         }
 
@@ -1161,8 +1158,8 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         }
     }
 
-    internal fun referenceClass(objCName: String) {
-        classForwardDeclarations += objCName
+    internal fun referenceClass(classType: ObjCClassType) {
+        classForwardDeclarations += classType
     }
 
     internal fun referenceProtocol(objCName: String) {
@@ -1190,7 +1187,7 @@ abstract class ObjCExportHeaderGenerator internal constructor(
 
 private fun objCInterface(
         name: ObjCExportNamer.ClassOrProtocolName,
-        generics: List<String> = emptyList(),
+        generics: List<ObjCGenericType> = emptyList(),
         descriptor: ClassDescriptor? = null,
         superClass: String? = null,
         superClassGenerics: List<ObjCNonNullReferenceType> = emptyList(),
@@ -1232,7 +1229,7 @@ private fun swiftNameAttribute(swiftName: String) = "swift_name(\"$swiftName\")"
 private fun objcRuntimeNameAttribute(name: String) = "objc_runtime_name(\"$name\")"
 
 interface ObjCExportScope{
-    fun getGenericDeclaration(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeDeclaration?
+    fun getGenericTypeUsage(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeUsage?
 }
 
 internal class ObjCClassExportScope constructor(container:DeclarationDescriptor, val namer: ObjCExportNamer): ObjCExportScope {
@@ -1242,7 +1239,7 @@ internal class ObjCClassExportScope constructor(container:DeclarationDescriptor,
         emptyList<TypeParameterDescriptor>()
     }
 
-    override fun getGenericDeclaration(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeDeclaration? {
+    override fun getGenericTypeUsage(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeUsage? {
         val localTypeParam = typeNames.firstOrNull {
             typeParameterDescriptor != null &&
                     (it == typeParameterDescriptor || (it.isCapturedFromOuterDeclaration && it.original == typeParameterDescriptor))
@@ -1251,16 +1248,16 @@ internal class ObjCClassExportScope constructor(container:DeclarationDescriptor,
         return if(localTypeParam == null) {
             null
         } else {
-            ObjCGenericTypeDeclaration(localTypeParam, namer)
+            ObjCGenericTypeUsage(localTypeParam, namer)
         }
     }
 }
 
 internal object ObjCNoneExportScope: ObjCExportScope{
-    override fun getGenericDeclaration(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeDeclaration? = null
+    override fun getGenericTypeUsage(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeUsage? = null
 }
 
-internal fun Variance.objcDeclaration():String = when(this){
+internal fun Variance?.objcDeclaration(): String = when (this) {
     Variance.OUT_VARIANCE -> "__covariant "
     Variance.IN_VARIANCE -> "__contravariant "
     else -> ""
