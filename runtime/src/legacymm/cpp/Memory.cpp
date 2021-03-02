@@ -1394,7 +1394,7 @@ inline void decrementRC(ContainerHeader* container) {
         container->setBuffered();
         if (state->toFree != nullptr) {
           state->toFree->push_back(container);
-          MEMORY_LOG("toFree is now %d\n", state->toFree->size())
+          MEMORY_LOG("toFree is now %lu\n", state->toFree->size())
           if (state->gcSuspendCount == 0 && state->toRelease->size() >= state->gcThreshold) {
             GC_LOG("Calling GC from DecrementRC: %d\n", state->toRelease->size())
             garbageCollect(state, false);
@@ -1437,7 +1437,7 @@ inline void enqueueDecrementRC(ContainerHeader* container) {
   auto* state = memoryState;
   if (CanCollect) {
     if (state->toRelease->size() >= state->gcThreshold && state->gcSuspendCount == 0) {
-      GC_LOG("Calling GC from EnqueueDecrementRC: %d\n", state->toRelease->size())
+      GC_LOG("Calling GC from EnqueueDecrementRC: %lu\n", state->toRelease->size())
       garbageCollect(state, false);
     }
   }
@@ -1897,7 +1897,7 @@ void garbageCollect(MemoryState* state, bool force) {
     return;
   }
 
-  GC_LOG(">>> %s GC: threshold = %d toFree %d toRelease %d alloc = %lld\n", \
+  GC_LOG(">>> %s GC: threshold = %zu toFree %lu toRelease %lu alloc = %lld\n", \
      force ? "forced" : "regular", state->gcThreshold, state->toFree->size(),
      state->toRelease->size(), allocSinceLastGc)
 
@@ -1933,10 +1933,10 @@ void garbageCollect(MemoryState* state, bool force) {
   size_t stackReferences = afterDecrements - beforeDecrements;
   if (state->gcErgonomics && stackReferences * 5 > state->gcThreshold) {
     increaseGcThreshold(state);
-    GC_LOG("||| GC: too many stack references, increased threshold to %d\n", state->gcThreshold);
+    GC_LOG("||| GC: too many stack references, increased threshold to %zu\n", state->gcThreshold);
   }
 
-  GC_LOG("||| GC: toFree %d toRelease %d\n", state->toFree->size(), state->toRelease->size())
+  GC_LOG("||| GC: toFree %lu toRelease %lu\n", state->toFree->size(), state->toRelease->size())
 #if PROFILE_GC
   auto processFinalizerQueueStartTime = konan::getTimeMicros();
 #endif
@@ -1979,7 +1979,7 @@ void garbageCollect(MemoryState* state, bool force) {
     auto gcToComputeRatio = double(gcEndTime - gcStartTime) / (gcStartTime - state->lastGcTimestamp + 1);
     if (!force && gcToComputeRatio > kGcToComputeRatioThreshold) {
       increaseGcThreshold(state);
-      GC_LOG("Adjusting GC threshold to %d\n", state->gcThreshold);
+      GC_LOG("Adjusting GC threshold to %zu\n", state->gcThreshold);
     }
   }
   GC_LOG("GC: gcToComputeRatio=%f duration=%lld sinceLast=%lld\n", double(gcEndTime - gcStartTime) / (gcStartTime - state->lastGcTimestamp + 1), (gcEndTime - gcStartTime), gcStartTime - state->lastGcTimestamp);
@@ -1991,7 +1991,7 @@ void garbageCollect(MemoryState* state, bool force) {
   }
 #endif
 
-  GC_LOG("<<< GC: toFree %d toRelease %d\n", state->toFree->size(), state->toRelease->size())
+  GC_LOG("<<< GC: toFree %lu toRelease %lu\n", state->toFree->size(), state->toRelease->size())
 }
 
 void rememberNewContainer(ContainerHeader* container) {
@@ -2282,7 +2282,7 @@ inline void checkIfGcNeeded(MemoryState* state) {
   if (state != nullptr && state->allocSinceLastGc > state->allocSinceLastGcThreshold && state->gcSuspendCount == 0) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
-      GC_LOG("Calling GC from checkIfGcNeeded: %d\n", state->toRelease->size())
+      GC_LOG("Calling GC from checkIfGcNeeded: %lu\n", state->toRelease->size())
       garbageCollect(state, false);
     }
   }
@@ -2293,7 +2293,7 @@ inline void checkIfForceCyclicGcNeeded(MemoryState* state) {
       && state->gcSuspendCount == 0) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
-      GC_LOG("Calling GC from checkIfForceCyclicGcNeeded: %d\n", state->toFree->size())
+      GC_LOG("Calling GC from checkIfForceCyclicGcNeeded: %lu\n", state->toFree->size())
       garbageCollect(state, true);
     }
   }
@@ -2626,7 +2626,7 @@ KInt getGCThreshold() {
 }
 
 void setGCCollectCyclesThreshold(KLong value) {
-  GC_LOG("setGCCollectCyclesThreshold %d\n", value)
+  GC_LOG("setGCCollectCyclesThreshold %lld\n", value)
   if (value <= 0) {
     ThrowIllegalArgumentException();
   }
@@ -2658,7 +2658,7 @@ void setTuneGCThreshold(KBoolean value) {
 }
 
 KBoolean getTuneGCThreshold() {
-  GC_LOG("getTuneGCThreshold %d\n")
+  GC_LOG("getTuneGCThreshold %d\n", memoryState->gcErgonomics)
   return memoryState->gcErgonomics;
 }
 
