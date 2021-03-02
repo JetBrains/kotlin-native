@@ -1437,7 +1437,7 @@ inline void enqueueDecrementRC(ContainerHeader* container) {
   auto* state = memoryState;
   if (CanCollect) {
     if (state->toRelease->size() >= state->gcThreshold && state->gcSuspendCount == 0) {
-      GC_LOG("Calling GC from EnqueueDecrementRC: %lu\n", state->toRelease->size())
+      GC_LOG("Calling GC from EnqueueDecrementRC: %zu\n", state->toRelease->size())
       garbageCollect(state, false);
     }
   }
@@ -1897,7 +1897,7 @@ void garbageCollect(MemoryState* state, bool force) {
     return;
   }
 
-  GC_LOG(">>> %s GC: threshold = %zu toFree %lu toRelease %lu alloc = %lld\n", \
+  GC_LOG(">>> %s GC: threshold = %zu toFree %zu toRelease %zu alloc = %lld\n", \
      force ? "forced" : "regular", state->gcThreshold, state->toFree->size(),
      state->toRelease->size(), allocSinceLastGc)
 
@@ -1936,7 +1936,7 @@ void garbageCollect(MemoryState* state, bool force) {
     GC_LOG("||| GC: too many stack references, increased threshold to %zu\n", state->gcThreshold);
   }
 
-  GC_LOG("||| GC: toFree %lu toRelease %lu\n", state->toFree->size(), state->toRelease->size())
+  GC_LOG("||| GC: toFree %zu toRelease %zu\n", state->toFree->size(), state->toRelease->size())
 #if PROFILE_GC
   auto processFinalizerQueueStartTime = konan::getTimeMicros();
 #endif
@@ -1991,7 +1991,7 @@ void garbageCollect(MemoryState* state, bool force) {
   }
 #endif
 
-  GC_LOG("<<< GC: toFree %lu toRelease %lu\n", state->toFree->size(), state->toRelease->size())
+  GC_LOG("<<< GC: toFree %zu toRelease %zu\n", state->toFree->size(), state->toRelease->size())
 }
 
 void rememberNewContainer(ContainerHeader* container) {
@@ -2282,7 +2282,7 @@ inline void checkIfGcNeeded(MemoryState* state) {
   if (state != nullptr && state->allocSinceLastGc > state->allocSinceLastGcThreshold && state->gcSuspendCount == 0) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
-      GC_LOG("Calling GC from checkIfGcNeeded: %lu\n", state->toRelease->size())
+      GC_LOG("Calling GC from checkIfGcNeeded: %zu\n", state->toRelease->size())
       garbageCollect(state, false);
     }
   }
@@ -2293,7 +2293,7 @@ inline void checkIfForceCyclicGcNeeded(MemoryState* state) {
       && state->gcSuspendCount == 0) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
-      GC_LOG("Calling GC from checkIfForceCyclicGcNeeded: %lu\n", state->toFree->size())
+      GC_LOG("Calling GC from checkIfForceCyclicGcNeeded: %zu\n", state->toFree->size())
       garbageCollect(state, true);
     }
   }
