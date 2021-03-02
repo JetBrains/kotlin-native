@@ -1113,7 +1113,8 @@ task freeze_stress(type: KonanLocalTest) {
 }
 
 task freeze2(type: KonanLocalTest) {
-    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') && // No exceptions on WASM.
+        !isExperimentalMM  // Experimental MM doesn't support multiple mutators yet.
     goldValue =
             "Worker 1: Hello world\n" + "Worker2: 42\n" +
             "Worker3: 239.0\n" + "Worker4: a\n" + "OK\n"
@@ -1121,7 +1122,8 @@ task freeze2(type: KonanLocalTest) {
 }
 
 task freeze3(type: KonanLocalTest) {
-    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') && // No exceptions on WASM.
+        !isExperimentalMM  // Experimental MM doesn't support multiple mutators yet.
     goldValue = "OK\n"
     source = "runtime/workers/freeze3.kt"
 }
@@ -1138,7 +1140,8 @@ task freeze5(type: KonanLocalTest) {
 }
 
 task freeze6(type: KonanLocalTest) {
-    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') && // No exceptions on WASM.
+        !isExperimentalMM // Experimental MM does not have a GC yet.
     goldValue = "OK\nOK\n"
     source = "runtime/workers/freeze6.kt"
 }

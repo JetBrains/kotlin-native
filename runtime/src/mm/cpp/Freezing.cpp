@@ -45,6 +45,7 @@ bool mm::IsFrozen(const ObjHeader* object) noexcept {
     return false;
 }
 
+// TODO: Tests on permanent.
 ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
     if (mm::IsFrozen(root) || root->permanent()) return nullptr;
 
