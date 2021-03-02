@@ -76,7 +76,7 @@ TEST(ObjectTraversalTest, TraverseFieldsExceptions) {
             "Callable is noexcept, so traverse is noexcept");
     static_assert(
             !noexcept(traverseObjectFields(std::declval<ObjHeader*>(), std::declval<CallableWithExceptions>())),
-            "Callabl is noexcept(false), so traverse is noexcept(false)");
+            "Callable is noexcept(false), so traverse is noexcept(false)");
 }
 
 TEST(ObjectTraversalTest, TraverseEmptyObjectFields) {
@@ -177,7 +177,7 @@ TEST(ObjectTraversalTest, TraverseRefsExceptions) {
             "Callable is noexcept, so traverse is noexcept");
     static_assert(
             !noexcept(traverseReferredObjects(std::declval<ObjHeader*>(), std::declval<CallableWithExceptions>())),
-            "Callabl is noexcept(false), so traverse is noexcept(false)");
+            "Callable is noexcept(false), so traverse is noexcept(false)");
 }
 
 TEST(ObjectTraversalTest, TraverseEmptyObjectRefs) {
