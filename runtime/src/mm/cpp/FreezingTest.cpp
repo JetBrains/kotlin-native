@@ -10,6 +10,7 @@
 
 #include "FreezeHooksTestSupport.hpp"
 #include "Memory.h"
+#include "ObjectTestSupport.hpp"
 #include "Utils.hpp"
 
 using namespace kotlin;
@@ -24,85 +25,69 @@ struct NoFreezeHook {
     static constexpr bool hasFreezeHook = false;
 };
 
-template <size_t Fields, typename Traits = NoFreezeHook>
-class Object : private Pinned {
-public:
-    Object() {
-        auto* type = new TypeInfo();
-        type->typeInfo_ = type;
-        if (Traits::hasFreezeHook) {
-            type->flags_ |= TF_HAS_FREEZE_HOOK;
-        } else {
-            type->flags_ &= ~TF_HAS_FREEZE_HOOK;
-        }
-        type->objOffsetsCount_ = Fields;
-        if (Fields > 0) {
-            auto* offsets = new int32_t[Fields];
-            for (size_t i = 0; i < Fields; ++i) {
-                fields_[i] = nullptr;
-                offsets[i] = reinterpret_cast<uintptr_t>(&fields_[i]) - reinterpret_cast<uintptr_t>(&header_);
-            }
-            type->objOffsets_ = offsets;
-        }
-        type->instanceSize_ = sizeof(*this);
-        header_.typeInfoOrMeta_ = type;
-    }
-
-    ~Object() {
-        if (header_.has_meta_object()) {
-            ObjHeader::destroyMetaObject(&header_);
-        }
-        auto* type = header_.type_info();
-        if (Fields > 0) {
-            delete[] type->objOffsets_;
-        }
-        delete type;
-    }
-
-    ObjHeader* header() { return &header_; }
-
-    ObjHeader*& operator[](size_t field) { return fields_[field]; }
-
-private:
-    ObjHeader header_;
-    std::array<ObjHeader*, Fields> fields_;
+struct EmptyPayload {
+    using Field = ObjHeader* EmptyPayload::*;
+    static constexpr std::array<Field, 0> kFields{};
 };
 
-template <size_t Elements, typename Traits = NoFreezeHook>
-class Array : private Pinned {
+struct Payload {
+    ObjHeader* field1;
+    ObjHeader* field2;
+    ObjHeader* field3;
+
+    static constexpr std::array kFields{
+            &Payload::field1,
+            &Payload::field2,
+            &Payload::field3,
+    };
+};
+
+template <typename Payload, typename Traits>
+class ObjectHolder : private Pinned {
 public:
-    Array() {
-        auto* type = new TypeInfo();
-        type->typeInfo_ = type;
+    static test_support::TypeInfoHolder::ObjectBuilder<Payload> TypeBuilder() {
+        auto builder = test_support::TypeInfoHolder::ObjectBuilder<Payload>();
         if (Traits::hasFreezeHook) {
-            type->flags_ |= TF_HAS_FREEZE_HOOK;
-        } else {
-            type->flags_ &= ~TF_HAS_FREEZE_HOOK;
+            builder.addFlag(TF_HAS_FREEZE_HOOK);
         }
-        for (size_t i = 0; i < Elements; ++i) {
-            elements_[i] = nullptr;
-        }
-        type->instanceSize_ = -static_cast<int32_t>(sizeof(ObjHeader*));
-        header_.typeInfoOrMeta_ = type;
-        header_.count_ = Elements;
+        return builder;
     }
 
-    ~Array() {
-        auto* objectHeader = header_.obj();
-        if (objectHeader->has_meta_object()) {
-            ObjHeader::destroyMetaObject(objectHeader);
+    ObjectHolder() : type_(TypeBuilder()), object_(type_.typeInfo()) {}
+
+    ~ObjectHolder() {
+        if (header()->has_meta_object()) {
+            ObjHeader::destroyMetaObject(header());
         }
-        auto* type = header_.type_info();
-        delete type;
     }
 
-    ObjHeader* header() { return header_.obj(); }
+    ObjHeader* header() { return object_.header(); }
 
-    ObjHeader*& operator[](size_t index) { return elements_[index]; }
+    ObjHeader*& operator[](size_t field) { return object_[field]; }
 
 private:
-    ArrayHeader header_;
-    std::array<ObjHeader*, Elements> elements_;
+    test_support::TypeInfoHolder type_;
+    test_support::Object<Payload> object_;
+};
+
+// Arrays types are predetermined, and none of them have freeze hooks.
+template <size_t Elements>
+class ArrayHolder : private Pinned {
+public:
+    ArrayHolder() {}
+
+    ~ArrayHolder() {
+        if (header()->has_meta_object()) {
+            ObjHeader::destroyMetaObject(header());
+        }
+    }
+
+    ObjHeader* header() { return array_.header(); }
+
+    ObjHeader*& operator[](size_t index) { return array_[index]; }
+
+private:
+    test_support::ObjectArray<Elements> array_;
 };
 
 class FreezingTest : public testing::Test {
@@ -130,22 +115,22 @@ public:
 
 template <typename T>
 class FreezingEmptyNoHookTest : public FreezingTest {};
-using EmptyNoHookTypes = testing::Types<Object<0, NoFreezeHook>, Array<0, NoFreezeHook>>;
+using EmptyNoHookTypes = testing::Types<ObjectHolder<EmptyPayload, NoFreezeHook>, ArrayHolder<0>>;
 TYPED_TEST_SUITE(FreezingEmptyNoHookTest, EmptyNoHookTypes, TypesNames);
 
 template <typename T>
 class FreezingEmptyWithHookTest : public FreezingTest {};
-using EmptyWithHookTypes = testing::Types<Object<0, WithFreezeHook>, Array<0, WithFreezeHook>>;
+using EmptyWithHookTypes = testing::Types<ObjectHolder<EmptyPayload, WithFreezeHook>>;
 TYPED_TEST_SUITE(FreezingEmptyWithHookTest, EmptyWithHookTypes, TypesNames);
 
 template <typename T>
 class FreezingNoHookTest : public FreezingTest {};
-using NoHookTypes = testing::Types<Object<3, NoFreezeHook>, Array<3, NoFreezeHook>>;
+using NoHookTypes = testing::Types<ObjectHolder<Payload, NoFreezeHook>, ArrayHolder<3>>;
 TYPED_TEST_SUITE(FreezingNoHookTest, NoHookTypes, TypesNames);
 
 template <typename T>
 class FreezingWithHookTest : public FreezingTest {};
-using WithHookTypes = testing::Types<Object<3, WithFreezeHook>, Array<3, WithFreezeHook>>;
+using WithHookTypes = testing::Types<ObjectHolder<Payload, WithFreezeHook>>;
 TYPED_TEST_SUITE(FreezingWithHookTest, WithHookTypes, TypesNames);
 
 } // namespace
