@@ -2193,35 +2193,33 @@ void updateHeapRef(ObjHeader** location, const ObjHeader* object) {
 }
 
 template <bool Strict>
-void updateHeapRefInsideArray(const ArrayHeader* array, int index, int fromIndex, int toIndex, int count) {
-  ObjHeader* object = *ArrayAddressOfElementAt(array, fromIndex + index);
-  ObjHeader* old = *ArrayAddressOfElementAt(array, toIndex + index);
-  // Add extra heap ref for copied elements.
-  bool addingHeapRefCondition = fromIndex >= toIndex ? fromIndex + index >= toIndex + count : fromIndex + index < toIndex;
-  bool releaseHeapRefCondition = fromIndex >= toIndex ? toIndex + index < fromIndex : toIndex + index >= fromIndex + count;
-  if (addingHeapRefCondition && object != nullptr) {
-    addHeapRef(object);
-  }
-  *const_cast<const ObjHeader**>(ArrayAddressOfElementAt(array, toIndex + index)) = object;
-  // Release rewritten elements.
-  if (releaseHeapRefCondition && reinterpret_cast<uintptr_t>(old) > 1) {
-    releaseHeapRef<Strict>(old);
-  }
-}
-
-template <bool Strict>
 void updateHeapRefsInsideOneArray(const ArrayHeader* array, int fromIndex, int toIndex, int count) {
   // In case of coping inside same array number of decrements and increments of RC can be decreased.
-  if (fromIndex >= toIndex) {
-    // Relocated elements and release rewritten elements.
-    for (int index = 0; index < count; index++) {
-      updateHeapRefInsideArray<Strict>(array, index, fromIndex, toIndex, count);
+  auto countIndex = [=](int i) { return (fromIndex < toIndex) ? count - 1 - i : i; };
+  int rewrittenElementsNumber = std::abs(fromIndex - toIndex);
+  // Release rewritten elements.
+  for (int i = 0; i < rewrittenElementsNumber; i++) {
+    int index = countIndex(i);
+    ObjHeader* old = *ArrayAddressOfElementAt(array, toIndex + index);
+    *const_cast<const ObjHeader**>(ArrayAddressOfElementAt(array, toIndex + index)) =
+      *ArrayAddressOfElementAt(array, fromIndex + index);
+    if (reinterpret_cast<uintptr_t>(old) > 1) {
+      releaseHeapRef<Strict>(old);
     }
-  } else {
-    // Relocated elements.
-    for (int index = count - 1; index >= 0; index--) {
-      updateHeapRefInsideArray<Strict>(array, index, fromIndex, toIndex, count);
+  }
+  for (int i = rewrittenElementsNumber; i < count - rewrittenElementsNumber; i++) {
+    int index = countIndex(i);
+    *const_cast<const ObjHeader**>(ArrayAddressOfElementAt(array, toIndex + index)) =
+         *ArrayAddressOfElementAt(array, fromIndex + index);
+  }
+  for (int i = count - rewrittenElementsNumber; i < count; i++) {
+    int index = countIndex(i);
+    ObjHeader* object = *ArrayAddressOfElementAt(array, fromIndex + index);
+    // Add extra heap ref for copied elements.
+    if (object != nullptr) {
+      addHeapRef(object);
     }
+    *const_cast<const ObjHeader**>(ArrayAddressOfElementAt(array, toIndex + index)) = object;
   }
 }
 
