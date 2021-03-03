@@ -322,7 +322,7 @@ MODEL_VARIANTS(void, UpdateStackRef, ObjHeader** location, const ObjHeader* obje
 MODEL_VARIANTS(void, UpdateHeapRef, ObjHeader** location, const ObjHeader* object);
 MODEL_VARIANTS(void, UpdateHeapRefIfNull, ObjHeader** location, const ObjHeader* object);
 MODEL_VARIANTS(void, UpdateReturnRef, ObjHeader** returnSlot, const ObjHeader* object);
-MODEL_VARIANTS(void, UpdateHeapRefsInsideOneArray, const ArrayHeader* array, int index, int fromIndex, int toIndex,
+MODEL_VARIANTS(void, UpdateHeapRefsInsideOneArray, const ArrayHeader* array, int fromIndex, int toIndex,
                int count);
 MODEL_VARIANTS(void, EnterFrame, ObjHeader** start, int parameters, int count);
 MODEL_VARIANTS(void, LeaveFrame, ObjHeader** start, int parameters, int count);

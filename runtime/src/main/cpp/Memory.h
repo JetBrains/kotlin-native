@@ -211,8 +211,7 @@ void UpdateStackRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHR
 // Updates heap/static data location.
 void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 // Updates heap/static data in one array.
-void UpdateHeapRefsInsideOneArray(const ArrayHeader* array, int index,
-                                  int fromIndex, int toIndex, int count) RUNTIME_NOTHROW;
+void UpdateHeapRefsInsideOneArray(const ArrayHeader* array, int fromIndex, int toIndex, int count) RUNTIME_NOTHROW;
 // Updates location if it is null, atomically.
 void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 // Updates reference in return slot.
