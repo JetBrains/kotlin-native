@@ -2193,17 +2193,16 @@ void updateHeapRef(ObjHeader** location, const ObjHeader* object) {
 }
 
 template <bool Strict>
-void updateHeapRefsInsideOneArray(const ArrayHeader* array, const ArrayHeader* destinationArray, int index,
-                                  int fromIndex, int toIndex, int count) {
+void updateHeapRefsInsideOneArray(const ArrayHeader* array, int index, int fromIndex, int toIndex, int count) {
   ObjHeader* object = *ArrayAddressOfElementAt(array, fromIndex + index);
-  ObjHeader* old = *ArrayAddressOfElementAt(destinationArray, toIndex + index);
+  ObjHeader* old = *ArrayAddressOfElementAt(array, toIndex + index);
   // Add extra heap ref for copied elements.
   bool addingHeapRefCondition = fromIndex >= toIndex ? fromIndex + index >= toIndex + count : fromIndex + index < toIndex;
   bool releaseHeapRefCondition = fromIndex >= toIndex ? toIndex + index < fromIndex : toIndex + index >= fromIndex + count;
   if (addingHeapRefCondition && object != nullptr) {
     addHeapRef(object);
   }
-  *const_cast<const ObjHeader**>(ArrayAddressOfElementAt(destinationArray, toIndex + index)) = object;
+  *const_cast<const ObjHeader**>(ArrayAddressOfElementAt(array, toIndex + index)) = object;
   // Release rewritten elements.
   if (releaseHeapRefCondition && reinterpret_cast<uintptr_t>(old) > 1) {
     releaseHeapRef<Strict>(old);
@@ -3385,13 +3384,13 @@ RUNTIME_NOTHROW void UpdateHeapRefRelaxed(ObjHeader** location, const ObjHeader*
   updateHeapRef<false>(location, object);
 }
 
-RUNTIME_NOTHROW void UpdateHeapRefsInsideOneArrayStrict(const ArrayHeader* array, const ArrayHeader* destinationArray,
-                                                        int index, int fromIndex, int toIndex, int count) {
-  updateHeapRefsInsideOneArray<true>(array, destinationArray, index, fromIndex, toIndex, count);
+RUNTIME_NOTHROW void UpdateHeapRefsInsideOneArrayStrict(const ArrayHeader* array, int index, int fromIndex,
+                                                        int toIndex, int count) {
+  updateHeapRefsInsideOneArray<true>(array, index, fromIndex, toIndex, count);
 }
-RUNTIME_NOTHROW void UpdateHeapRefsInsideOneArrayRelaxed(const ArrayHeader* array, const ArrayHeader* destinationArray,
-                                                         int index, int fromIndex, int toIndex, int count) {
-  updateHeapRefsInsideOneArray<false>(array, destinationArray, index, fromIndex, toIndex, count);
+RUNTIME_NOTHROW void UpdateHeapRefsInsideOneArrayRelaxed(const ArrayHeader* array, int index, int fromIndex,
+                                                         int toIndex, int count) {
+  updateHeapRefsInsideOneArray<false>(array, index, fromIndex, toIndex, count);
 }
 
 RUNTIME_NOTHROW void UpdateReturnRefStrict(ObjHeader** returnSlot, const ObjHeader* value) {

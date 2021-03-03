@@ -133,17 +133,18 @@ void Kotlin_Array_copyImpl(KConstRef thiz, KInt fromIndex,
     ThrowArrayIndexOutOfBoundsException();
   }
   mutabilityCheck(destination);
-  if (array == destinationArray && std::abs(fromIndex - toIndex) < count) {
+  if (CurrentMemoryModel != MemoryModel::kExperimental && array == destinationArray &&
+      std::abs(fromIndex - toIndex) < count) {
     // In case of coping inside same array number of decrements and increments of RC can be decreased.
     if (fromIndex >= toIndex) {
       // Relocated elements and release rewritten elements.
       for (int index = 0; index < count; index++) {
-        UpdateHeapRefsInsideOneArray(array, destinationArray, index, fromIndex, toIndex, count);
+        UpdateHeapRefsInsideOneArray(array, index, fromIndex, toIndex, count);
       }
     } else {
       // Relocated elements.
       for (int index = count - 1; index >= 0; index--) {
-        UpdateHeapRefsInsideOneArray(array, destinationArray, index, fromIndex, toIndex, count);
+        UpdateHeapRefsInsideOneArray(array, index, fromIndex, toIndex, count);
       }
     }
   } else {
