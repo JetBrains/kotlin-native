@@ -12,31 +12,10 @@
 #include "FreezeHooks.hpp"
 #include "Memory.h"
 #include "Natives.h"
+#include "ObjectTraversal.hpp"
 #include "Types.h"
 
 using namespace kotlin;
-
-namespace {
-
-// This is copied verbatim from legacy MM.
-// TODO: Come up with a better way to iterate object fields.
-template <typename func>
-inline void traverseObjectFields(ObjHeader* obj, func process) {
-    const TypeInfo* typeInfo = obj->type_info();
-    if (typeInfo != theArrayTypeInfo) {
-        for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
-            ObjHeader** location = reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
-            process(*location);
-        }
-    } else {
-        ArrayHeader* array = obj->array();
-        for (uint32_t index = 0; index < array->count_; index++) {
-            process(*ArrayAddressOfElementAt(array, index));
-        }
-    }
-}
-
-} // namespace
 
 bool mm::IsFrozen(const ObjHeader* object) noexcept {
     if (auto* extraObjectData = mm::ExtraObjectData::Get(object)) {
@@ -62,7 +41,7 @@ ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
         if (!visitedResult.second) continue;
         objects.push_back(object);
         RunFreezeHooks(object);
-        traverseObjectFields(object, [&stack](ObjHeader* field) noexcept { stack.push_back(field); });
+        traverseReferredObjects(object, [&stack](ObjHeader* field) noexcept { stack.push_back(field); });
     }
     for (auto* object : objects) {
         if (auto* extraObjectData = mm::ExtraObjectData::Get(object)) {
