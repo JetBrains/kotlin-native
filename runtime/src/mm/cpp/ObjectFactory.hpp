@@ -208,6 +208,26 @@ public:
 
     class Consumer : private MoveOnly {
     public:
+        class Iterator {
+        public:
+            Node& operator*() noexcept { return *node_; }
+            Node* operator->() noexcept { return node_; }
+
+            Iterator& operator++() noexcept {
+                node_ = node_->next_.get();
+                return *this;
+            }
+
+            bool operator==(const Iterator& rhs) const noexcept { return node_ == rhs.node_; }
+            bool operator!=(const Iterator& rhs) const noexcept { return node_ != rhs.node_; }
+
+        private:
+            friend class Consumer;
+            explicit Iterator(Node* node) noexcept : node_(node) {}
+
+            Node* node_;
+        };
+
         Consumer() noexcept = default;
 
         Consumer(Consumer&&) noexcept = default;
@@ -219,8 +239,8 @@ public:
             }
         }
 
-        Iterator begin() noexcept { return Iterator(nullptr, root_.get()); }
-        Iterator end() noexcept { return Iterator(last_, nullptr); }
+        Iterator begin() noexcept { return Iterator(root_.get()); }
+        Iterator end() noexcept { return Iterator(nullptr); }
 
     private:
         friend class ObjectFactoryStorage;
@@ -493,6 +513,27 @@ public:
 
     class FinalizerQueue : private MoveOnly {
     public:
+        class Iterator {
+        public:
+            NodeRef operator*() noexcept { return NodeRef(*iterator_); }
+            NodeRef operator->() noexcept { return NodeRef(*iterator_); }
+
+            Iterator& operator++() noexcept {
+                ++iterator_;
+                return *this;
+            }
+
+            bool operator==(const Iterator& rhs) const noexcept { return iterator_ == rhs.iterator_; }
+            bool operator!=(const Iterator& rhs) const noexcept { return iterator_ != rhs.iterator_; }
+
+        private:
+            friend class ObjectFactory;
+
+            explicit Iterator(typename Storage::Consumer::Iterator iterator) noexcept : iterator_(std::move(iterator)) {}
+
+            typename Storage::Consumer::Iterator iterator_;
+        };
+
         Iterator begin() noexcept { return Iterator(consumer_.begin()); }
         Iterator end() noexcept { return Iterator(consumer_.end()); }
 
