@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.types.Variance
 
-sealed class Renderable {
+sealed class ObjCType {
     final override fun toString(): String = this.render()
 
     abstract fun render(attrsAndName: String): String
@@ -18,8 +18,6 @@ sealed class Renderable {
     protected fun String.withAttrsAndName(attrsAndName: String) =
             if (attrsAndName.isEmpty()) this else "$this ${attrsAndName.trimStart()}"
 }
-
-sealed class ObjCType : Renderable()
 
 data class ObjCRawType(
         val rawText: String
@@ -181,13 +179,10 @@ enum class ObjCVariance(internal val declaration: String) {
     }
 }
 
-sealed class ObjCGenericTypeDeclaration : Renderable() {
+sealed class ObjCGenericTypeDeclaration {
     abstract val typeName: String
     abstract val variance: ObjCVariance
-
-    final override fun render(attrsAndName: String): String {
-        return variance.declaration + typeName.withAttrsAndName(attrsAndName)
-    }
+    final override fun toString(): String = variance.declaration + typeName
 }
 
 data class ObjCGenericTypeRawDeclaration(

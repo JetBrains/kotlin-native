@@ -196,9 +196,9 @@ object StubRenderer {
     }
 }
 
-fun formatGenerics(buffer: Appendable, generics: List<Renderable>) {
+fun formatGenerics(buffer: Appendable, generics: List<Any>) {
     if (generics.isNotEmpty()) {
-        generics.joinTo(buffer, separator = ", ", prefix = "<", postfix = ">") { it.render() }
+        generics.joinTo(buffer, separator = ", ", prefix = "<", postfix = ">")
     }
 }
 
