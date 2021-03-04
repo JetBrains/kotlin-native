@@ -2203,7 +2203,7 @@ void updateHeapRefsInsideOneArray(const ArrayHeader* array, int fromIndex, int t
     ObjHeader* old = *ArrayAddressOfElementAt(array, toIndex + index);
     *const_cast<const ObjHeader**>(ArrayAddressOfElementAt(array, toIndex + index)) =
       *ArrayAddressOfElementAt(array, fromIndex + index);
-    if (reinterpret_cast<uintptr_t>(old) > 1) {
+    if (old != nullptr) {
       releaseHeapRef<Strict>(old);
     }
   }
