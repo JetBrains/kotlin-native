@@ -1,3 +1,6 @@
+# 1.5.0 and newer
+https://github.com/JetBrains/kotlin/blob/master/ChangeLog.md
+
 # 1.4.31 (Feb 2021)
   * [KT-44295](https://youtrack.jetbrains.com/issue/KT-44295) Fix Kotlin/Native compiler crash on Android NDK
   * [KT-44826](https://youtrack.jetbrains.com/issue/KT-44826) Fix failing build with "Backend Internal error: Exception during IR lowering"
