@@ -1,5 +1,10 @@
+import com.google.common.collect.ImmutableList
 import org.jetbrains.kotlin.CopyCommonSources
 import org.jetbrains.kotlin.konan.target.HostManager
+
+import static org.gradle.api.attributes.DocsType.SOURCES
+import static org.gradle.api.plugins.JavaPlugin.SOURCES_ELEMENTS_CONFIGURATION_NAME
+import static org.gradle.api.plugins.internal.JvmPluginsHelper.configureDocumentationVariantWithArtifact
 
 /*
  * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
@@ -253,6 +258,12 @@ jar {
     dependsOn ':runtime:hostRuntime', 'external_jars'
 }
 
+configureDocumentationVariantWithArtifact(
+        SOURCES_ELEMENTS_CONFIGURATION_NAME, null, SOURCES, ImmutableList.of(), "sourcesJar",
+        sourceSets.cli_bc.allSource + sourceSets.compiler.allSource,
+        components.java, configurations, tasks, objects
+)
+
 def externalJars = ['compiler', 'stdlib', 'reflect', 'script_runtime']
 
 task trove4jCopy(type: Copy) {
@@ -308,13 +319,34 @@ task debugCompiler(type: JavaExec) {
 publishing {
     repositories {
         maven { url = "$buildDir/repo" }
+
+        maven {
+            name "idePluginDependencies"
+            url "https://maven.pkg.jetbrains.space/kotlin/p/kotlin/kotlin-ide-plugin-dependencies"
+
+            credentials {
+                def file = rootProject.file("local.properties")
+                if (file.exists()) {
+                    /* To publish for Mobile IDE (you need Kotlin Project Member role):
+                      1. Go to https://kotlin.jetbrains.space/p/kotlin/packages/maven/kotlin-ide-plugin-dependencies
+                      2. Click Connect and generate a personal token
+                      3. Add credentials to `kotlin-native/local.properties` as `idePluginDependenciesRepo{Username,Password}`
+                      4. Set appropriate version below
+                      5. Run `publishMavenMobilePublicationToIdePluginDependenciesRepository` gradle task */
+                    def localProperties = new Properties()
+                    localProperties.load(file.newInputStream())
+                    username = localProperties.getProperty("idePluginDependenciesRepoUsername")
+                    password = localProperties.getProperty("idePluginDependenciesRepoPassword")
+                }
+            }
+        }
     }
 
     publications {
-        maven(MavenPublication) {
+        mavenMobile(MavenPublication) {
             groupId = 'org.jetbrains.kotlin'
             artifactId = 'backend.native'
-            version = konanVersionFull
+            version = '1.4.32-mobile-1' // CHANGE VERSION HERE
 
             from components.java
         }
