@@ -1,3 +1,5 @@
+See also overview here: https://kotlinlang.org/docs/releases.html
+
 # 1.5.0 and newer
 https://github.com/JetBrains/kotlin/blob/master/ChangeLog.md
 
