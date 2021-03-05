@@ -137,7 +137,7 @@ template<>
 struct PayloadTraits<ObjHeader*> {
     template <size_t Size>
     using Array = test_support::ObjectArray<Size>;
-    static inline const TypeInfo* typeInfo = theArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theArrayTypeInfo; }
     static constexpr const char* name = "Array";
 };
 
@@ -145,7 +145,7 @@ template<>
 struct PayloadTraits<KBoolean> {
     template <size_t Size>
     using Array = test_support::BooleanArray<Size>;
-    static inline const TypeInfo* typeInfo = theBooleanArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theBooleanArrayTypeInfo; }
     static constexpr const char* name = "BooleanArray";
 };
 
@@ -153,7 +153,7 @@ template<>
 struct PayloadTraits<KByte> {
     template <size_t Size>
     using Array = test_support::ByteArray<Size>;
-    static inline const TypeInfo* typeInfo = theByteArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theByteArrayTypeInfo; }
     static constexpr const char* name = "ByteArray";
 };
 
@@ -161,7 +161,7 @@ template<>
 struct PayloadTraits<KChar> {
     template <size_t Size>
     using Array = test_support::CharArray<Size>;
-    static inline const TypeInfo* typeInfo = theCharArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theCharArrayTypeInfo; }
     static constexpr const char* name = "CharArray";
 };
 
@@ -169,7 +169,7 @@ template<>
 struct PayloadTraits<KDouble> {
     template <size_t Size>
     using Array = test_support::DoubleArray<Size>;
-    static inline const TypeInfo* typeInfo = theDoubleArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theDoubleArrayTypeInfo; }
     static constexpr const char* name = "DoubleArray";
 };
 
@@ -177,7 +177,7 @@ template<>
 struct PayloadTraits<KFloat> {
     template <size_t Size>
     using Array = test_support::FloatArray<Size>;
-    static inline const TypeInfo* typeInfo = theFloatArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theFloatArrayTypeInfo; }
     static constexpr const char* name = "FloatArray";
 };
 
@@ -185,7 +185,7 @@ template<>
 struct PayloadTraits<KInt> {
     template <size_t Size>
     using Array = test_support::IntArray<Size>;
-    static inline const TypeInfo* typeInfo = theIntArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theIntArrayTypeInfo; }
     static constexpr const char* name = "IntArray";
 };
 
@@ -193,7 +193,7 @@ template<>
 struct PayloadTraits<KLong> {
     template <size_t Size>
     using Array = test_support::LongArray<Size>;
-    static inline const TypeInfo* typeInfo = theLongArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theLongArrayTypeInfo; }
     static constexpr const char* name = "LongArray";
 };
 
@@ -201,7 +201,7 @@ template<>
 struct PayloadTraits<KNativePtr> {
     template <size_t Size>
     using Array = test_support::NativePtrArray<Size>;
-    static inline const TypeInfo* typeInfo = theNativePtrArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theNativePtrArrayTypeInfo; }
     static constexpr const char* name = "NativePtrArray";
 };
 
@@ -209,7 +209,7 @@ template<>
 struct PayloadTraits<KShort> {
     template <size_t Size>
     using Array = test_support::ShortArray<Size>;
-    static inline const TypeInfo* typeInfo = theShortArrayTypeInfo;
+    static const TypeInfo* GetTypeInfo() { return theShortArrayTypeInfo; }
     static constexpr const char* name = "ShortArray";
 };
 
@@ -233,7 +233,7 @@ struct ArrayTestCase {
 
     static constexpr size_t size = Size;
     static const TypeInfo* GetTypeInfo() {
-        return PayloadTraits<Payload>::typeInfo;
+        return PayloadTraits<Payload>::GetTypeInfo();
     }
     static std::string GetName() {
         return std::string(SizeTraits<Size>::name) + std::string(PayloadTraits<Payload>::name);

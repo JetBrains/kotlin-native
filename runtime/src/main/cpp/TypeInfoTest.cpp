@@ -47,8 +47,6 @@ test_support::TypeInfoHolder object2TypeHolder{test_support::TypeInfoHolder::Obj
 const TypeInfo* emptyObjectType = emptyObjectTypeHolder.typeInfo();
 const TypeInfo* object1Type = object1TypeHolder.typeInfo();
 const TypeInfo* object2Type = object2TypeHolder.typeInfo();
-const TypeInfo* objectArrayType = theArrayTypeInfo;
-const TypeInfo* charArrayType = theCharArrayTypeInfo;
 
 using LayoutCompatibleTestParam = std::tuple<const TypeInfo*, const TypeInfo*, bool, const char*>;
 
@@ -68,32 +66,32 @@ INSTANTIATE_TEST_SUITE_P(
                 std::make_tuple(emptyObjectType, emptyObjectType, true, "empty_empty"),
                 std::make_tuple(emptyObjectType, object1Type, false, "empty_obj1"),
                 std::make_tuple(emptyObjectType, object2Type, false, "empty_obj2"),
-                std::make_tuple(emptyObjectType, objectArrayType, false, "empty_arr"),
-                std::make_tuple(emptyObjectType, charArrayType, false, "empty_charArr"),
+                std::make_tuple(emptyObjectType, theArrayTypeInfo, false, "empty_arr"),
+                std::make_tuple(emptyObjectType, theCharArrayTypeInfo, false, "empty_charArr"),
 
                 std::make_tuple(object1Type, emptyObjectType, false, "obj1_empty"),
                 std::make_tuple(object1Type, object1Type, true, "obj1_obj1"),
                 std::make_tuple(object1Type, object2Type, true, "obj1_obj2"),
-                std::make_tuple(object1Type, objectArrayType, false, "obj1_arr"),
-                std::make_tuple(object1Type, charArrayType, false, "obj1_charArr"),
+                std::make_tuple(object1Type, theArrayTypeInfo, false, "obj1_arr"),
+                std::make_tuple(object1Type, theCharArrayTypeInfo, false, "obj1_charArr"),
 
                 std::make_tuple(object2Type, emptyObjectType, false, "obj2_empty"),
                 std::make_tuple(object2Type, object1Type, true, "obj2_obj1"),
                 std::make_tuple(object2Type, object2Type, true, "obj2_obj2"),
-                std::make_tuple(object2Type, objectArrayType, false, "obj2_arr"),
-                std::make_tuple(object2Type, charArrayType, false, "obj2_charArr"),
+                std::make_tuple(object2Type, theArrayTypeInfo, false, "obj2_arr"),
+                std::make_tuple(object2Type, theCharArrayTypeInfo, false, "obj2_charArr"),
 
-                std::make_tuple(objectArrayType, emptyObjectType, false, "arr_empty"),
-                std::make_tuple(objectArrayType, object1Type, false, "arr_obj1"),
-                std::make_tuple(objectArrayType, object2Type, false, "arr_obj2"),
-                std::make_tuple(objectArrayType, objectArrayType, true, "arr_arr"),
-                std::make_tuple(objectArrayType, charArrayType, false, "arr_charArr"),
+                std::make_tuple(theArrayTypeInfo, emptyObjectType, false, "arr_empty"),
+                std::make_tuple(theArrayTypeInfo, object1Type, false, "arr_obj1"),
+                std::make_tuple(theArrayTypeInfo, object2Type, false, "arr_obj2"),
+                std::make_tuple(theArrayTypeInfo, theArrayTypeInfo, true, "arr_arr"),
+                std::make_tuple(theArrayTypeInfo, theCharArrayTypeInfo, false, "arr_charArr"),
 
-                std::make_tuple(charArrayType, emptyObjectType, false, "charArr_empty"),
-                std::make_tuple(charArrayType, object1Type, false, "charArr_obj1"),
-                std::make_tuple(charArrayType, object2Type, false, "charArr_obj2"),
-                std::make_tuple(charArrayType, objectArrayType, false, "charArr_arr"),
-                std::make_tuple(charArrayType, charArrayType, true, "charArr_charArr")),
+                std::make_tuple(theCharArrayTypeInfo, emptyObjectType, false, "charArr_empty"),
+                std::make_tuple(theCharArrayTypeInfo, object1Type, false, "charArr_obj1"),
+                std::make_tuple(theCharArrayTypeInfo, object2Type, false, "charArr_obj2"),
+                std::make_tuple(theCharArrayTypeInfo, theArrayTypeInfo, false, "charArr_arr"),
+                std::make_tuple(theCharArrayTypeInfo, theCharArrayTypeInfo, true, "charArr_charArr")),
         &LayoutCompatibleTest::Print);
 
 } // namespace
