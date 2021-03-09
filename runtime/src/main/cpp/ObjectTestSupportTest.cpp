@@ -79,6 +79,15 @@ void RunInNewThread(F f) {
     }).join();
 }
 
+template <typename Payload>
+KStdVector<ObjHeader**> Collect(test_support::Object<Payload>& object) {
+    KStdVector<ObjHeader**> result;
+    for (auto& field : object.fields()) {
+        result.push_back(&field);
+    }
+    return result;
+}
+
 } // namespace
 
 TYPED_TEST(ObjectTestSupportObjectTest, Local) {
@@ -89,17 +98,27 @@ TYPED_TEST(ObjectTestSupportObjectTest, Local) {
     test_support::Object<Payload> object(type.typeInfo());
     EXPECT_THAT(object.header()->type_info(), type.typeInfo());
 
-    EXPECT_THAT(reinterpret_cast<uintptr_t>(&object->field1), reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[0]);
-    EXPECT_THAT(reinterpret_cast<uintptr_t>(&object->field2), reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[1]);
-    EXPECT_THAT(reinterpret_cast<uintptr_t>(&object->field3), reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[2]);
+    EXPECT_THAT(
+            reinterpret_cast<uintptr_t>(&object->field1),
+            reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[0]);
+    EXPECT_THAT(
+            reinterpret_cast<uintptr_t>(&object->field2),
+            reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[1]);
+    EXPECT_THAT(
+            reinterpret_cast<uintptr_t>(&object->field3),
+            reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[2]);
 
-    EXPECT_THAT(&object[0], &object->field1);
-    EXPECT_THAT(&object[1], &object->field2);
-    EXPECT_THAT(&object[2], &object->field3);
+    EXPECT_THAT(object.fields().size(), 3);
 
-    EXPECT_THAT(object[0], nullptr);
-    EXPECT_THAT(object[1], nullptr);
-    EXPECT_THAT(object[2], nullptr);
+    EXPECT_THAT(&object.fields()[0], &object->field1);
+    EXPECT_THAT(&object.fields()[1], &object->field2);
+    EXPECT_THAT(&object.fields()[2], &object->field3);
+
+    EXPECT_THAT(Collect(object), testing::ElementsAre(&object->field1, &object->field2, &object->field3));
+
+    EXPECT_THAT(object.fields()[0], nullptr);
+    EXPECT_THAT(object.fields()[1], nullptr);
+    EXPECT_THAT(object.fields()[2], nullptr);
 
     auto& recoveredObject = test_support::Object<Payload>::FromObjHeader(object.header());
     EXPECT_THAT(&recoveredObject, &object);
@@ -118,13 +137,27 @@ TYPED_TEST(ObjectTestSupportObjectTest, Heap) {
         EXPECT_THAT(object.header(), result);
         EXPECT_THAT(object.header()->type_info(), type.typeInfo());
 
-        EXPECT_THAT(reinterpret_cast<uintptr_t>(&object->field1), reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[0]);
-        EXPECT_THAT(reinterpret_cast<uintptr_t>(&object->field2), reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[1]);
-        EXPECT_THAT(reinterpret_cast<uintptr_t>(&object->field3), reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[2]);
+        EXPECT_THAT(
+                reinterpret_cast<uintptr_t>(&object->field1),
+                reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[0]);
+        EXPECT_THAT(
+                reinterpret_cast<uintptr_t>(&object->field2),
+                reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[1]);
+        EXPECT_THAT(
+                reinterpret_cast<uintptr_t>(&object->field3),
+                reinterpret_cast<uintptr_t>(object.header()) + object.header()->type_info()->objOffsets_[2]);
 
-        EXPECT_THAT(object[0], nullptr);
-        EXPECT_THAT(object[1], nullptr);
-        EXPECT_THAT(object[2], nullptr);
+        EXPECT_THAT(object.fields().size(), 3);
+
+        EXPECT_THAT(&object.fields()[0], &object->field1);
+        EXPECT_THAT(&object.fields()[1], &object->field2);
+        EXPECT_THAT(&object.fields()[2], &object->field3);
+
+        EXPECT_THAT(Collect(object), testing::ElementsAre(&object->field1, &object->field2, &object->field3));
+
+        EXPECT_THAT(object.fields()[0], nullptr);
+        EXPECT_THAT(object.fields()[1], nullptr);
+        EXPECT_THAT(object.fields()[2], nullptr);
     });
 }
 
@@ -133,7 +166,7 @@ namespace {
 template <typename Payload>
 struct PayloadTraits;
 
-template<>
+template <>
 struct PayloadTraits<ObjHeader*> {
     template <size_t Size>
     using Array = test_support::ObjectArray<Size>;
@@ -141,7 +174,7 @@ struct PayloadTraits<ObjHeader*> {
     static constexpr const char* name = "Array";
 };
 
-template<>
+template <>
 struct PayloadTraits<KBoolean> {
     template <size_t Size>
     using Array = test_support::BooleanArray<Size>;
@@ -149,7 +182,7 @@ struct PayloadTraits<KBoolean> {
     static constexpr const char* name = "BooleanArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KByte> {
     template <size_t Size>
     using Array = test_support::ByteArray<Size>;
@@ -157,7 +190,7 @@ struct PayloadTraits<KByte> {
     static constexpr const char* name = "ByteArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KChar> {
     template <size_t Size>
     using Array = test_support::CharArray<Size>;
@@ -165,7 +198,7 @@ struct PayloadTraits<KChar> {
     static constexpr const char* name = "CharArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KDouble> {
     template <size_t Size>
     using Array = test_support::DoubleArray<Size>;
@@ -173,7 +206,7 @@ struct PayloadTraits<KDouble> {
     static constexpr const char* name = "DoubleArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KFloat> {
     template <size_t Size>
     using Array = test_support::FloatArray<Size>;
@@ -181,7 +214,7 @@ struct PayloadTraits<KFloat> {
     static constexpr const char* name = "FloatArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KInt> {
     template <size_t Size>
     using Array = test_support::IntArray<Size>;
@@ -189,7 +222,7 @@ struct PayloadTraits<KInt> {
     static constexpr const char* name = "IntArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KLong> {
     template <size_t Size>
     using Array = test_support::LongArray<Size>;
@@ -197,7 +230,7 @@ struct PayloadTraits<KLong> {
     static constexpr const char* name = "LongArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KNativePtr> {
     template <size_t Size>
     using Array = test_support::NativePtrArray<Size>;
@@ -205,7 +238,7 @@ struct PayloadTraits<KNativePtr> {
     static constexpr const char* name = "NativePtrArray";
 };
 
-template<>
+template <>
 struct PayloadTraits<KShort> {
     template <size_t Size>
     using Array = test_support::ShortArray<Size>;
@@ -216,12 +249,12 @@ struct PayloadTraits<KShort> {
 template <size_t Size>
 struct SizeTraits;
 
-template<>
+template <>
 struct SizeTraits<0> {
     static constexpr const char* name = "Empty";
 };
 
-template<>
+template <>
 struct SizeTraits<3> {
     static constexpr const char* name = "";
 };
@@ -232,12 +265,8 @@ struct ArrayTestCase {
     using Array = typename PayloadTraits<Payload>::template Array<Size>;
 
     static constexpr size_t size = Size;
-    static const TypeInfo* GetTypeInfo() {
-        return PayloadTraits<Payload>::GetTypeInfo();
-    }
-    static std::string GetName() {
-        return std::string(SizeTraits<Size>::name) + std::string(PayloadTraits<Payload>::name);
-    }
+    static const TypeInfo* GetTypeInfo() { return PayloadTraits<Payload>::GetTypeInfo(); }
+    static std::string GetName() { return std::string(SizeTraits<Size>::name) + std::string(PayloadTraits<Payload>::name); }
 };
 
 class ArrayTestCaseNames {

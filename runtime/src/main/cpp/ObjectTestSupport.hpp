@@ -87,6 +87,46 @@ private:
 template <typename Payload>
 class Object : private Pinned {
 public:
+    class FieldIterator {
+    public:
+        FieldIterator(Object& owner, size_t index) noexcept : owner_(owner), index_(index) {}
+
+        ObjHeader*& operator*() noexcept {
+            auto* header = &owner_.header_;
+            return *reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(header) + header->type_info()->objOffsets_[index_]);
+        }
+
+        ObjHeader** operator->() noexcept { return &*this; }
+
+        FieldIterator& operator++() noexcept {
+            ++index_;
+            return *this;
+        }
+
+        bool operator==(const FieldIterator& rhs) const noexcept { return &owner_ == &rhs.owner_ && index_ == rhs.index_; }
+
+        bool operator!=(const FieldIterator& rhs) const noexcept { return !(*this == rhs); }
+
+    private:
+        Object& owner_;
+        size_t index_;
+    };
+
+    class FieldIterable {
+    public:
+        explicit FieldIterable(Object& owner) noexcept : owner_(owner) {}
+
+        size_t size() const noexcept { return owner_.header_.type_info()->objOffsetsCount_; }
+
+        ObjHeader*& operator[](size_t index) noexcept { return *FieldIterator(owner_, index); }
+
+        FieldIterator begin() noexcept { return FieldIterator(owner_, 0); }
+        FieldIterator end() noexcept { return FieldIterator(owner_, size()); }
+
+    private:
+        Object& owner_;
+    };
+
     static Object<Payload>& FromObjHeader(ObjHeader* obj) noexcept {
         static_assert(std::is_trivially_destructible_v<Object>, "Object destructor is not guaranteed to be called.");
         RuntimeAssert(
@@ -110,9 +150,7 @@ public:
     Payload& operator*() noexcept { return payload_; }
     Payload* operator->() noexcept { return &payload_; }
 
-    ObjHeader*& operator[](size_t index) noexcept {
-        return *reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&header_) + header_.type_info()->objOffsets_[index]);
-    }
+    FieldIterable fields() noexcept { return FieldIterable(*this); }
 
 private:
     ObjHeader header_;
