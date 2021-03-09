@@ -199,7 +199,7 @@ public:
     ObjHeader* header() noexcept { return header_.obj(); }
     ArrayHeader* arrayHeader() noexcept { return &header_; }
 
-    Payload& operator[](size_t index) noexcept { return elements_[index]; }
+    std::array<Payload, ElementCount>& elements() noexcept { return elements_; }
 
 private:
     ArrayHeader header_;

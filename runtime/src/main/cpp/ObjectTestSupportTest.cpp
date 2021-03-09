@@ -302,6 +302,15 @@ using ArrayTestCases = testing::Types<
         ArrayTestCase<KShort, 3>>;
 TYPED_TEST_SUITE(ObjectTestSupportArrayTest, ArrayTestCases, ArrayTestCaseNames);
 
+template <typename Payload, size_t ElementCount>
+KStdVector<Payload*> Collect(test_support::internal::Array<Payload, ElementCount>& array) {
+    KStdVector<Payload*> result;
+    for (auto& element : array.elements()) {
+        result.push_back(&element);
+    }
+    return result;
+}
+
 } // namespace
 
 TYPED_TEST(ObjectTestSupportArrayTest, Local) {
@@ -314,11 +323,17 @@ TYPED_TEST(ObjectTestSupportArrayTest, Local) {
 
     EXPECT_THAT(array.header()->type_info(), typeInfo);
     EXPECT_THAT(array.arrayHeader()->count_, size);
+    EXPECT_THAT(array.elements().size(), size);
 
+    KStdVector<Payload*> expected;
     for (size_t i = 0; i < size; ++i) {
-        EXPECT_THAT(&array[i], AddressOfElementAt<Payload>(array.arrayHeader(), i));
-        EXPECT_THAT(array[i], Payload{});
+        auto* element = AddressOfElementAt<Payload>(array.arrayHeader(), i);
+        EXPECT_THAT(&array.elements()[i], element);
+        EXPECT_THAT(array.elements()[i], Payload{});
+        expected.push_back(element);
     }
+
+    EXPECT_THAT(Collect(array), testing::ElementsAreArray(expected));
 
     auto& recoveredArray = Array::FromArrayHeader(array.arrayHeader());
     EXPECT_THAT(&recoveredArray, &array);
@@ -337,10 +352,18 @@ TYPED_TEST(ObjectTestSupportArrayTest, Heap) {
 
         auto& array = Array::FromArrayHeader(result->array());
         EXPECT_THAT(array.header(), result);
+        EXPECT_THAT(array.header()->type_info(), typeInfo);
+        EXPECT_THAT(array.arrayHeader()->count_, size);
+        EXPECT_THAT(array.elements().size(), size);
 
+        KStdVector<Payload*> expected;
         for (size_t i = 0; i < size; ++i) {
-            EXPECT_THAT(&array[i], AddressOfElementAt<Payload>(array.arrayHeader(), i));
-            EXPECT_THAT(array[i], Payload{});
+            auto* element = AddressOfElementAt<Payload>(array.arrayHeader(), i);
+            EXPECT_THAT(&array.elements()[i], element);
+            EXPECT_THAT(array.elements()[i], Payload{});
+            expected.push_back(element);
         }
+
+        EXPECT_THAT(Collect(array), testing::ElementsAreArray(expected));
     });
 }

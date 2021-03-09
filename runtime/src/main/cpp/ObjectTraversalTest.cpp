@@ -117,13 +117,13 @@ TEST(ObjectTraversalTest, TraverseArrayFields) {
     ObjHeader element1;
     ObjHeader element3;
     test_support::ObjectArray<3> array;
-    array[0] = &element1;
-    array[2] = &element3;
+    array.elements()[0] = &element1;
+    array.elements()[2] = &element3;
     testing::StrictMock<testing::MockFunction<void(ObjHeader**)>> process;
 
-    EXPECT_CALL(process, Call(&array[0]));
-    EXPECT_CALL(process, Call(&array[1]));
-    EXPECT_CALL(process, Call(&array[2]));
+    EXPECT_CALL(process, Call(&array.elements()[0]));
+    EXPECT_CALL(process, Call(&array.elements()[1]));
+    EXPECT_CALL(process, Call(&array.elements()[2]));
     traverseObjectFields(array.header(), [&process](ObjHeader** field) { process.Call(field); });
 }
 
@@ -134,14 +134,14 @@ TEST(ObjectTraversalTest, TraverseArrayFieldsWithException) {
     ObjHeader element2;
     ObjHeader element3;
     test_support::ObjectArray<3> array;
-    array[0] = &element1;
-    array[1] = &element2;
-    array[2] = &element3;
+    array.elements()[0] = &element1;
+    array.elements()[1] = &element2;
+    array.elements()[2] = &element3;
     testing::StrictMock<testing::MockFunction<void(ObjHeader**)>> process;
 
-    EXPECT_CALL(process, Call(&array[0]));
-    EXPECT_CALL(process, Call(&array[1])).WillOnce([]() { throw kException; });
-    EXPECT_CALL(process, Call(&array[2])).Times(0);
+    EXPECT_CALL(process, Call(&array.elements()[0]));
+    EXPECT_CALL(process, Call(&array.elements()[1])).WillOnce([]() { throw kException; });
+    EXPECT_CALL(process, Call(&array.elements()[2])).Times(0);
     try {
         traverseObjectFields(array.header(), [&process](ObjHeader** field) { process.Call(field); });
     } catch (int exception) {
@@ -220,8 +220,8 @@ TEST(ObjectTraversalTest, TraverseArrayRefs) {
     ObjHeader element1;
     ObjHeader element3;
     test_support::ObjectArray<3> array;
-    array[0] = &element1;
-    array[2] = &element3;
+    array.elements()[0] = &element1;
+    array.elements()[2] = &element3;
     testing::StrictMock<testing::MockFunction<void(ObjHeader*)>> process;
 
     EXPECT_CALL(process, Call(&element1));
@@ -236,9 +236,9 @@ TEST(ObjectTraversalTest, TraverseArrayRefsWithException) {
     ObjHeader element2;
     ObjHeader element3;
     test_support::ObjectArray<3> array;
-    array[0] = &element1;
-    array[1] = &element2;
-    array[2] = &element3;
+    array.elements()[0] = &element1;
+    array.elements()[1] = &element2;
+    array.elements()[2] = &element3;
     testing::StrictMock<testing::MockFunction<void(ObjHeader*)>> process;
 
     EXPECT_CALL(process, Call(&element1));
