@@ -14,16 +14,11 @@
 
 using namespace kotlin;
 
-namespace {
-
-// TODO: Should `mm::IsFrozen` always check permanent anyway?
-bool IsPermanentOrFrozen(const ObjHeader* object) noexcept {
-    return object->permanent() || mm::IsFrozen(object);
-}
-
-} // namespace
-
 bool mm::IsFrozen(const ObjHeader* object) noexcept {
+    if (object->permanent()) {
+        return true;
+    }
+
     if (auto* extraObjectData = mm::ExtraObjectData::Get(object)) {
         return (extraObjectData->flags() & mm::ExtraObjectData::FLAGS_FROZEN) != 0;
     }
@@ -31,7 +26,7 @@ bool mm::IsFrozen(const ObjHeader* object) noexcept {
 }
 
 ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
-    if (IsPermanentOrFrozen(root)) return nullptr;
+    if (IsFrozen(root)) return nullptr;
 
     KStdVector<ObjHeader*> objects;
     KStdVector<ObjHeader*> stack;
@@ -46,7 +41,7 @@ ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
         objects.push_back(object);
         RunFreezeHooks(object);
         traverseReferredObjects(object, [&stack](ObjHeader* field) noexcept {
-            if (!IsPermanentOrFrozen(field)) {
+            if (!IsFrozen(field)) {
                 stack.push_back(field);
             }
         });
@@ -64,7 +59,7 @@ ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
 }
 
 bool mm::EnsureNeverFrozen(ObjHeader* object) noexcept {
-    if (IsPermanentOrFrozen(object)) {
+    if (IsFrozen(object)) {
         return false;
     }
 

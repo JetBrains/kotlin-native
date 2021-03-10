@@ -149,7 +149,7 @@ TYPED_TEST(FreezingEmptyNoHookTest, UnfrozenByDefault) {
 TYPED_TEST(FreezingEmptyNoHookTest, PermanentIsNotFrozen) {
     TypeParam object;
     object.MakePermanent();
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
 }
 
 TYPED_TEST(FreezingEmptyNoHookTest, FailToEnsureNeverFrozen) {
@@ -162,7 +162,7 @@ TYPED_TEST(FreezingEmptyNoHookTest, FailToEnsureNeverFrozen) {
 TYPED_TEST(FreezingEmptyNoHookTest, FailToEnsureNeverFrozenPermanent) {
     TypeParam object;
     object.MakePermanent();
-    ASSERT_FALSE(mm::IsFrozen(object.header()));
+    ASSERT_TRUE(mm::IsFrozen(object.header()));
     EXPECT_FALSE(mm::EnsureNeverFrozen(object.header()));
 }
 
@@ -176,7 +176,7 @@ TYPED_TEST(FreezingEmptyNoHookTest, FreezePermanent) {
     TypeParam object;
     object.MakePermanent();
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
 }
 
 TYPED_TEST(FreezingEmptyNoHookTest, FreezeTwice) {
@@ -205,7 +205,7 @@ TYPED_TEST(FreezingEmptyWithHookTest, FreezePermanent) {
     object.MakePermanent();
     EXPECT_CALL(this->freezeHook(), Call(_)).Times(0);
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
 }
 
 TYPED_TEST(FreezingEmptyWithHookTest, FreezeTwice) {
@@ -236,7 +236,7 @@ TYPED_TEST(FreezingNoHookTest, FreezePermanent) {
     TypeParam object;
     object.MakePermanent();
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
 }
 
 TYPED_TEST(FreezingNoHookTest, FreezeTwice) {
@@ -278,7 +278,7 @@ TYPED_TEST(FreezingNoHookTest, FreezeTreePermanentRoot) {
     object[1] = field2.header();
     object[2] = field3.header();
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
     EXPECT_FALSE(mm::IsFrozen(field1.header()));
     EXPECT_FALSE(mm::IsFrozen(field2.header()));
     EXPECT_FALSE(mm::IsFrozen(field3.header()));
@@ -295,7 +295,7 @@ TYPED_TEST(FreezingNoHookTest, FreezeTreePermanentLeaf) {
     object[2] = field3.header();
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
     EXPECT_TRUE(mm::IsFrozen(object.header()));
-    EXPECT_FALSE(mm::IsFrozen(field1.header()));
+    EXPECT_TRUE(mm::IsFrozen(field1.header()));
     EXPECT_TRUE(mm::IsFrozen(field2.header()));
     EXPECT_TRUE(mm::IsFrozen(field3.header()));
 }
@@ -370,7 +370,7 @@ TYPED_TEST(FreezingNoHookTest, FreezeTreeRecursivePermanentRoot) {
     inner1[0] = inner2.header();
     inner2[0] = object.header();
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
     EXPECT_FALSE(mm::IsFrozen(inner1.header()));
     EXPECT_FALSE(mm::IsFrozen(inner2.header()));
 }
@@ -385,7 +385,7 @@ TYPED_TEST(FreezingNoHookTest, FreezeTreeRecursivePermanentNode) {
     inner2[0] = object.header();
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
     EXPECT_TRUE(mm::IsFrozen(object.header()));
-    EXPECT_FALSE(mm::IsFrozen(inner1.header()));
+    EXPECT_TRUE(mm::IsFrozen(inner1.header()));
     EXPECT_FALSE(mm::IsFrozen(inner2.header()));
 }
 
@@ -401,7 +401,7 @@ TYPED_TEST(FreezingWithHookTest, FreezePermanent) {
     object.MakePermanent();
     EXPECT_CALL(this->freezeHook(), Call(_)).Times(0);
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
 }
 
 TYPED_TEST(FreezingWithHookTest, FreezeTwice) {
@@ -452,7 +452,7 @@ TYPED_TEST(FreezingWithHookTest, FreezeTreePermanentRoot) {
     object[2] = field3.header();
     EXPECT_CALL(this->freezeHook(), Call(_)).Times(0);
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
     EXPECT_FALSE(mm::IsFrozen(field1.header()));
     EXPECT_FALSE(mm::IsFrozen(field2.header()));
     EXPECT_FALSE(mm::IsFrozen(field3.header()));
@@ -473,7 +473,7 @@ TYPED_TEST(FreezingWithHookTest, FreezeTreePermanentLeaf) {
     EXPECT_CALL(this->freezeHook(), Call(field3.header()));
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
     EXPECT_TRUE(mm::IsFrozen(object.header()));
-    EXPECT_FALSE(mm::IsFrozen(field1.header()));
+    EXPECT_TRUE(mm::IsFrozen(field1.header()));
     EXPECT_TRUE(mm::IsFrozen(field2.header()));
     EXPECT_TRUE(mm::IsFrozen(field3.header()));
 }
@@ -566,7 +566,7 @@ TYPED_TEST(FreezingWithHookTest, FreezeTreeRecursivePermanentRoot) {
     inner2[0] = object.header();
     EXPECT_CALL(this->freezeHook(), Call(_)).Times(0);
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
-    EXPECT_FALSE(mm::IsFrozen(object.header()));
+    EXPECT_TRUE(mm::IsFrozen(object.header()));
     EXPECT_FALSE(mm::IsFrozen(inner1.header()));
     EXPECT_FALSE(mm::IsFrozen(inner2.header()));
 }
@@ -584,7 +584,7 @@ TYPED_TEST(FreezingWithHookTest, FreezeTreeRecursivePermanentNode) {
     EXPECT_CALL(this->freezeHook(), Call(inner2.header())).Times(0);
     EXPECT_THAT(mm::FreezeSubgraph(object.header()), nullptr);
     EXPECT_TRUE(mm::IsFrozen(object.header()));
-    EXPECT_FALSE(mm::IsFrozen(inner1.header()));
+    EXPECT_TRUE(mm::IsFrozen(inner1.header()));
     EXPECT_FALSE(mm::IsFrozen(inner2.header()));
 }
 

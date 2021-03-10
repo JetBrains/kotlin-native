@@ -96,12 +96,8 @@ void ObjHeader::destroyMetaObject(ObjHeader* object) {
     mm::ExtraObjectData::Uninstall(object);
 }
 
-ALWAYS_INLINE bool isFrozen(const ObjHeader* obj) {
-    return mm::IsFrozen(obj);
-}
-
 ALWAYS_INLINE bool isPermanentOrFrozen(const ObjHeader* obj) {
-    return obj->permanent() || isFrozen(obj);
+    return mm::IsFrozen(obj);
 }
 
 ALWAYS_INLINE bool isShareable(const ObjHeader* obj) {
@@ -401,7 +397,7 @@ extern "C" RUNTIME_NOTHROW OBJ_GETTER(AdoptStablePointer, void* pointer) {
 
 extern "C" void MutationCheck(ObjHeader* obj) {
     if (obj->local()) return;
-    if (!isFrozen(obj)) return;
+    if (!isPermanentOrFrozen(obj)) return;
 
     ThrowInvalidMutabilityException(obj);
 }

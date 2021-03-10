@@ -109,7 +109,6 @@ struct ArrayHeader {
   uint32_t count_;
 };
 
-ALWAYS_INLINE bool isFrozen(const ObjHeader* obj);
 ALWAYS_INLINE bool isPermanentOrFrozen(const ObjHeader* obj);
 ALWAYS_INLINE bool isShareable(const ObjHeader* obj);
 
