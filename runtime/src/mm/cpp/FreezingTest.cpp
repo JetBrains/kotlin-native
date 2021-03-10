@@ -63,7 +63,7 @@ public:
 
     ObjHeader* header() { return object_.header(); }
 
-    ObjHeader*& operator[](size_t field) { return object_[field]; }
+    ObjHeader*& operator[](size_t field) { return object_.fields()[field]; }
 
 private:
     test_support::TypeInfoHolder type_;
@@ -84,7 +84,7 @@ public:
 
     ObjHeader* header() { return array_.header(); }
 
-    ObjHeader*& operator[](size_t index) { return array_[index]; }
+    ObjHeader*& operator[](size_t index) { return array_.elements()[index]; }
 
 private:
     test_support::ObjectArray<Elements> array_;

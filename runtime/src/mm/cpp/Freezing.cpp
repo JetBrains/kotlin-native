@@ -5,9 +5,6 @@
 
 #include "Freezing.hpp"
 
-#include <deque>
-#include <vector>
-
 #include "ExtraObjectData.hpp"
 #include "FreezeHooks.hpp"
 #include "Memory.h"
@@ -28,10 +25,10 @@ bool mm::IsFrozen(const ObjHeader* object) noexcept {
 ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
     if (mm::IsFrozen(root) || root->permanent()) return nullptr;
 
-    std::vector<ObjHeader*> objects;
-    std::vector<ObjHeader*> stack;
+    KStdVector<ObjHeader*> objects;
+    KStdVector<ObjHeader*> stack;
     // TODO: This may be a suboptimal container for the job.
-    std::set<ObjHeader*> visited;
+    KStdUnorderedSet<ObjHeader*> visited;
     stack.push_back(root);
     while (!stack.empty()) {
         ObjHeader* object = stack.back();
