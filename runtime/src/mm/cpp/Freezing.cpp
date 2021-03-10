@@ -14,6 +14,15 @@
 
 using namespace kotlin;
 
+namespace {
+
+// TODO: Should `mm::IsFrozen` always check permanent anyway?
+bool IsPermanentOrFrozen(const ObjHeader* object) noexcept {
+    return object->permanent() || mm::IsFrozen(object);
+}
+
+}
+
 bool mm::IsFrozen(const ObjHeader* object) noexcept {
     if (auto* extraObjectData = mm::ExtraObjectData::Get(object)) {
         return (extraObjectData->flags() & mm::ExtraObjectData::FLAGS_FROZEN) != 0;
@@ -23,7 +32,8 @@ bool mm::IsFrozen(const ObjHeader* object) noexcept {
 
 // TODO: Tests on permanent.
 ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
-    if (mm::IsFrozen(root) || root->permanent()) return nullptr;
+    if (IsPermanentOrFrozen(root))
+        return nullptr;
 
     KStdVector<ObjHeader*> objects;
     KStdVector<ObjHeader*> stack;
@@ -33,12 +43,15 @@ ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
     while (!stack.empty()) {
         ObjHeader* object = stack.back();
         stack.pop_back();
-        if (object == nullptr || mm::IsFrozen(object) || object->permanent()) continue;
         auto visitedResult = visited.insert(object);
         if (!visitedResult.second) continue;
         objects.push_back(object);
         RunFreezeHooks(object);
-        traverseReferredObjects(object, [&stack](ObjHeader* field) noexcept { stack.push_back(field); });
+        traverseReferredObjects(object, [&stack](ObjHeader* field) noexcept {
+            if (!IsPermanentOrFrozen(field)) {
+                stack.push_back(field);
+            }
+        });
     }
     for (auto* object : objects) {
         if (auto* extraObjectData = mm::ExtraObjectData::Get(object)) {
@@ -53,10 +66,11 @@ ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
 }
 
 bool mm::EnsureNeverFrozen(ObjHeader* object) noexcept {
-    auto& flags = mm::ExtraObjectData::GetOrInstall(object).flags();
-    if ((flags & mm::ExtraObjectData::FLAGS_FROZEN) != 0) {
+    if (IsPermanentOrFrozen(object)) {
         return false;
     }
+
+    auto& flags = mm::ExtraObjectData::GetOrInstall(object).flags();
     flags = static_cast<mm::ExtraObjectData::Flags>(flags | mm::ExtraObjectData::FLAGS_NEVER_FROZEN);
     return true;
 }
