@@ -67,9 +67,7 @@ public:
 
     ObjHeader*& operator[](size_t field) { return object_.fields()[field]; }
 
-    void MakePermanent() {
-        header()->typeInfoOrMeta_ = setPointerBits(header()->typeInfoOrMeta_, OBJECT_TAG_PERMANENT_CONTAINER);
-    }
+    void MakePermanent() { header()->typeInfoOrMeta_ = setPointerBits(header()->typeInfoOrMeta_, OBJECT_TAG_PERMANENT_CONTAINER); }
 
 private:
     test_support::TypeInfoHolder type_;
@@ -92,9 +90,7 @@ public:
 
     ObjHeader*& operator[](size_t index) { return array_.elements()[index]; }
 
-    void MakePermanent() {
-        header()->typeInfoOrMeta_ = setPointerBits(header()->typeInfoOrMeta_, OBJECT_TAG_PERMANENT_CONTAINER);
-    }
+    void MakePermanent() { header()->typeInfoOrMeta_ = setPointerBits(header()->typeInfoOrMeta_, OBJECT_TAG_PERMANENT_CONTAINER); }
 
 private:
     test_support::ObjectArray<Elements> array_;

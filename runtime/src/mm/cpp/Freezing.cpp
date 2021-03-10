@@ -21,7 +21,7 @@ bool IsPermanentOrFrozen(const ObjHeader* object) noexcept {
     return object->permanent() || mm::IsFrozen(object);
 }
 
-}
+} // namespace
 
 bool mm::IsFrozen(const ObjHeader* object) noexcept {
     if (auto* extraObjectData = mm::ExtraObjectData::Get(object)) {
@@ -31,8 +31,7 @@ bool mm::IsFrozen(const ObjHeader* object) noexcept {
 }
 
 ObjHeader* mm::FreezeSubgraph(ObjHeader* root) noexcept {
-    if (IsPermanentOrFrozen(root))
-        return nullptr;
+    if (IsPermanentOrFrozen(root)) return nullptr;
 
     KStdVector<ObjHeader*> objects;
     KStdVector<ObjHeader*> stack;
