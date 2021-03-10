@@ -96,8 +96,6 @@ public:
             return *reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(header) + header->type_info()->objOffsets_[index_]);
         }
 
-        ObjHeader** operator->() noexcept { return &*this; }
-
         FieldIterator& operator++() noexcept {
             ++index_;
             return *this;
