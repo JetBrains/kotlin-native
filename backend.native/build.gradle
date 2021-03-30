@@ -50,6 +50,10 @@ sourceSets {
     }
 }
 
+compileCli_bcKotlin {
+    kotlinOptions.freeCompilerArgs += "-Xskip-prerelease-check"
+}
+
 compileCompilerKotlin {
     dependsOn('renamePackage')
     // The protobuf plugin specifies this dependency for java by itself,
@@ -65,6 +69,8 @@ compileCompilerKotlin {
 
     kotlinOptions.allWarningsAsErrors=true
     kotlinOptions.freeCompilerArgs += ['-Xopt-in=kotlin.RequiresOptIn', '-Xopt-in=org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI']
+
+    kotlinOptions.freeCompilerArgs += "-Xskip-prerelease-check"
 }
 
 compileCompilerJava {
