@@ -64,13 +64,16 @@ private external fun String.replace(oldChar: Char, newChar: Char): String
 
 @OptIn(ExperimentalStdlibApi::class)
 private fun String.replaceIgnoreCase(oldChar: Char, newChar: Char): String {
-    val charArray = CharArray(length)
-    val oldCharLower = oldChar.lowercaseChar()
+    val charArray = this.toCharArray()
+    val oldCharUpper = oldChar.uppercaseChar()
+    val oldCharLower = oldCharUpper.lowercaseChar()
 
     for (index in 0 until length) {
         val thisChar = this[index]
-        val thisCharLower = thisChar.lowercaseChar()
-        charArray[index] = if (thisCharLower == oldCharLower) newChar else thisChar
+        if (thisChar != oldChar && thisChar.uppercaseChar().let { it != oldCharUpper && it.lowercaseChar() != oldCharLower }) {
+            continue
+        }
+        charArray[index] = newChar
     }
 
     return charArray.concatToString()
@@ -188,9 +191,9 @@ private external fun String.unsafeRangeEquals(thisOffset: Int, other: String, ot
 @OptIn(ExperimentalStdlibApi::class)
 private fun String.unsafeRangeEqualsIgnoreCase(thisOffset: Int, other: String, otherOffset: Int, length: Int): Boolean {
     for (index in 0 until length) {
-        val thisCharLower = this[thisOffset + index].lowercaseChar()
-        val otherCharLower = other[otherOffset + index].lowercaseChar()
-        if (thisCharLower != otherCharLower) {
+        val thisCharUpper = this[thisOffset + index].uppercaseChar()
+        val otherCharUpper = other[otherOffset + index].uppercaseChar()
+        if (thisCharUpper != otherCharUpper && thisCharUpper.lowercaseChar() != otherCharUpper.lowercaseChar()) {
             return false
         }
     }
@@ -406,8 +409,8 @@ internal fun compareToIgnoreCase(thiz: String, other: String): Int {
     val length = minOf(thiz.length, other.length)
 
     for (index in 0 until length) {
-        val thisLowerChar = thiz[index].lowercaseChar()
-        val otherLowerChar = other[index].lowercaseChar()
+        val thisLowerChar = thiz[index].uppercaseChar().lowercaseChar()
+        val otherLowerChar = other[index].uppercaseChar().lowercaseChar()
         if (thisLowerChar != otherLowerChar) {
             return if (thisLowerChar < otherLowerChar) -1 else 1
         }
