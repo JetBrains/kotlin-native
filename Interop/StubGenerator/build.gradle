@@ -47,7 +47,7 @@ dependencies {
 compileKotlin {
     kotlinOptions {
         freeCompilerArgs = ['-Xopt-in=kotlin.ExperimentalUnsignedTypes', '-Xskip-metadata-version-check']
-        allWarningsAsErrors=true
+        // allWarningsAsErrors=true
 
         // Setting jvmTarget using DSL doesn't seem to work.
         // This is _likely_ caused by using different versions of compiler (before changing the default JVM target)
