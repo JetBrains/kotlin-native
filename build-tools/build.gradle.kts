@@ -43,10 +43,8 @@ repositories {
     maven(buildKotlinCompilerRepo)
     maven("https://cache-redirector.jetbrains.com/maven-central")
     mavenCentral()
-    maven("https://kotlin.bintray.com/kotlinx")
-    maven("https://dl.bintray.com/kotlin/kotlin-dev")
-    maven("https://cache-redirector.jetbrains.com/jcenter")
-    jcenter()
+    maven("https://plugins.gradle.org/m2/")
+    maven("https://cache-redirector.jetbrains.com/maven.pkg.jetbrains.space/kotlin/p/kotlin/kotlin-dependencies")
 }
 
 dependencies {
