@@ -346,7 +346,7 @@ publishing {
         mavenMobile(MavenPublication) {
             groupId = 'org.jetbrains.kotlin'
             artifactId = 'backend.native'
-            version = '1.4.32-mobile-1' // CHANGE VERSION HERE
+            version = '1.4.32-mobile-2' // CHANGE VERSION HERE
 
             from components.java
         }
