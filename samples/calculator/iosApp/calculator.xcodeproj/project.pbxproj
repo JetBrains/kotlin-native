@@ -41,6 +41,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		20BC9FAD262DE33400389C40 /* KotlinCalculator.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KotlinCalculator.entitlements; sourceTree = "<group>"; };
 		2C3F38411FD1738300151601 /* KotlinCalculator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KotlinCalculator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C3F38441FD1738300151601 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		2C3F38461FD1738300151601 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -67,6 +68,7 @@
 		2C3F38381FD1738300151601 = {
 			isa = PBXGroup;
 			children = (
+				20BC9FAD262DE33400389C40 /* KotlinCalculator.entitlements */,
 				2C3F38431FD1738300151601 /* calculator */,
 				7FF94ADA2058464C00590D0D /* arithmeticParser */,
 				2C3F38421FD1738300151601 /* Products */,
@@ -393,8 +395,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = KotlinCalculator.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = Z2F65GF2VH;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = $BUILT_PRODUCTS_DIR;
 				INFOPLIST_FILE = calculator/Info.plist;
@@ -402,6 +405,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.jetbrains.konan.calculator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_VERSION = 4.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -411,8 +415,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = KotlinCalculator.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = Z2F65GF2VH;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = $BUILT_PRODUCTS_DIR;
 				INFOPLIST_FILE = calculator/Info.plist;
@@ -420,6 +425,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.jetbrains.konan.calculator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_VERSION = 4.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
