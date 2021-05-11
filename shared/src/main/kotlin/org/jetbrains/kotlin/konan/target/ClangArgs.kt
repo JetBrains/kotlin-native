@@ -104,48 +104,40 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
         )
 
         KonanTarget.IOS_ARM32 -> listOf(
-                "-stdlib=libc++",
                 "-arch", "armv7",
                 "-miphoneos-version-min=$osVersionMin"
         )
 
         KonanTarget.IOS_ARM64 -> listOf(
-                "-stdlib=libc++",
                 "-arch", "arm64",
                 "-miphoneos-version-min=$osVersionMin"
         )
 
         KonanTarget.IOS_X64 -> listOf(
-                "-stdlib=libc++",
                 "-miphoneos-version-min=$osVersionMin"
         )
 
         KonanTarget.TVOS_ARM64 -> listOf(
-                "-stdlib=libc++",
                 "-arch", "arm64",
                 "-mtvos-version-min=$osVersionMin"
         )
 
         KonanTarget.TVOS_X64 -> listOf(
-                "-stdlib=libc++",
                 "-mtvos-simulator-version-min=$osVersionMin"
         )
 
         KonanTarget.WATCHOS_ARM64,
         KonanTarget.WATCHOS_ARM32 -> listOf(
-                "-stdlib=libc++",
                 "-arch", "armv7k",
                 "-mwatchos-version-min=$osVersionMin"
         )
 
         KonanTarget.WATCHOS_X86 -> listOf(
-                "-stdlib=libc++",
                 "-arch", "i386",
                 "-mwatchos-simulator-version-min=$osVersionMin"
         )
 
         KonanTarget.WATCHOS_X64 -> listOf(
-                "-stdlib=libc++",
                 "-mwatchos-simulator-version-min=$osVersionMin"
         )
 
@@ -210,8 +202,20 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
 
     val clangArgs = (commonClangArgs + specificClangArgs).toTypedArray()
 
+    val clangXXArgs = clangArgs + when (configurables) {
+        is AppleConfigurables -> arrayOf(
+                "-stdlib=libc++",
+                // Starting from Xcode 12.5, platform SDKs contain C++ stdlib.
+                // It results in two c++ stdlib in search path (one from LLVM, another from SDK).
+                // We workaround this problem by explicitly specifying path to stdlib.
+                // TODO: Revise after LLVM update.
+                "-nostdinc++", "-isystem", "$absoluteLlvmHome/include/c++/v1"
+        )
+        else -> emptyArray()
+    }
+
     val clangArgsForKonanSources =
-            clangArgs + clangArgsSpecificForKonanSources
+            clangXXArgs + clangArgsSpecificForKonanSources
 
     val targetLibclangArgs: List<String> =
             // libclang works not exactly the same way as the clang binary and
@@ -224,7 +228,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
             = listOf("${absoluteLlvmHome}/bin/clang") + clangArgs
 
     private val targetClangXXCmd
-            = listOf("${absoluteLlvmHome}/bin/clang++") + clangArgs
+            = listOf("${absoluteLlvmHome}/bin/clang++") + clangXXArgs
 
     fun clangC(vararg userArgs: String) = targetClangCmd + userArgs.asList()
 
