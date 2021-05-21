@@ -219,6 +219,7 @@ dependencies {
     }
     distPack project(':Interop:Runtime')
     distPack project(':Interop:Indexer')
+    distPack project(':Interop:Skia')
     distPack project(':Interop:StubGenerator')
     distPack project(':backend.native')
     distPack project(':utilities:cli-runner')

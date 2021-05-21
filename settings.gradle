@@ -18,6 +18,7 @@
 include ':dependencies'
 include ':Interop:Indexer'
 include ':Interop:JsRuntime'
+include ':Interop:Skia'
 include ':Interop:StubGenerator'
 include ':Interop:Runtime'
 include ':llvmCoverageMappingC'
