@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.CleanableBindingContext
 import org.jetbrains.kotlin.utils.DFS
+import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 
 internal fun Context.psiToIr(
         symbolTable: SymbolTable,
@@ -145,21 +146,23 @@ internal fun Context.psiToIr(
         }
     }
 
+    val pluginContext = IrPluginContextImpl(
+            generatorContext.moduleDescriptor,
+            generatorContext.bindingContext,
+            generatorContext.languageVersionSettings,
+            generatorContext.symbolTable,
+            generatorContext.typeTranslator,
+            generatorContext.irBuiltIns,
+            linker = irDeserializer
+    )
+/*
     translator.addPostprocessingStep { module ->
-        val pluginContext = IrPluginContextImpl(
-                generatorContext.moduleDescriptor,
-                generatorContext.bindingContext,
-                generatorContext.languageVersionSettings,
-                generatorContext.symbolTable,
-                generatorContext.typeTranslator,
-                generatorContext.irBuiltIns,
-                linker = irDeserializer
-        )
-        pluginExtensions.forEach { extension ->
+         pluginExtensions.forEach { extension ->
             extension.generate(module, pluginContext)
         }
     }
-
+*/
+    
     expectDescriptorToSymbol = mutableMapOf()
     val mainModule = translator.generateModuleFragment(
             generatorContext,
@@ -184,6 +187,18 @@ internal fun Context.psiToIr(
     // mainModule.acceptVoid(ManglerChecker(KonanManglerIr, Ir2DescriptorManglerAdapter(KonanManglerDesc)))
 
     val modules = if (isProducingLibrary) emptyMap() else (irDeserializer as KonanIrLinker).modules
+
+    pluginExtensions.forEach { extension ->
+        if (isProducingLibrary) return@forEach
+
+        modules.values.forEach { module ->
+            if (!module.descriptor.isFromInteropLibrary() &&
+                !module.descriptor.isNativeStdlib()) { // TODO: this is to workaround extensive deep copying in the compose plugin.
+                println("APPLYING PLUGIN ${extension} to ${module.descriptor.name}")
+                extension.generate(module, pluginContext)
+            }
+        }
+    }
 
     if (config.configuration.getBoolean(KonanConfigKeys.FAKE_OVERRIDE_VALIDATOR)) {
         val fakeOverrideChecker = FakeOverrideChecker(KonanManglerIr, KonanManglerDesc)
