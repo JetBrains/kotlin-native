@@ -99,7 +99,7 @@ private fun IrFunction.typeWithKindAt(index: ParameterIndex) = when (index) {
     }
     ParameterIndex.DISPATCH_RECEIVER_INDEX -> TypeWithKind.fromType(dispatchReceiverParameter?.type)
     ParameterIndex.EXTENSION_RECEIVER_INDEX -> TypeWithKind.fromType(extensionReceiverParameter?.type)
-    else -> TypeWithKind.fromType(this.valueParameters[index.unmap()].type)
+    else -> try { TypeWithKind.fromType(this.valueParameters[index.unmap()].type) } catch (e: Throwable) { error("EXCEPTION: ${e.message} for $index of ${this.render()}") }
 }
 
 private fun IrFunction.needBridgeToAt(target: IrFunction, index: ParameterIndex)
@@ -152,7 +152,8 @@ private fun IrFunction.bridgeDirectionToAt(overriddenFunction: IrFunction, index
         TypeKind.VALUE_TYPE -> BridgeDirection(
                 irClass?.erasure().takeIf { otherKind == TypeKind.VOID } /* Otherwise erase to [Any?] */,
                 BridgeDirectionKind.BOX)
-        TypeKind.ABSENT -> error("TypeKind.ABSENT should be on both sides")
+        // TODO: a temporary hack. Don't push me.
+        TypeKind.ABSENT -> error("TypeKind.ABSENT should be on both sides. ${this.render()}\nIN ${this.parent.render()}\nFILE${this.fileOrNull?.fileEntry?.name}\n${overriddenFunction.render()}\nIN ${overriddenFunction.parent.render()}\nFILE ${overriddenFunction.fileOrNull?.fileEntry?.name}\n$index\n$kind\n$otherKind")
     }
 }
 

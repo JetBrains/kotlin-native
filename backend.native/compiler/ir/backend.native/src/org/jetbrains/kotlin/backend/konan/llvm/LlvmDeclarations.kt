@@ -33,7 +33,15 @@ enum class UniqueKind(val llvmName: String) {
 
 internal class LlvmDeclarations(private val unique: Map<UniqueKind, UniqueLlvmDeclarations>) {
     fun forFunction(function: IrFunction) = forFunctionOrNull(function) ?: with(function){error("$name in $file/${parent.fqNameForIrSerialization}")}
-    fun forFunctionOrNull(function: IrFunction) = (function.metadata as? CodegenFunctionMetadata)?.llvm
+    fun forFunctionOrNull(function: IrFunction): FunctionLlvmDeclarations? {
+        if (function.name.toString() == "sourceInformation") {
+            println("LLVM DECL search $function ${function.render()}")
+            println("${function.metadata}")
+            println("${function.metadata as? CodegenFunctionMetadata}")
+            println("${(function.metadata as? CodegenFunctionMetadata)?.llvm}")
+        }
+        return (function.metadata as? CodegenFunctionMetadata)?.llvm
+    }
 
     fun forClass(irClass: IrClass) = (irClass.metadata as? CodegenClassMetadata)?.llvm ?:
             error(irClass.descriptor.toString())
@@ -377,6 +385,9 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             }
         }
 
+        if (declaration.name.toString() == "sourceInformation") {
+            println("LLVM creating metadata for $declaration ${declaration.render()}")
+        }
         declaration.metadata = CodegenFunctionMetadata(
                 declaration.metadata?.name,
                 declaration.konanLibrary,
