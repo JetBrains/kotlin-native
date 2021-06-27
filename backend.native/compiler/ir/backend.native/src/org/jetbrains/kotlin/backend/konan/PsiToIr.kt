@@ -188,18 +188,6 @@ internal fun Context.psiToIr(
 
     val modules = if (isProducingLibrary) emptyMap() else (irDeserializer as KonanIrLinker).modules
 
-    pluginExtensions.forEach { extension ->
-        if (isProducingLibrary) return@forEach
-
-        modules.values.forEach { module ->
-            if (!module.descriptor.isFromInteropLibrary() &&
-                !module.descriptor.isNativeStdlib()) { // TODO: this is to workaround extensive deep copying in the compose plugin.
-                println("APPLYING PLUGIN ${extension} to ${module.descriptor.name}")
-                extension.generate(module, pluginContext)
-            }
-        }
-    }
-
     if (config.configuration.getBoolean(KonanConfigKeys.FAKE_OVERRIDE_VALIDATOR)) {
         val fakeOverrideChecker = FakeOverrideChecker(KonanManglerIr, KonanManglerDesc)
         modules.values.forEach { fakeOverrideChecker.check(it) }
@@ -211,6 +199,23 @@ internal fun Context.psiToIr(
     irModules = modules.filterValues { llvmModuleSpecification.containsModule(it) }
 
     ir.symbols = symbols
+
+
+    pluginExtensions.forEach { extension ->
+        if (isProducingLibrary) return@forEach
+
+        val sortedModules = this.librariesWithDependencies
+            .mapNotNull { this.irModules[it.libraryName] } + mainModule
+
+        sortedModules.forEach { module ->
+            if (!module.descriptor.isFromInteropLibrary() &&
+                    !module.descriptor.isNativeStdlib()) { // TODO: this is to workaround extensive deep copying in the compose plugin.
+                println("APPLYING PLUGIN ${extension} to ${module.descriptor.name}")
+                extension.generate(module, pluginContext)
+            }
+        }
+    }
+
 
     if (!isProducingLibrary) {
         if (this.stdlibModule in modulesWithoutDCE)
