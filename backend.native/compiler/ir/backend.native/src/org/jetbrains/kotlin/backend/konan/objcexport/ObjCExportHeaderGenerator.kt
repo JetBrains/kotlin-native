@@ -289,11 +289,7 @@ internal class ObjCExportTranslatorImpl(
             return translateUnexposedClassAsUnavailableStub(descriptor)
         }
 
-        val genericExportScope = if (objcGenerics) {
-            ObjCClassExportScope(descriptor, namer)
-        } else {
-            ObjCNoneExportScope
-        }
+        val genericExportScope = createGenericExportScope(descriptor)
 
         fun superClassGenerics(genericExportScope: ObjCExportScope): List<ObjCNonNullReferenceType> {
             if (objcGenerics) {
@@ -410,6 +406,12 @@ internal class ObjCExportTranslatorImpl(
                 members = members,
                 attributes = attributes
         )
+    }
+
+    internal fun createGenericExportScope(descriptor: ClassDescriptor): ObjCExportScope = if (objcGenerics) {
+        ObjCClassExportScope(descriptor, namer)
+    } else {
+        ObjCNoneExportScope
     }
 
     private fun buildEnumValuesMethod(
@@ -579,7 +581,7 @@ internal class ObjCExportTranslatorImpl(
         return ObjCProperty(name, property, type, attributes, setterName, getterName, declarationAttributes)
     }
 
-    private fun buildMethod(
+    internal fun buildMethod(
             method: FunctionDescriptor,
             baseMethod: FunctionDescriptor,
             objCExportScope: ObjCExportScope,
