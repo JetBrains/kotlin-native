@@ -256,6 +256,24 @@ internal class StructStubBuilder(
                         }
                     }.filterNotNull()
 
+        // In case C++ doesnt mention the default constructor explicitly.
+        val defaultConstructor = if (
+                context.configuration.library.language != Language.CPP ||
+                def.kind != StructDef.Kind.CLASS ||
+                secondaryConstructors.any { it.parameters.isEmpty() }
+        ) {
+            emptyList()
+        } else {
+            listOf(
+                    ConstructorStub(
+                            emptyList(),
+                            emptyList(),
+                            isPrimary = false,
+                            origin = StubOrigin.Synthetic.DefaultConstructor,
+                    )
+            )
+        } 
+
         val classFields = def.staticFields
                 .map { field -> (GlobalStubBuilder(context, field).build().map{ it as PropertyStub }).single() }
 
@@ -283,7 +301,7 @@ internal class StructStubBuilder(
                 classifier,
                 origin = origin,
                 properties = fields.filterNotNull() + if (platform == KotlinPlatform.NATIVE) bitFields else emptyList(),
-                constructors = listOf(primaryConstructor) + secondaryConstructors,
+                constructors = listOf(primaryConstructor) + secondaryConstructors + defaultConstructor,
                 methods = methods,
                 modality = ClassStubModality.NONE,
                 annotations = structAnnotations,
